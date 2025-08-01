@@ -1,0 +1,1 @@
+﻿dotnet ef dbcontext scaffold "Data Source=.;Initial Catalog=TeamA_Project;Integrated Security=True;Encrypt=True;Trust Server Certificate=True" Microsoft.EntityFrameworkCore.SqlServer -o Models -f --no-onconfiguring
