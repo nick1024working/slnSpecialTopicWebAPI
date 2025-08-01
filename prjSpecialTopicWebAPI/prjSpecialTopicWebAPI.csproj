@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="AutoMapper" Version="15.0.1" />
     <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="8.0.18" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.7" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.7">
@@ -20,8 +21,8 @@
     <Folder Include="Features\Ebook\" />
     <Folder Include="Features\Fund\" />
     <Folder Include="Features\Forum\" />
+    <Folder Include="Features\Usedbook\_tmp\" />
     <Folder Include="Features\User\" />
-    <Folder Include="Features\Usedbook\" />
     <Folder Include="wwwroot\" />
   </ItemGroup>
 

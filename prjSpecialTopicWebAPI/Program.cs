@@ -1,5 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
+using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories;
+using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.UnitOfWork;
+using prjSpecialTopicWebAPI.Features.Usedbook.Mapping;
 using prjSpecialTopicWebAPI.Models;
+using prjSpecialTopicWebAPI.Usedbook.Application.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +32,25 @@ builder.Services.AddDbContext<TeamAProjectContext>(options =>
 
 // Usedbook
 
+// 딩쩤 Unit Of Work
+builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+
+// 딩쩤 AutoMapper
+builder.Services.AddAutoMapper(cfg => { cfg.AddProfile<MappingProfile>(); });
+
+// 딩쩤 Lookup Repositories + Lookup Services
+builder.Services.AddScoped<BookBindingRepository>();
+builder.Services.AddScoped<BookConditionRatingRepository>();
+builder.Services.AddScoped<ContentRatingRepository>();
+builder.Services.AddScoped<CountyRepository>();
+builder.Services.AddScoped<DistrictRepository>();
+builder.Services.AddScoped<LanguageRepository>();
+builder.Services.AddScoped<LookupService>();
+
+// 딩쩤 Usedbook Repositories + Services
+builder.Services.AddScoped<BookSaleTagRepository>();
+
+builder.Services.AddScoped<BookSaleTagService>();
 
 // User
 

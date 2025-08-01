@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace prjSpecialTopicWebAPI.Models;
+﻿namespace prjSpecialTopicWebAPI.Models;
 
 public partial class BookSaleTag
 {
