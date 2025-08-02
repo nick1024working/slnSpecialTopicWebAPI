@@ -38,6 +38,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
                 var entity = new BookSaleTag
                 {
                     Name = request.SaleTagName,
+                    IsActive = true,
                 };
 
                 _bookSaleTagRepository.Add(entity);

@@ -10,7 +10,7 @@ namespace prjBookAppCoreMVC.Controllers.UsedBook
 {
     [ApiController]
     [Route("api/usedbooks/sale-tags")]
-    [Authorize(Roles = RoleNames.Admin)]
+    //[Authorize(Roles = RoleNames.Admin)]
     public class UsedBookSaleTagController : ControllerBase
     {
         private readonly BookSaleTagService _bookSaleTagService;
