@@ -3,6 +3,7 @@
     public record BookSaleTagDto
     {
         public int Id { get; set; }
-        public string SaleTagName { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public bool IsActive { get; set; }
     }
 }

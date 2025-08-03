@@ -1,91 +1,52 @@
 ﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories;
-using prjSpecialTopicWebAPI.Usedbook.Tests.Infrastructure;
+using prjSpecialTopicWebAPI.Models;
+using prjSpecialTopicWebAPI.Usedbook.Tests.Infrastructure.Fixtures;
 
 namespace prjSpecialTopicWebAPI.Usedbook.Tests.Unit
 {
+    [Collection("SqliteDbCollection")]
     public class BookSaleTagRepositoryTests
     {
+        private readonly TeamAProjectContext _db;
+
+        public BookSaleTagRepositoryTests(SqliteDbFixture dbFixture)
+        {
+            _db = dbFixture.DbContext;
+        }
+
         [Fact]
         public async Task Add_Should_InsertRecord()
         {
             // Arrange
-            await using var ctx = TestDbContextFactory.CreateSqliteInMemoryContext();
-            var repo = new BookSaleTagRepository(ctx);
-            var entity = TestDataFactory.CreateBookSaleTagEntity();
+            var repo = new BookSaleTagRepository(_db);
+            var entity = new BookSaleTag { Name = "促銷標籤" + Guid.NewGuid().ToString(), IsActive = true };
 
             // Act
             repo.Add(entity);
-            await ctx.SaveChangesAsync();
+            await _db.SaveChangesAsync();
 
             // Assert
             entity.Id.Should().BeGreaterThan(0);
-            var exists = await ctx.BookSaleTags
+            var exists = await _db.BookSaleTags
                 .AnyAsync(t => t.Id == entity.Id && t.Name == entity.Name && t.IsActive);
             exists.Should().BeTrue();
-        }
-
-        [Fact]
-        public async Task UpdateAsync_Should_UpdateRecord()
-        {
-            // Arrange
-            await using var ctx = TestDbContextFactory.CreateSqliteInMemoryContext();
-
-            var entityBefore = TestDataFactory.CreateBookSaleTagEntity();
-            ctx.BookSaleTags.Add(entityBefore);
-            await ctx.SaveChangesAsync();
-
-            var repo = new BookSaleTagRepository(ctx);
-            var entityUpdate = TestDataFactory.CreateBookSaleTagEntity();
-            entityUpdate.Id = entityBefore.Id;
-
-            // Act
-            var result = await repo.UpdateAsync(entityUpdate);
-            await ctx.SaveChangesAsync();
-
-            // Assert
-            result.Should().BeTrue();
-            var exists = await ctx.BookSaleTags
-                .AnyAsync(t => t.Id == entityUpdate.Id && t.Name == entityUpdate.Name);
-            exists.Should().BeTrue();
-        }
-
-        [Fact]
-        public async Task UpdateActiveStatusAsync_Should_ToggleFlag()
-        {
-            // Arrange
-            await using var ctx = TestDbContextFactory.CreateSqliteInMemoryContext();
-
-            var entityBefore = TestDataFactory.CreateBookSaleTagEntity();
-            ctx.BookSaleTags.Add(entityBefore);
-            await ctx.SaveChangesAsync();
-
-            var repo = new BookSaleTagRepository(ctx);
-
-            // Act
-            var result = await repo.UpdateActiveStatusAsync(entityBefore.Id, false);
-            await ctx.SaveChangesAsync();
-
-            // Assert
-            result.Should().BeTrue();
-            var exists = (await ctx.BookSaleTags.FindAsync(entityBefore.Id))!.IsActive.Should().BeFalse();
         }
 
         [Fact]
         public async Task AddDuplicateName_Should_Throw()
         {
             // Arrange
-            await using var ctx = TestDbContextFactory.CreateSqliteInMemoryContext();
-            var repo = new BookSaleTagRepository(ctx);
-            var entity = TestDataFactory.CreateBookSaleTagEntity();
+            var repo = new BookSaleTagRepository(_db);
+            var entity = new BookSaleTag { Name = "促銷標籤" + Guid.NewGuid().ToString(), IsActive = true };
 
-            ctx.BookSaleTags.Add(entity);
-            await ctx.SaveChangesAsync();
+            _db.BookSaleTags.Add(entity);
+            await _db.SaveChangesAsync();
 
             // Act
             repo.Add(entity);
-            Func<Task> act = () => ctx.SaveChangesAsync();
+            Func<Task> act = () => _db.SaveChangesAsync();
 
             // Assert
             await act.Should().ThrowAsync<DbUpdateException>();

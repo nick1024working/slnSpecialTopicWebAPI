@@ -29,18 +29,15 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
         }
 
         /// <summary>
-        /// 新增促銷標籤。
+        /// 新增一筆促銷標籤資料。
         /// </summary>
+        // TODO: 需考慮交易完整性、名稱 UNIQUE
         public async Task<Result<int>> CreateAsync(CreateSaleTagRequest request, CancellationToken ct = default)
         {
             try
             {
-                var entity = new BookSaleTag
-                {
-                    Name = request.SaleTagName,
-                    IsActive = true,
-                };
-
+                var entity = _mapper.Map<BookSaleTag>(request);
+                entity.DisplayOrder = await _bookSaleTagRepository.CountAsync(ct) + 1;
                 _bookSaleTagRepository.Add(entity);
 
                 await _unitOfWork.CommitAsync(ct);
@@ -53,87 +50,111 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
         }
 
         /// <summary>
-        /// 更新所有促銷標籤。
+        /// 依照 ID 刪除促銷標籤資料，此方法具冪等性。
         /// </summary>
-        public async Task<Result<IReadOnlyList<int>>> UpdateAllAsync(IEnumerable<UpdateBookSaleTagRequest> requestList, CancellationToken ct = default)
+        // TODO: 須考慮書本關聯性
+        public async Task<Result<Unit>> DeleteByIdAsync(int id, CancellationToken ct = default)
         {
-            var entityList = requestList
-                .Select(x => new BookSaleTag
-                {
-                    Name = x.SaleTagName,
-                    DisplayOrder = x.DisplayOrder,
-                    IsActive = true
-                })
-                .ToList();
+            try
+            {
+                var cmdResult = await _bookSaleTagRepository.RemoveByIdAsync(id, ct);
+                if (cmdResult)
+                    await _unitOfWork.CommitAsync(ct);
+                return Result<Unit>.Success(Unit.Value);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
+            }
+        }
 
+        /// <summary>
+        /// 依照 ID 更新促銷標籤資料，不能更新排序。
+        /// </summary>
+        public async Task<Result<Unit>> UpdateByIdAsync(int id, UpdatePartialBookSaleTagRequest request, CancellationToken ct = default)
+        {
+            try
+            {
+                var entity = await _bookSaleTagRepository.GetEntityByIdAsync(id, ct);
+                if (entity is null)
+                    return Result<Unit>.Failure("找不到要更新的促銷標籤", ErrorCodes.General.NotFound);
+
+                entity.Name = request.Name ?? entity.Name;
+                entity.IsActive = request.IsActive ?? entity.IsActive;
+
+                await _unitOfWork.CommitAsync(ct);
+                return Result<Unit>.Success(Unit.Value);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
+            }
+        }
+
+        /// <summary>
+        /// 批次更新所有促銷標籤資料，與當前所有促銷標籤資料進行比較。
+        /// </summary>
+        public async Task<Result<Unit>> UpdateAllAsync(IEnumerable<UpdateBookSaleTagRequest> requestList, CancellationToken ct = default)
+        {
             await _unitOfWork.BeginTransactionAsync(ct);
             try
             {
-                await _bookSaleTagRepository.UpdateAllAsync(entityList, ct);
+                var entityList = await _bookSaleTagRepository.GetEntityListAsync(ct);
+                var entityDict = entityList.ToDictionary(x => x.Id);
+                var idSet = entityList.Select(x => x.Id).ToHashSet();
+                var removeList = new List<BookSaleTag>();
+                var addList = new List<BookSaleTag>();
+
+                // 遍歷 requestList，將新增和更新的項目分別加入到 addList 和 entityList 中
+                int order = 1;
+                foreach (var request in requestList)
+                {
+                    // 無 Id 代表要新增
+                    if (request.Id is not int id)
+                    {
+                        addList.Add(new BookSaleTag
+                        {
+                            Name = request.Name,
+                            IsActive = true,
+                            DisplayOrder = order,
+                        });
+                    }
+                    // 有 Id 代表要更新
+                    else if (entityDict.TryGetValue(id, out var entity))
+                    {
+                        entity.Name = request.Name;
+                        entity.IsActive = request.IsActive;
+                        entity.DisplayOrder = order;
+                    }
+                    // 非法 Id 整批駁回
+                    else
+                    {
+                        await _unitOfWork.RollbackAsync(ct);
+                        return Result<Unit>.Failure("有不合法的促銷標籤 Id，請確認後再試", ErrorCodes.General.BadRequest);
+                    }
+                    ++order;
+                }
+
+                // 處理 entityList 中不在 requestList 中的項目
+                idSet = requestList.Where(r => r.Id.HasValue).Select(r => r.Id.Value).ToHashSet();
+                removeList = entityList.Where(e => !idSet.Contains(e.Id)).ToList();
+
+                // 執行
+                _bookSaleTagRepository.AddRange(addList);
+                _bookSaleTagRepository.RemoveRange(removeList);
                 await _unitOfWork.CommitAsync(ct);
 
-                var result = entityList.Select(x => x.Id).ToList();
-
-                return Result<IReadOnlyList<int>>.Success(result);
+                return Result<Unit>.Success(Unit.Value);
             }
             catch (Exception ex)
             {
                 await _unitOfWork.RollbackAsync(ct);
-                return ExceptionToErrorResultMapper<IReadOnlyList<int>>.Map(ex, _logger);
-            }
-        }
-
-
-        /// <summary>
-        /// 跟新指定促銷標籤啟用狀態，此操作具備冪等性。
-        /// </summary>
-        public async Task<Result<Unit>> UpdateActiveStatusAsync(int saleTagId, bool isActive, CancellationToken ct = default)
-        {
-            try
-            {
-                var commandResult = await _bookSaleTagRepository.UpdateActiveStatusAsync(saleTagId, isActive, ct);
-                if (commandResult)
-                    await _unitOfWork.CommitAsync(ct);
-
-                return Result<Unit>.Success(Unit.Value);
-            }
-            catch (Exception ex)
-            {
                 return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
             }
         }
 
-        /// <summary>
-        /// 依照 Id 更新促銷標籤。
-        /// </summary>
-        public async Task<Result<Unit>> UpdateSaleTagNameAsync(
-            int saleTagId, UpdateBookSaleTagRequest request, CancellationToken ct = default)
-        {
-            try
-            {
-                var entity = new BookSaleTag
-                {
-                    Id = saleTagId,
-                    Name = request.SaleTagName,
-                };
+        // ========== 查詢 ==========
 
-                var commandResult = await _bookSaleTagRepository.UpdateAsync(entity, ct);
-                if (commandResult == false)
-                    return Result<Unit>.Failure("找不到要更新的促銷標籤", ErrorCodes.General.NotFound);
-
-                await _unitOfWork.CommitAsync(ct);
-                return Result<Unit>.Success(Unit.Value);
-            }
-            catch (Exception ex)
-            {
-                return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
-            }
-        }
-
-        /// <summary>
-        /// 根據 Id 查詢銷售標籤。
-        /// </summary>
-        /// <exception cref="InvalidOperationException">查詢結果超過一筆時拋出，通常代表資料違反唯一性約束。</exception>
         public async Task<Result<BookSaleTagDto>> GetByIdAsync(int id, CancellationToken ct = default)
         {
             try
@@ -151,9 +172,23 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
             }
         }
 
-        /// <summary>
-        /// 查詢所有促銷標籤。
-        /// </summary>
+        public async Task<Result<IReadOnlyList<BookSaleTagDto>>> GetByBookIdAsync(Guid bookId, CancellationToken ct = default)
+        {
+            try
+            {
+                var queryResult = await _bookSaleTagRepository.GetByBookIdAsync(bookId, ct);
+                if (queryResult == null)
+                    return Result<IReadOnlyList<BookSaleTagDto>>.Failure("查無符合資料", ErrorCodes.General.NotFound);
+                var dto = _mapper.Map<IReadOnlyList<BookSaleTagDto>>(queryResult);
+
+                return Result<IReadOnlyList<BookSaleTagDto>>.Success(dto);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<IReadOnlyList<BookSaleTagDto>>.Map(ex, _logger);
+            }
+        }
+
         public async Task<Result<IReadOnlyList<BookSaleTagDto>>> GetAllAsync(CancellationToken ct = default)
         {
             try
