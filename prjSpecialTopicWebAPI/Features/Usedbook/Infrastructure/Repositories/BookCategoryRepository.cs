@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using prjSpecialTopicWebAPI.Models;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results;
+using prjSpecialTopicWebAPI.Models;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
 {
@@ -13,28 +13,28 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             _db = context;
         }
 
-        public async Task<bool> ExistsAsync(int id, CancellationToken ct) =>
-             await _db.BookCategories.AsNoTracking().AnyAsync(t => t.Id == id, ct);
+        // ========== 通用 ==========
+
+        public async Task<bool> HasRecords(CancellationToken ct = default) => await _db.BookCategories.AnyAsync(ct);
+
+        public async Task<int> GetMaxDisplayOrderByGroupIdAsync(int groupId, CancellationToken ct = default) =>
+            await _db.BookCategories.AsNoTracking().Where(cg => cg.GroupId == groupId).MaxAsync(cg => cg.DisplayOrder, ct);
+
+        public async Task<bool> ExistsByNameAndGroupIdAsync(string name, int groupId, CancellationToken ct = default) =>
+             await _db.BookCategories.AsNoTracking().AnyAsync(c => c.Name == name && c.GroupId == groupId, ct);
 
         // ========== 查詢實體 ==========
 
         public async Task<BookCategory?> GetEntityByIdAsync(int id, CancellationToken ct = default) =>
-            await _db.BookCategories
-            .SingleOrDefaultAsync(c => c.Id == id, ct);
+            await _db.BookCategories.FirstOrDefaultAsync(cg => cg.Id == id, ct);
 
-        public async Task<IReadOnlyList<BookCategory>> GetEntityListAsync(CancellationToken ct = default) =>
-            await _db.BookCategories.ToListAsync(ct);
+        public async Task<IReadOnlyList<BookCategory>> GetEntityListByGroupIdAsync(int groupId, CancellationToken ct = default) =>
+            await _db.BookCategories.Where(c => c.GroupId == groupId).ToListAsync(ct);
 
         // ========== 新增、更新、刪除 ==========
 
         public void Add(BookCategory entity) =>
             _db.BookCategories.Add(entity);
-
-        public void AddRange(List<BookCategory> entityList) =>
-            _db.BookCategories.AddRange(entityList);
-
-        public void RemoveRange(List<BookCategory> entityList) =>
-            _db.BookCategories.RemoveRange(entityList);
 
         public async Task<bool> RemoveByIdAsync(int id, CancellationToken ct = default)
         {
@@ -56,22 +56,29 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                 .Select(c => new BookCategoryResult
                 {
                     Id = c.Id,
+                    GroupId = c.GroupId,
                     Name = c.Name,
+                    IsActive = c.IsActive,
+                    Slug = c.Slug,
                 })
                 .SingleOrDefaultAsync(ct);
             return queryResult;
         }
 
-        public async Task<IReadOnlyList<BookCategoryResult>> GetAllAsync(CancellationToken ct = default)
+        public async Task<IReadOnlyList<BookCategoryResult>> GetAllByGroupIdAsync(int groupId, CancellationToken ct = default)
         {
             var queryResult = await _db.BookCategories
                 .AsNoTracking()
+                .Where(c => c.GroupId == groupId)
+                .OrderBy(c => c.DisplayOrder)
                 .Select(c => new BookCategoryResult
                 {
                     Id = c.Id,
+                    GroupId = c.GroupId,
                     Name = c.Name,
+                    IsActive = c.IsActive,
+                    Slug = c.Slug,
                 })
-                .OrderBy(c => c.Id)
                 .ToListAsync(ct);
             return queryResult;
         }

@@ -2,14 +2,10 @@
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests
 {
-    public record CreateBookCategoryRequest
+    public record CreateBookCategoryGroupRequest
     {
-        [Display(Name = "主題分類群 ID")]
-        [Required(ErrorMessage = "主題分類群 ID 為必填欄位")]
-        public int GroupId { get; set; }
-
-        [Display(Name = "主題類別名稱")]
-        [Required(ErrorMessage = "主題類別名稱為必填欄位")]
+        [Display(Name = "主題類別群名稱")]
+        [Required(ErrorMessage = "主題分類群名稱為必填欄位")]
         [StringLength(50, ErrorMessage = "不可超過 50 字")]
         public string Name { get; set; } = string.Empty;
 

@@ -2,10 +2,13 @@
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests
 {
-    public record UpdatePartialBookSaleTagRequest
+    public record UpdatePartialBookCategoryRequest
     {
-        [Display(Name = "促銷標籤名稱")]
-        [StringLength(10, ErrorMessage = "不可超過 10 字")]
+        [Display(Name = "主題分類群 ID")]
+        public int? GroupId { get; set; }
+
+        [Display(Name = "主題類別名稱")]
+        [StringLength(50, ErrorMessage = "不可超過 50 字")]
         public string? Name { get; set; }
 
         [Display(Name = "啟用狀態")]

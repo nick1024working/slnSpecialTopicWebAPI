@@ -2,7 +2,7 @@
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Errors;
-using prjSpecialTopicWebAPI.Usedbook.Application.Services;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
 
 namespace prjBookAppCoreMVC.Controllers.UsedBook
 {
@@ -47,19 +47,9 @@ namespace prjBookAppCoreMVC.Controllers.UsedBook
         }
 
         [HttpPut("order")]
-        public async Task<ActionResult> UpdateAllSaleTagsOrder([FromBody] IReadOnlyList<UpdateBookSaleTagOrderRequest> request, CancellationToken ct)
+        public async Task<ActionResult> UpdateAllSaleTagsOrder([FromBody] IReadOnlyList<UpdateOrderByIdRequest> request, CancellationToken ct)
         {
             var result = await _bookSaleTagService.UpdateAllOrderAsync(request, ct);
-            if (!result.IsSuccess)
-                return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
-            return Ok(result.Value);
-        }
-
-        // NOTE: 目前被 UpdateAllSaleTagsOrder 取代
-        [HttpPut("batch")]
-        public async Task<ActionResult> UpdateAllSaleTags([FromBody] IReadOnlyList<UpdateBookSaleTagRequest> request, CancellationToken ct)
-        {
-            var result = await _bookSaleTagService.UpdateAllAsync(request, ct);
             if (!result.IsSuccess)
                 return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
             return Ok(result.Value);

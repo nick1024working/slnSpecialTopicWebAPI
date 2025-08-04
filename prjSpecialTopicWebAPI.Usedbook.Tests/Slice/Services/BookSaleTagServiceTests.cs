@@ -2,7 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Errors;
-using prjSpecialTopicWebAPI.Usedbook.Application.Services;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
 using prjSpecialTopicWebAPI.Usedbook.Tests.Infrastructure.TestHost;
 
 namespace prjSpecialTopicWebAPI.Usedbook.Tests.Slice.Services
@@ -102,7 +102,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Slice.Services
 
             // ---------- Assert  ----------
             res.IsSuccess.Should().BeFalse("Create 結果須失敗");
-            res.ErrorCode.Should().Be(ErrorCodes.General.Unexpected, "此處若非 SqlException 錯誤碼須為 Unexpected");
+            res.ErrorCode.Should().Be(ErrorCodes.General.Conflict, "錯誤碼須為 Conflict");
         }
 
         // C + D + D'

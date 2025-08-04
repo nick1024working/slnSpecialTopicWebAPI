@@ -33,6 +33,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             _logger = logger;
         }
 
+        // TODO: 考慮平行處理的可能性。
         /// <summary>
         /// 讀取所有 UsedBook需要的下拉選單資料。
         /// </summary>

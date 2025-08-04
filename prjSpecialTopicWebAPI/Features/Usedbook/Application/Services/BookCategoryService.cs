@@ -1,6 +1,12 @@
 ﻿using AutoMapper;
+using Azure.Core;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.Errors;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.UnitOfWork;
+using prjSpecialTopicWebAPI.Features.Usedbook.Utilities;
+using prjSpecialTopicWebAPI.Models;
 
 namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
 {
@@ -22,5 +28,169 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
             _mapper = mapper;
             _logger = logger;
         }
+
+        // ========== 新增、更新、刪除 ==========
+
+        /// <summary>
+        /// 新增一筆主題分類資料。
+        /// </summary>
+        public async Task<Result<int>> CreateAsync(CreateBookCategoryRequest request, CancellationToken ct = default)
+        {
+            await _unitOfWork.BeginTransactionAsync(ct);
+            try
+            {
+                if (await _bookCategoryRepository.ExistsByNameAndGroupIdAsync(request.Name, request.GroupId, ct))
+                {
+                    await _unitOfWork.RollbackAsync(ct);
+                    return Result<int>.Failure("名稱不能重複", ErrorCodes.General.Conflict);
+                }
+
+                var entity = _mapper.Map<BookCategory>(request);
+                entity.DisplayOrder = await _bookCategoryRepository.HasRecords(ct) ?
+                    await _bookCategoryRepository.GetMaxDisplayOrderByGroupIdAsync(request.GroupId, ct) + 1 : 1;
+                entity.Slug = Guid.NewGuid().ToString();
+
+                _bookCategoryRepository.Add(entity);
+
+                await _unitOfWork.CommitAsync(ct);
+                return Result<int>.Success(entity.Id);
+            }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackAsync(ct);
+                return ExceptionToErrorResultMapper<int>.Map(ex, _logger);
+            }
+        }
+
+        /// <summary>
+        /// 依照 ID 刪除主題分類資料，此方法具冪等性。
+        /// </summary>
+        public async Task<Result<Unit>> DeleteByIdAsync(int id, CancellationToken ct = default)
+        {
+            try
+            {
+                var cmdResult = await _bookCategoryRepository.RemoveByIdAsync(id, ct);
+                if (cmdResult)
+                    await _unitOfWork.CommitAsync(ct);
+                return Result<Unit>.Success(Unit.Value);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
+            }
+        }
+
+        /// <summary>
+        /// 依照 ID 更新主題分類資料，不能更新排序。
+        /// </summary>
+        // HACK: 需考慮 (GroupId, Name), Slug 可能會重複的情況
+        public async Task<Result<Unit>> UpdateByIdAsync(int id, UpdatePartialBookCategoryRequest request, CancellationToken ct = default)
+        {
+            try
+            {
+                var entity = await _bookCategoryRepository.GetEntityByIdAsync(id, ct);
+                if (entity is null)
+                    return Result<Unit>.Failure("找不到要更新的主題分類", ErrorCodes.General.NotFound);
+
+                entity.GroupId = request.GroupId ?? entity.GroupId;
+                entity.Name = request.Name ?? entity.Name;
+                entity.IsActive = request.IsActive ?? entity.IsActive;
+                entity.Slug = request.Slug ?? entity.Slug;
+
+                await _unitOfWork.CommitAsync(ct);
+                return Result<Unit>.Success(Unit.Value);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
+            }
+        }
+
+        /// <summary>
+        /// 更新所有主題分類順序。
+        /// </summary>
+        public async Task<Result<Unit>> UpdateAllOrderByGroupIdAsync(int groupId, IReadOnlyList<UpdateOrderByIdRequest> requestList, CancellationToken ct)
+        {
+            await _unitOfWork.BeginTransactionAsync(ct);
+            try
+            {
+                var entityList = await _bookCategoryRepository.GetEntityListByGroupIdAsync(groupId, ct);
+
+                // 檢查數量一致
+                if (entityList.Count != requestList.Count)
+                {
+                    await _unitOfWork.RollbackAsync(ct);
+                    return Result<Unit>.Failure("請求列表與實際主題分類數量不符", ErrorCodes.General.Conflict);
+                }
+
+                var entityDict = entityList.ToDictionary(x => x.Id);
+                var seen = new HashSet<int>();
+
+                int order = 1;
+                foreach (var request in requestList)
+                {
+                    // 檢查存在
+                    if (!entityDict.TryGetValue(request.Id, out var entity))
+                    {
+                        await _unitOfWork.RollbackAsync(ct);
+                        return Result<Unit>.Failure($"有不合法的主題分類 Id: {request.Id}", ErrorCodes.General.BadRequest);
+                    }
+
+                    // 檢查重複
+                    if (!seen.Add(request.Id))
+                    {
+                        await _unitOfWork.RollbackAsync(ct);
+                        return Result<Unit>.Failure($"請求列表中主題分類 Id 重複: {request.Id}", ErrorCodes.General.BadRequest);
+                    }
+
+                    entity.DisplayOrder = order;
+                    ++order;
+                }
+
+                await _unitOfWork.CommitAsync(ct);
+                return Result<Unit>.Success(Unit.Value);
+
+            }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackAsync(ct);
+                return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
+            }
+        }
+
+        // ========== 查詢 ==========
+
+        public async Task<Result<BookCategoryDto>> GetByIdAsync(int id, CancellationToken ct = default)
+        {
+            try
+            {
+                var queryResult = await _bookCategoryRepository.GetByIdAsync(id, ct);
+                if (queryResult == null)
+                    return Result<BookCategoryDto>.Failure("查無符合資料", ErrorCodes.General.NotFound);
+                var dto = _mapper.Map<BookCategoryDto>(queryResult);
+
+                return Result<BookCategoryDto>.Success(dto);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<BookCategoryDto>.Map(ex, _logger);
+            }
+        }
+
+        public async Task<Result<IReadOnlyList<BookCategoryDto>>> GetAllByGroupIdAsync(int groupId, CancellationToken ct = default)
+        {
+            try
+            {
+                var queryResult = await _bookCategoryRepository.GetAllByGroupIdAsync(groupId, ct);
+                var dtos = _mapper.Map<IReadOnlyList<BookCategoryDto>>(queryResult);
+
+                return Result<IReadOnlyList<BookCategoryDto>>.Success(dtos);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<IReadOnlyList<BookCategoryDto>>.Map(ex, _logger);
+            }
+        }
+
     }
 }

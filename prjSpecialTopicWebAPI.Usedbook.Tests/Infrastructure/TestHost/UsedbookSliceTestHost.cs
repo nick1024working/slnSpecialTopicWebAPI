@@ -1,6 +1,7 @@
 ﻿using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.UnitOfWork;
 using prjSpecialTopicWebAPI.Features.Usedbook.Mapping;
@@ -45,8 +46,15 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Infrastructure.TestHost
 
             services.AddScoped<IUnitOfWork, EfUnitOfWork>();
             services.AddAutoMapper(cfg => cfg.AddProfile<MappingProfile>());
+
+            services.AddScoped<BookCategoryGroupRepository>();
+            services.AddScoped<BookCategoryRepository>();
             services.AddScoped<BookSaleTagRepository>();
+
+            services.AddScoped<BookCategoryGroupService>();
+            services.AddScoped<BookCategoryService>();
             services.AddScoped<BookSaleTagService>();
+
             services.AddLogging();
 
             _provider = services.BuildServiceProvider();

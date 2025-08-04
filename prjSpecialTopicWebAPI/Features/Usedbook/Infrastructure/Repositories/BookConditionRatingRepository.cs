@@ -22,7 +22,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                 {
                     Id = x.Id,
                     Name = x.Name,
-                    Description = x.Description
+                    Description = x.Description ?? ""
                 })
                 .ToListAsync(ct);
         }

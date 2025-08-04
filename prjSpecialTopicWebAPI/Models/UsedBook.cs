@@ -13,9 +13,9 @@ public partial class UsedBook
 
     public decimal SalePrice { get; set; }
 
-    public string? Title { get; set; }
+    public string Title { get; set; } = null!;
 
-    public string? Authors { get; set; }
+    public string Authors { get; set; } = null!;
 
     public int ConditionRatingId { get; set; }
 

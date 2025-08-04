@@ -38,6 +38,7 @@ builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 // 註冊 AutoMapper
 builder.Services.AddAutoMapper(cfg => { cfg.AddProfile<MappingProfile>(); });
 
+// NOTE: 須同步註冊在 測試專案 UsedbookSliceTestHost 中的 DI 容器
 // 註冊 Lookup Repositories + Lookup Services
 builder.Services.AddScoped<BookBindingRepository>();
 builder.Services.AddScoped<BookConditionRatingRepository>();
@@ -46,10 +47,13 @@ builder.Services.AddScoped<CountyRepository>();
 builder.Services.AddScoped<DistrictRepository>();
 builder.Services.AddScoped<LanguageRepository>();
 builder.Services.AddScoped<LookupService>();
-
-// 註冊 Usedbook Repositories + Services
+// 註冊 Usedbook Repositories
+builder.Services.AddScoped<BookCategoryGroupRepository>();
+builder.Services.AddScoped<BookCategoryRepository>();
 builder.Services.AddScoped<BookSaleTagRepository>();
-
+// 註冊 Usedbook Services
+builder.Services.AddScoped<BookCategoryGroupService>();
+builder.Services.AddScoped<BookCategoryService>();
 builder.Services.AddScoped<BookSaleTagService>();
 
 // User
