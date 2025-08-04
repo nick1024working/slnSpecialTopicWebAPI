@@ -6,7 +6,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests
     {
         [Display(Name = "主題類別名稱")]
         [Required(ErrorMessage = "主題類別名稱為必填欄位")]
-        [StringLength(50, ErrorMessage = "不可超過 50 字")]
+        [StringLength(10, ErrorMessage = "不可超過 10 字")]
         public string Name { get; set; } = string.Empty;
 
 

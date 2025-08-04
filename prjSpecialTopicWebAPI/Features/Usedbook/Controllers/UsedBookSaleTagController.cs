@@ -46,6 +46,16 @@ namespace prjBookAppCoreMVC.Controllers.UsedBook
             return NoContent();
         }
 
+        [HttpPut("order")]
+        public async Task<ActionResult> UpdateAllSaleTagsOrder([FromBody] IReadOnlyList<UpdateBookSaleTagOrderRequest> request, CancellationToken ct)
+        {
+            var result = await _bookSaleTagService.UpdateAllOrderAsync(request, ct);
+            if (!result.IsSuccess)
+                return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
+            return Ok(result.Value);
+        }
+
+        // NOTE: 目前被 UpdateAllSaleTagsOrder 取代
         [HttpPut("batch")]
         public async Task<ActionResult> UpdateAllSaleTags([FromBody] IReadOnlyList<UpdateBookSaleTagRequest> request, CancellationToken ct)
         {

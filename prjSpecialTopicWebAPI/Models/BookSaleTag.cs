@@ -1,10 +1,13 @@
-﻿namespace prjSpecialTopicWebAPI.Models;
+﻿using System;
+using System.Collections.Generic;
+
+namespace prjSpecialTopicWebAPI.Models;
 
 public partial class BookSaleTag
 {
     public int Id { get; set; }
 
-    public string Name { get; set; } = null!;
+    public string? Name { get; set; }
 
     public bool IsActive { get; set; }
 

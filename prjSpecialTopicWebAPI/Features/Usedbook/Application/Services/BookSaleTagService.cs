@@ -6,6 +6,7 @@ using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.UnitOfWork;
 using prjSpecialTopicWebAPI.Features.Usedbook.Utilities;
 using prjSpecialTopicWebAPI.Models;
+using System.Linq;
 
 namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
 {
@@ -87,6 +88,58 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
             }
             catch (Exception ex)
             {
+                return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
+            }
+        }
+
+        /// <summary>
+        /// 更新所有促銷標籤順序。
+        /// </summary>
+        public async Task<Result<Unit>> UpdateAllOrderAsync(IReadOnlyList<UpdateBookSaleTagOrderRequest> requestList, CancellationToken ct)
+        {
+            await _unitOfWork.BeginTransactionAsync(ct);
+            try
+            {
+                var entityList = await _bookSaleTagRepository.GetEntityListAsync(ct);
+
+                // 檢查數量一致
+                if (entityList.Count != requestList.Count)
+                {
+                    await _unitOfWork.RollbackAsync(ct);
+                    return Result<Unit>.Failure("請求列表與實際促銷標籤數量不符", ErrorCodes.General.Conflict);
+                }
+
+                var entityDict = entityList.ToDictionary(x => x.Id);
+                var seen = new HashSet<int>();
+
+                int order = 1;
+                foreach (var request in requestList)
+                {
+                    // 檢查存在
+                    if (!entityDict.TryGetValue(request.Id, out var entity))
+                    {
+                        await _unitOfWork.RollbackAsync(ct);
+                        return Result<Unit>.Failure($"有不合法的促銷標籤 Id: {request.Id}", ErrorCodes.General.BadRequest);
+                    }
+
+                    // 檢查重複
+                    if (!seen.Add(request.Id))
+                    {
+                        await _unitOfWork.RollbackAsync(ct);
+                        return Result<Unit>.Failure($"請求列表中促銷標籤 Id 重複: {request.Id}", ErrorCodes.General.BadRequest);
+                    }
+
+                    entity.DisplayOrder = order;
+                    ++order;
+                }
+
+                await _unitOfWork.CommitAsync(ct);
+                return Result<Unit>.Success(Unit.Value);
+
+            }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackAsync(ct);
                 return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
             }
         }

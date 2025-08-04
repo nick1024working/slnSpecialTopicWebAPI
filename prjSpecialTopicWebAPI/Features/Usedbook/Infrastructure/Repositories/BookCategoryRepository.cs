@@ -13,44 +13,28 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             _db = context;
         }
 
-        public void Add(BookCategory entity)
-        {
-            _db.BookCategories.Add(entity);
-        }
-
         public async Task<bool> ExistsAsync(int id, CancellationToken ct) =>
              await _db.BookCategories.AsNoTracking().AnyAsync(t => t.Id == id, ct);
 
-        public async Task<bool> UpdateAsync(BookCategory entity, CancellationToken ct = default)
-        {
-            var queryResult = await _db.BookCategories
-                .SingleOrDefaultAsync(c => c.Id == entity.Id, ct);
-            if (queryResult == null)
-                return false;
+        // ========== 查詢實體 ==========
 
-            queryResult.Name = entity.Name;
+        public async Task<BookCategory?> GetEntityByIdAsync(int id, CancellationToken ct = default) =>
+            await _db.BookCategories
+            .SingleOrDefaultAsync(c => c.Id == id, ct);
 
-            return true;
-        }
+        public async Task<IReadOnlyList<BookCategory>> GetEntityListAsync(CancellationToken ct = default) =>
+            await _db.BookCategories.ToListAsync(ct);
 
-        public async Task<bool> UpdateActiveStatusAsync(int id, bool isActive, CancellationToken ct = default)
-        {
-            var queryResult = await _db.BookCategories
-                .SingleOrDefaultAsync(c => c.Id == id, ct);
-            if (queryResult == null)
-                return false;
+        // ========== 新增、更新、刪除 ==========
 
-            queryResult.IsActive = isActive;
+        public void Add(BookCategory entity) =>
+            _db.BookCategories.Add(entity);
 
-            return true;
-        }
-
-        public async Task UpdateAllAsync(IEnumerable<BookCategory> entityList, CancellationToken ct = default)
-        {
-            var oldList = await _db.BookCategories.ToListAsync(ct);
-            _db.BookCategories.RemoveRange(oldList);
+        public void AddRange(List<BookCategory> entityList) =>
             _db.BookCategories.AddRange(entityList);
-        }
+
+        public void RemoveRange(List<BookCategory> entityList) =>
+            _db.BookCategories.RemoveRange(entityList);
 
         public async Task<bool> RemoveByIdAsync(int id, CancellationToken ct = default)
         {
@@ -61,6 +45,8 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             _db.BookCategories.Remove(queryResult);
             return true;
         }
+
+        // ========== 查詢 ==========
 
         public async Task<BookCategoryResult?> GetByIdAsync(int id, CancellationToken ct = default)
         {

@@ -24,22 +24,22 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
 
         // ========== 查詢實體 ==========
 
-        public async Task<IReadOnlyList<BookSaleTag>> GetEntityListAsync(CancellationToken ct = default) =>
-            await _db.BookSaleTags.ToListAsync(ct);
-
         public async Task<BookSaleTag?> GetEntityByIdAsync(int id, CancellationToken ct = default) =>
             await _db.BookSaleTags
             .SingleOrDefaultAsync(st => st.Id == id, ct);
+
+        public async Task<IReadOnlyList<BookSaleTag>> GetEntityListAsync(CancellationToken ct = default) =>
+            await _db.BookSaleTags.ToListAsync(ct);
 
         // ========== 新增、更新、刪除 ==========
 
         public void Add(BookSaleTag entity) =>
             _db.BookSaleTags.Add(entity);
 
-        public void AddRange(List<BookSaleTag> entityList) =>
+        public void AddRange(IEnumerable<BookSaleTag> entityList) =>
             _db.BookSaleTags.AddRange(entityList);
 
-        public void RemoveRange(List<BookSaleTag> entityList) =>
+        public void RemoveRange(IEnumerable<BookSaleTag> entityList) =>
             _db.BookSaleTags.RemoveRange(entityList);
 
         public async Task<bool> RemoveByIdAsync(int id, CancellationToken ct = default)
