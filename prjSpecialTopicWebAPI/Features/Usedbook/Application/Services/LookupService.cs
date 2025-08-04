@@ -36,7 +36,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
         /// <summary>
         /// 讀取所有 UsedBook需要的下拉選單資料。
         /// </summary>
-        public async Task<Result<AllUsedBookLookupListsDto>> GetAllUsedBookListsAsync(CancellationToken ct = default)
+        public async Task<Result<AllUsedBookLookupListsDto>> GetUsedBookUILookupsList(CancellationToken ct = default)
         {
             try
             {
@@ -182,18 +182,19 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
         /// <summary>
         /// 讀取 BookConditionRatingDescription。
         /// </summary>
-        public async Task<Result<string>> GetBookConditionRatingDescriptionById(int id, CancellationToken ct = default)
+        public async Task<Result<BookConditionRatingDescriptionDto>> GetBookConditionRatingDescriptionById(int id, CancellationToken ct = default)
         {
             try
             {
                 var result = await _bookConditionRatingRepository.GetDescriptionByIdAsync(id, ct);
                 if (result == null)
-                    return Result<string>.Failure("BookRatingDesc 不存在", ErrorCodes.General.NotFound);
-                return Result<string>.Success(result);
+                    return Result<BookConditionRatingDescriptionDto>.Failure("BookRatingDesc 不存在", ErrorCodes.General.NotFound);
+                var dto = new BookConditionRatingDescriptionDto { Description = result };
+                return Result<BookConditionRatingDescriptionDto>.Success(dto);
             }
             catch (Exception ex)
             {
-                return ExceptionToErrorResultMapper<string>.Map(ex, _logger);
+                return ExceptionToErrorResultMapper<BookConditionRatingDescriptionDto>.Map(ex, _logger);
             }
         }
     }

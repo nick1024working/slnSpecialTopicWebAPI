@@ -16,8 +16,19 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             _lookupService = lookupService;
         }
 
-        [HttpGet("districts")]
-        public async Task<ActionResult<IEnumerable<IdNameDto>>> GetDistrictListByCountyId([FromQuery] int countyId, CancellationToken ct)
+        [HttpGet("counties")]
+        public async Task<ActionResult<IEnumerable<IdNameDto>>> GetCountyList(CancellationToken ct)
+        {
+            var queryResult = await _lookupService.GetCountyListAsync(ct);
+
+            if (!queryResult.IsSuccess)
+                return BadRequest(queryResult.ErrorMessage);
+
+            return Ok(queryResult);
+        }
+
+        [HttpGet("counties/{countyId}/districts")]
+        public async Task<ActionResult<IEnumerable<IdNameDto>>> GetDistrictListByCountyId([FromRoute] int countyId, CancellationToken ct)
         {
             var queryResult = await _lookupService.GetDistrictListByCountyIdAsync(countyId, ct);
 
@@ -27,10 +38,32 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             return Ok(queryResult);
         }
 
-        [HttpGet("bookConditionRatingDescription")]
-        public async Task<ActionResult<string>> GetBookConditionRatingDescriptionById([FromQuery] int id, CancellationToken ct)
+        [HttpGet("languages")]
+        public async Task<ActionResult<IEnumerable<IdNameDto>>> GetLanguageList(CancellationToken ct)
+        {
+            var queryResult = await _lookupService.GetLanguageListAsync(ct);
+
+            if (!queryResult.IsSuccess)
+                return BadRequest(queryResult.ErrorMessage);
+
+            return Ok(queryResult);
+        }
+
+        [HttpGet("usedbooks/condition-rating-desc/{id:int}")]
+        public async Task<ActionResult<BookConditionRatingDescriptionDto>> GetBookConditionRatingDescriptionById([FromRoute] int id, CancellationToken ct)
         {
             var queryResult = await _lookupService.GetBookConditionRatingDescriptionById(id, ct);
+
+            if (!queryResult.IsSuccess)
+                return BadRequest(queryResult.ErrorMessage);
+
+            return Ok(queryResult);
+        }
+
+        [HttpGet("usedbooks/ui-lookups")]
+        public async Task<ActionResult<BookConditionRatingDescriptionDto>> GetUsedBookUILookupsList( CancellationToken ct)
+        {
+            var queryResult = await _lookupService.GetUsedBookUILookupsList(ct);
 
             if (!queryResult.IsSuccess)
                 return BadRequest(queryResult.ErrorMessage);
