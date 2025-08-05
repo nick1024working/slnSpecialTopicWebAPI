@@ -20,12 +20,109 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
         /// 取得所有上架電子書的摘要列表
         /// </summary>
         /// <returns>電子書摘要列表</returns>
+        //[HttpGet]
+        //public async Task<IActionResult> GetEbooksList()
+        //{
+        //    var ebookSummaries = await _db.EBookMains
+        //        .AsNoTracking()
+        //        .Where(b => b.IsAvailable)
+        //        .Select(b => new EBookSummaryDto
+        //        {
+        //            EbookId = b.EbookId,
+        //            EbookName = b.EbookName,
+        //            Author = b.Author,
+        //            FixedPrice = b.FixedPrice,
+        //            PrimaryCoverPath = b.PrimaryCoverPath
+        //        })
+        //        .ToListAsync();
+
+        //    return Ok(ebookSummaries);
+        //}
+        // 在 EbooksController.cs 中
+        //[HttpGet]
+        //public async Task<IActionResult> GetEbooksList([FromQuery] string? search)
+        //{
+        //    var query = _db.EBookMains.AsNoTracking().Where(b => b.IsAvailable);
+
+        //    // 如果 search 參數有值，就加入名稱或作者的過濾條件
+        //    if (!string.IsNullOrWhiteSpace(search))
+        //    {
+        //        query = query.Where(b => b.EbookName.Contains(search) || b.Author.Contains(search));
+        //    }
+
+        //    var ebookSummaries = await query
+        //        .Select(b => new EBookSummaryDto { /* ... */ })
+        //        .ToListAsync();
+
+        //    return Ok(ebookSummaries);
+        //}
+
+        /// <summary>
+        /// 取得所有上架電子書的摘要列表（支援搜尋與分頁）
+        /// </summary>
+        /// <param name="search">搜尋關鍵字 (書名或作者)</param>
+        /// <param name="pageNumber">頁碼 (預設為 1)</param>
+        /// <param name="pageSize">每頁筆數 (預設為 10)</param>
+        /// <returns>電子書摘要列表</returns>
+        //[HttpGet]
+        //public async Task<IActionResult> GetEbooksList(
+        //    [FromQuery] string? search,
+        //    [FromQuery] int pageNumber = 1,
+        //    [FromQuery] int pageSize = 10)
+        //{
+        //    // 建立基礎查詢
+        //    var query = _db.EBookMains.AsNoTracking().Where(b => b.IsAvailable);
+
+        //    // 如果 search 參數有值，就加入名稱或作者的過濾條件
+        //    if (!string.IsNullOrWhiteSpace(search))
+        //    {
+        //        query = query.Where(b => b.EbookName.Contains(search) || b.Author.Contains(search));
+        //    }
+
+        //    // [分頁邏輯]
+        //    var ebookSummaries = await query
+        //        .Select(b => new EBookSummaryDto
+        //        {
+        //            EbookId = b.EbookId,
+        //            EbookName = b.EbookName,
+        //            Author = b.Author,
+        //            FixedPrice = b.FixedPrice,
+        //            PrimaryCoverPath = b.PrimaryCoverPath
+        //        })
+        //        .Skip((pageNumber - 1) * pageSize) // 跳過前面頁數的資料
+        //        .Take(pageSize)                   // 抓取目前頁面的資料
+        //        .ToListAsync();
+
+        //    return Ok(ebookSummaries);
+        //}
+        /// <summary>
+        /// 取得所有上架電子書的摘要列表（支援搜尋與分頁）
+        /// </summary>
+        /// <param name="search">搜尋關鍵字 (書名或作者)</param>
+        /// <param name="pageNumber">頁碼 (預設為 1)</param>
+        /// <param name="pageSize">每頁筆數 (預設為 10)</param>
+        /// <returns>包含分頁資訊的電子書摘要列表</returns>
         [HttpGet]
-        public async Task<IActionResult> GetEbooksList()
+        public async Task<IActionResult> GetEbooksList(
+            [FromQuery] string? search,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
         {
-            var ebookSummaries = await _db.EBookMains
-                .AsNoTracking()
-                .Where(b => b.IsAvailable)
+            // 1. 建立基礎查詢
+            var query = _db.EBookMains.AsNoTracking().Where(b => b.IsAvailable);
+
+            // 2. 如果 search 參數有值，就加入名稱或作者的過濾條件
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                query = query.Where(b => b.EbookName.Contains(search) || b.Author.Contains(search));
+            }
+
+            // 3. 取得符合條件的「總筆數」，這個計算必須在分頁(Skip/Take)之前
+            var totalCount = await query.CountAsync();
+
+            // 4. 套用分頁、排序(可選)與投影(Select)
+            var items = await query
+                .OrderByDescending(b => b.EbookId) // 預設用 ID 倒序，讓新書在前面
                 .Select(b => new EBookSummaryDto
                 {
                     EbookId = b.EbookId,
@@ -34,9 +131,20 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                     FixedPrice = b.FixedPrice,
                     PrimaryCoverPath = b.PrimaryCoverPath
                 })
+                .Skip((pageNumber - 1) * pageSize) // 跳過前面頁數的資料
+                .Take(pageSize)                   // 抓取目前頁面的資料
                 .ToListAsync();
 
-            return Ok(ebookSummaries);
+            // 5. 建立包裝後的回應物件
+            var response = new PaginatedResponseDto<EBookSummaryDto>
+            {
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                TotalCount = totalCount,
+                Items = items
+            };
+
+            return Ok(response);
         }
 
         /// <summary>
