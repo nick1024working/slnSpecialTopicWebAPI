@@ -109,7 +109,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
         /// <summary>
         /// 更新所有主題分類順序。
         /// </summary>
-        public async Task<Result<Unit>> UpdateAllOrderByGroupIdAsync(int groupId, IReadOnlyList<UpdateOrderByIdRequest> requestList, CancellationToken ct)
+        public async Task<Result<Unit>> UpdateAllOrderByGroupIdAsync(int groupId, IReadOnlyList<UpdateOrderByIdRequest> requestList, CancellationToken ct = default)
         {
             await _unitOfWork.BeginTransactionAsync(ct);
             try

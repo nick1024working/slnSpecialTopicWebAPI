@@ -105,7 +105,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
         /// <summary>
         /// 更新所有促銷標籤順序。
         /// </summary>
-        public async Task<Result<Unit>> UpdateAllOrderAsync(IReadOnlyList<UpdateOrderByIdRequest> requestList, CancellationToken ct)
+        public async Task<Result<Unit>> UpdateAllOrderAsync(IReadOnlyList<UpdateOrderByIdRequest> requestList, CancellationToken ct = default)
         {
             await _unitOfWork.BeginTransactionAsync(ct);
             try
