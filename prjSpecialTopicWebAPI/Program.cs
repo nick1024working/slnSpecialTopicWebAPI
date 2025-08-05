@@ -39,6 +39,8 @@ builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 builder.Services.AddAutoMapper(cfg => { cfg.AddProfile<MappingProfile>(); });
 
 // NOTE: 須同步註冊在 測試專案 UsedbookSliceTestHost 中的 DI 容器
+// 註冊 ImageService
+builder.Services.AddScoped<ImageService>();
 // 註冊 Lookup Repositories + Lookup Services
 builder.Services.AddScoped<BookBindingRepository>();
 builder.Services.AddScoped<BookConditionRatingRepository>();

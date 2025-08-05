@@ -28,7 +28,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Slice.Services
 
         // C + R
         [Fact]
-        public async Task Create_ThenReadt_ReturnSameData()
+        public async Task Create_ThenRead_ReturnSameData()
         {
             // ---------- Arrange ----------
             var req = new CreateBookCategoryGroupRequest { Name = "文學小說", IsActive = true };

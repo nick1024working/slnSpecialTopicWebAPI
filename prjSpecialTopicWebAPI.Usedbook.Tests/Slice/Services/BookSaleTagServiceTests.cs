@@ -27,7 +27,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Slice.Services
 
         // C + R
         [Fact]
-        public async Task Create_ThenReadt_ReturnSameData()
+        public async Task Create_ThenRead_ReturnSameData()
         {
             // ---------- Arrange ----------
             var svc = _svc;

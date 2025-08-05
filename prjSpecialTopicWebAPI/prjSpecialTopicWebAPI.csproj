@@ -14,6 +14,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.3" />
   </ItemGroup>
 
@@ -23,7 +24,6 @@
     <Folder Include="Features\Forum\" />
     <Folder Include="Features\Usedbook\_tmp\" />
     <Folder Include="Features\User\" />
-    <Folder Include="wwwroot\" />
   </ItemGroup>
 
 </Project>
