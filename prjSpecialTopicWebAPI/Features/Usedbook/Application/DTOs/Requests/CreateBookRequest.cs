@@ -6,10 +6,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests
     {
         public List<CreateUsedBookImageRequest> ImageList { get; set; } = [];
 
-        [Display(Name = "賣家所在縣市")]
-        [Required(ErrorMessage = "縣市為必填欄位")]
-        public int SellerCountyId { get; set; }
-
         [Display(Name = "賣家所在鄉鎮市區")]
         [Required(ErrorMessage = "鄉鎮市區為必填欄位")]
         public int SellerDistrictId { get; set; }

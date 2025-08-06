@@ -1,6 +1,6 @@
 ﻿namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results
 {
-    public class UsedBookQueryResult
+    public class UsedBookTextDetailQueryResult
     {
         public Guid Id { get; set; }
 

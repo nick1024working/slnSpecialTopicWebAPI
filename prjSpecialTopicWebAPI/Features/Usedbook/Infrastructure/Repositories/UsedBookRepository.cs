@@ -77,11 +77,11 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
         /// <summary>
         /// 根據 ID 查詢書本完整資訊 (關聯欄位已用字串顯示)。
         /// </summary>
-        public async Task<UsedBookQueryResult?> GetTextByIdAsync(Guid id, CancellationToken ct = default)
+        public async Task<UsedBookTextDetailQueryResult?> GetTextByIdAsync(Guid id, CancellationToken ct = default)
         {
             var queryResult = await _db.UsedBooks
                 .Where(b => b.Id == id)
-                .Select(b => new UsedBookQueryResult
+                .Select(b => new UsedBookTextDetailQueryResult
                 {
                     Id = b.Id,
                     SellerId = b.SellerId,

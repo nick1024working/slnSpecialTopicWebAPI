@@ -137,24 +137,24 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             }
         }
 
-        public async Task<Result<PublicBookDetailDto>> GetPubicDetailAsync(Guid id, CancellationToken ct = default)
+        public async Task<Result<PublicBookTextDetailDto>> GetPubicDetailAsync(Guid id, CancellationToken ct = default)
         {
             try
             {
                 var bookQueryResult = await _usedBookRepository.GetTextByIdAsync(id, ct);
                 if (bookQueryResult == null)
-                    return Result<PublicBookDetailDto>.Failure("找不到符合的資料", ErrorCodes.General.NotFound);
+                    return Result<PublicBookTextDetailDto>.Failure("找不到符合的資料", ErrorCodes.General.NotFound);
 
                 var imageQueryResult = await _usedBookImageRepository.GetByBookIdAsync(id, ct);
 
-                var dto = _mapper.Map<PublicBookDetailDto>(bookQueryResult);
+                var dto = _mapper.Map<PublicBookTextDetailDto>(bookQueryResult);
                 dto.ImageList = _mapper.Map<IEnumerable<BookImageDto>>(imageQueryResult);
 
-                return Result<PublicBookDetailDto>.Success(dto);
+                return Result<PublicBookTextDetailDto>.Success(dto);
             }
             catch (Exception ex)
             {
-                return ExceptionToErrorResultMapper<PublicBookDetailDto>.Map(ex, _logger);
+                return ExceptionToErrorResultMapper<PublicBookTextDetailDto>.Map(ex, _logger);
             }
         }
 

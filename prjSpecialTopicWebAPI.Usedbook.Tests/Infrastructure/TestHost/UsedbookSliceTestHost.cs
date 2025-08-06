@@ -1,4 +1,5 @@
-﻿using Microsoft.Data.Sqlite;
+﻿using Microsoft.AspNetCore.Hosting;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
@@ -30,7 +31,10 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Infrastructure.TestHost
             _conn = new SqliteConnection(connStr);
             _conn.Open();
 
+            // ImageService 需要 IWebHostEnvironment
             var services = new ServiceCollection();
+
+            services.AddSingleton<IWebHostEnvironment>(new FakeWebHostEnvironment());
 
             services.AddScoped(_ =>
             {

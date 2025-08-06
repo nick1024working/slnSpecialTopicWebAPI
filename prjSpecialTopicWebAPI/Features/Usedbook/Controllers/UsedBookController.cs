@@ -65,7 +65,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         // ========== 查詢 ==========
 
         [HttpGet("{bookId:Guid}")]
-        public async Task<ActionResult<PublicBookDetailDto>> GetPubicDetail([FromRoute] Guid bookId, CancellationToken ct)
+        public async Task<ActionResult<PublicBookTextDetailDto>> GetPubicDetail([FromRoute] Guid bookId, CancellationToken ct)
         {
             var result = await _bookService.GetPubicDetailAsync(bookId, ct);
             if (!result.IsSuccess)
