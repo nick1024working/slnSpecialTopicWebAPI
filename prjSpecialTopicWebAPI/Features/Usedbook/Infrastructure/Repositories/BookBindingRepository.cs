@@ -13,12 +13,12 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             _db = db;
         }
 
-        public async Task<IReadOnlyList<BookBindingResult>> GetAllAsync(CancellationToken ct = default)
+        public async Task<IReadOnlyList<BookBindingQueryResult>> GetAllAsync(CancellationToken ct = default)
         {
             return await _db.BookBindings
                 .AsNoTracking()
                 .OrderBy(x => x.Id)
-                .Select(x => new BookBindingResult
+                .Select(x => new BookBindingQueryResult
                 {
                     Id = x.Id,
                     Name = x.Name,

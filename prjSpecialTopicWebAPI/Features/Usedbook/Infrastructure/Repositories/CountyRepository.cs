@@ -13,12 +13,12 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             _db = db;
         }
 
-        public async Task<IReadOnlyList<CountyResult>> GetAllAsync(CancellationToken ct = default)
+        public async Task<IReadOnlyList<CountyQueryResult>> GetAllAsync(CancellationToken ct = default)
         {
             return await _db.Counties
                 .AsNoTracking()
                 .OrderBy(x => x.Id)
-                .Select(x => new CountyResult
+                .Select(x => new CountyQueryResult
                 {
                     Id = x.Id,
                     Name = x.Name,

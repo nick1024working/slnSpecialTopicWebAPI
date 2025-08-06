@@ -13,12 +13,12 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             _db = db;
         }
 
-        public async Task<IReadOnlyList<BookConditionRatingResult>> GetAllAsync(CancellationToken ct = default)
+        public async Task<IReadOnlyList<BookConditionRatingQueryResult>> GetAllAsync(CancellationToken ct = default)
         {
             return await _db.BookConditionRatings
                 .AsNoTracking()
                 .OrderBy(x => x.Id)
-                .Select(x => new BookConditionRatingResult
+                .Select(x => new BookConditionRatingQueryResult
                 {
                     Id = x.Id,
                     Name = x.Name,

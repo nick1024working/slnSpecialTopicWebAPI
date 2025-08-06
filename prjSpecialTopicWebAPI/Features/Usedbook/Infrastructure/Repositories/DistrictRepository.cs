@@ -13,13 +13,13 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             _db = db;
         }
 
-        public async Task<IReadOnlyList<DistrictResult>> GetByCountyIdAsync(int countyId, CancellationToken ct = default)
+        public async Task<IReadOnlyList<DistrictQueryResult>> GetByCountyIdAsync(int countyId, CancellationToken ct = default)
         {
             return await _db.Districts
                 .AsNoTracking()
                 .OrderBy(d => d.Id)
                 .Where(d => d.CountyId == countyId)
-                .Select(d => new DistrictResult
+                .Select(d => new DistrictQueryResult
                 {
                     Id = d.Id,
                     Name = d.Name,

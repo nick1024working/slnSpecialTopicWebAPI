@@ -2,7 +2,7 @@
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results
 {
-    public class CountyResult : IHasIdName
+    public class BookBindingQueryResult : IHasIdName
     {
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;

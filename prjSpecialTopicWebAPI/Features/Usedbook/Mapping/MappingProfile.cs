@@ -10,16 +10,26 @@ public class MappingProfile : Profile
 {
     public MappingProfile()
     {
+        // UsedBook 轉換
+        CreateMap<CreateBookRequest, UsedBook>();
+        CreateMap<UsedBook, EditBookDto>();
+        CreateMap<PublicBookListItemQueryResult, PublicBookListItemDto>();
+        CreateMap<UserBookListItemQueryResult, UserBookListItemDto>();
+        CreateMap<AdminBookListItemQueryResult, AdminBookListItemDto>();
+
+        // BookImage 轉換
+        CreateMap<UsedBookImageQueryResult, BookImageDto>();
+
         // BookCategoryGroup 轉換
         CreateMap<CreateBookCategoryGroupRequest, BookCategoryGroup>();
-        CreateMap<BookCategoryGroupResult, BookCategoryGroupDto>();
+        CreateMap<BookCategoryGroupQueryResult, BookCategoryGroupDto>();
 
         // BookCategory 轉換
         CreateMap<CreateBookCategoryRequest, BookCategory>();
-        CreateMap<BookCategoryResult, BookCategoryDto>();
+        CreateMap<BookCategoryQueryResult, BookCategoryDto>();
 
         // BookSaleTag 轉換
         CreateMap<CreateSaleTagRequest, BookSaleTag>();
-        CreateMap<BookSaleTagResult, BookSaleTagDto>();
+        CreateMap<BookSaleTagQueryResult, BookSaleTagDto>();
     }
 }

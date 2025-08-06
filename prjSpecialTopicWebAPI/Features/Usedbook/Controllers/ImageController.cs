@@ -8,14 +8,11 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
     [Route("api/images")]
     public class ImageController : ControllerBase
     {
-        private readonly IWebHostEnvironment _env;
         private readonly ImageService _imageService;
 
         public ImageController(
-            IWebHostEnvironment env,
             ImageService imageService)
         {
-            _env = env;
             _imageService = imageService;
         }
 
@@ -65,7 +62,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
                 return NotFound();
 
             var filePath = "/" + relativePath.Replace("\\", "/");
-            var baseUrl = _env.WebRootPath;
+            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
 
             return Ok($"{baseUrl}{filePath}");
         }

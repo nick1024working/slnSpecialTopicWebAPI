@@ -2,7 +2,7 @@
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results
 {
-    public class DistrictResult : IHasIdName
+    public class LanguageQueryResult : IHasIdName
     {
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;

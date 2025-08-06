@@ -13,12 +13,12 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             _db = db;
         }
 
-        public async Task<IReadOnlyList<LanguageResult>> GetAllAsync(CancellationToken ct = default)
+        public async Task<IReadOnlyList<LanguageQueryResult>> GetAllAsync(CancellationToken ct = default)
         {
             return await _db.Languages
                 .AsNoTracking()
                 .OrderBy(x => x.Id)
-                .Select(x => new LanguageResult
+                .Select(x => new LanguageQueryResult
                 {
                     Id = x.Id,
                     Name = x.Name,

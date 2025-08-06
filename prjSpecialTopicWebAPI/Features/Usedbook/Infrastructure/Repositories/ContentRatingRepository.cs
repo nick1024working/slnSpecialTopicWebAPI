@@ -19,7 +19,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             return await _db.ContentRatings
                 .AsNoTracking()
                 .OrderBy(x => x.Id)
-                .Select(x => new ContentRatingResult
+                .Select(x => new ContentRatingQueryResult
                 {
                     Id = x.Id,
                     Name = x.Name,

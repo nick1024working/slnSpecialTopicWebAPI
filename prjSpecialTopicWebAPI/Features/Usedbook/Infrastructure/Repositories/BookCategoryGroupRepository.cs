@@ -48,12 +48,12 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
 
         // ========== 查詢 ==========
 
-        public async Task<BookCategoryGroupResult?> GetByIdAsync(int id, CancellationToken ct = default)
+        public async Task<BookCategoryGroupQueryResult?> GetByIdAsync(int id, CancellationToken ct = default)
         {
             var queryResult = await _db.BookCategoryGroups
                 .AsNoTracking()
                 .Where(cg => cg.Id == id && cg.IsActive)
-                .Select(cg => new BookCategoryGroupResult
+                .Select(cg => new BookCategoryGroupQueryResult
                 {
                     Id = cg.Id,
                     Name = cg.Name,
@@ -64,12 +64,12 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             return queryResult;
         }
 
-        public async Task<IReadOnlyList<BookCategoryGroupResult>> GetAllAsync(CancellationToken ct = default)
+        public async Task<IReadOnlyList<BookCategoryGroupQueryResult>> GetAllAsync(CancellationToken ct = default)
         {
             var queryResult = await _db.BookCategoryGroups
                 .AsNoTracking()
                 .OrderBy(cg => cg.DisplayOrder)
-                .Select(cg => new BookCategoryGroupResult
+                .Select(cg => new BookCategoryGroupQueryResult
                 {
                     Id = cg.Id,
                     Name = cg.Name,

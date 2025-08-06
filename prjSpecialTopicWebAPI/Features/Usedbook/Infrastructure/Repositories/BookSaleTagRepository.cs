@@ -48,12 +48,12 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
 
         // ========== 查詢 ==========
 
-        public async Task<BookSaleTagResult?> GetByIdAsync(int id, CancellationToken ct = default)
+        public async Task<BookSaleTagQueryResult?> GetByIdAsync(int id, CancellationToken ct = default)
         {
             var queryResult = await _db.BookSaleTags
                 .AsNoTracking()
                 .Where(st => st.Id == id)
-                .Select(st => new BookSaleTagResult
+                .Select(st => new BookSaleTagQueryResult
                 {
                     Id = st.Id,
                     Name = st.Name,
@@ -64,7 +64,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
         }
 
         // TODO: 需確認需求的 IsActive
-        public async Task<IReadOnlyList<BookSaleTagResult>> GetByBookIdAsync(Guid bookId, CancellationToken ct = default)
+        public async Task<IReadOnlyList<BookSaleTagQueryResult>> GetByBookIdAsync(Guid bookId, CancellationToken ct = default)
         {
             var queryResult = await _db.UsedBooks
                 .AsNoTracking()
@@ -72,7 +72,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                 .SelectMany(b => b.Tags)
                 .Where(st => st.IsActive)
                 .OrderBy(st => st.DisplayOrder)
-                .Select(st => new BookSaleTagResult
+                .Select(st => new BookSaleTagQueryResult
                 {
                     Id = st.Id,
                     Name = st.Name,
@@ -83,12 +83,12 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
         }
 
         // TODO: 需確認需求的 IsActive
-        public async Task<IReadOnlyList<BookSaleTagResult>> GetAllAsync(CancellationToken ct = default)
+        public async Task<IReadOnlyList<BookSaleTagQueryResult>> GetAllAsync(CancellationToken ct = default)
         {
             var queryResult = await _db.BookSaleTags
                 .AsNoTracking()
                 .OrderBy(st => st.DisplayOrder)
-                .Select(st => new BookSaleTagResult
+                .Select(st => new BookSaleTagQueryResult
                 {
                     Id = st.Id,
                     Name = st.Name,
