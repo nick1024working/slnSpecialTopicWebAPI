@@ -46,7 +46,25 @@ namespace prjBookAppCoreMVC.Controllers.UsedBook
             return NoContent();
         }
 
+        [HttpPut("{id:int}/order")]
+        public async Task<ActionResult> UpdateBookCategoryListOrder([FromBody] IReadOnlyList<UpdateOrderByIdRequest> request, CancellationToken ct)
+        {
+            var result = await _bookCategoryService.UpdateAllOrderAsync(request, ct);
+            if (!result.IsSuccess)
+                return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
+            return Ok(result.Value);
+        }
+
         // ========== 查詢 ==========
+
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<BookCategoryDto>>> GetBookCategoryList(CancellationToken ct)
+        {
+            var result = await _bookCategoryService.GetAllAsync(ct);
+            if (!result.IsSuccess)
+                return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
+            return Ok(result.Value);
+        }
 
         [HttpGet("{id:int}")]
         public async Task<ActionResult<BookCategoryDto>> GetBookCategory([FromRoute] int id, CancellationToken ct)

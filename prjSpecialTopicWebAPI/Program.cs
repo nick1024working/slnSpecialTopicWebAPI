@@ -50,10 +50,8 @@ builder.Services.AddScoped<DistrictRepository>();
 builder.Services.AddScoped<LanguageRepository>();
 builder.Services.AddScoped<LookupService>();
 // 註冊 分類 + 標籤 Repo & Svc
-builder.Services.AddScoped<BookCategoryGroupRepository>();
 builder.Services.AddScoped<BookCategoryRepository>();
 builder.Services.AddScoped<BookSaleTagRepository>();
-builder.Services.AddScoped<BookCategoryGroupService>();
 builder.Services.AddScoped<BookCategoryService>();
 builder.Services.AddScoped<BookSaleTagService>();
 // 註冊 書本核心 Repo & Svc

@@ -20,10 +20,6 @@ public class MappingProfile : Profile
         // BookImage 轉換
         CreateMap<UsedBookImageQueryResult, BookImageDto>();
 
-        // BookCategoryGroup 轉換
-        CreateMap<CreateBookCategoryGroupRequest, BookCategoryGroup>();
-        CreateMap<BookCategoryGroupQueryResult, BookCategoryGroupDto>();
-
         // BookCategory 轉換
         CreateMap<CreateBookCategoryRequest, BookCategory>();
         CreateMap<BookCategoryQueryResult, BookCategoryDto>();

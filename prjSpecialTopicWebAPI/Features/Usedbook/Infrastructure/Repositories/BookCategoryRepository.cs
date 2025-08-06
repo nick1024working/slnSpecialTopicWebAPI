@@ -17,19 +17,19 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
 
         public async Task<bool> HasRecords(CancellationToken ct = default) => await _db.BookCategories.AnyAsync(ct);
 
-        public async Task<int> GetMaxDisplayOrderByGroupIdAsync(int groupId, CancellationToken ct = default) =>
-            await _db.BookCategories.AsNoTracking().Where(cg => cg.GroupId == groupId).MaxAsync(cg => cg.DisplayOrder, ct);
+        public async Task<int> GetMaxDisplayOrderAsync(CancellationToken ct = default) =>
+            await _db.BookCategories.AsNoTracking().MaxAsync(cg => cg.DisplayOrder, ct);
 
-        public async Task<bool> ExistsByNameAndGroupIdAsync(string name, int groupId, CancellationToken ct = default) =>
-             await _db.BookCategories.AsNoTracking().AnyAsync(c => c.Name == name && c.GroupId == groupId, ct);
+        public async Task<bool> ExistsByNameAsync(string name, CancellationToken ct = default) =>
+             await _db.BookCategories.AsNoTracking().AnyAsync(c => c.Name == name, ct);
 
         // ========== 查詢實體 ==========
 
         public async Task<BookCategory?> GetEntityByIdAsync(int id, CancellationToken ct = default) =>
             await _db.BookCategories.FirstOrDefaultAsync(cg => cg.Id == id, ct);
 
-        public async Task<IReadOnlyList<BookCategory>> GetEntityListByGroupIdAsync(int groupId, CancellationToken ct = default) =>
-            await _db.BookCategories.Where(c => c.GroupId == groupId).ToListAsync(ct);
+        public async Task<IReadOnlyList<BookCategory>> GetEntityListAsync(CancellationToken ct = default) =>
+            await _db.BookCategories.ToListAsync(ct);
 
         // ========== 新增、更新、刪除 ==========
 
@@ -56,7 +56,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                 .Select(c => new BookCategoryQueryResult
                 {
                     Id = c.Id,
-                    GroupId = c.GroupId,
                     Name = c.Name,
                     IsActive = c.IsActive,
                     Slug = c.Slug,
@@ -65,16 +64,14 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             return queryResult;
         }
 
-        public async Task<IReadOnlyList<BookCategoryQueryResult>> GetAllByGroupIdAsync(int groupId, CancellationToken ct = default)
+        public async Task<IReadOnlyList<BookCategoryQueryResult>> GetAllAsync(CancellationToken ct = default)
         {
             var queryResult = await _db.BookCategories
                 .AsNoTracking()
-                .Where(c => c.GroupId == groupId)
                 .OrderBy(c => c.DisplayOrder)
                 .Select(c => new BookCategoryQueryResult
                 {
                     Id = c.Id,
-                    GroupId = c.GroupId,
                     Name = c.Name,
                     IsActive = c.IsActive,
                     Slug = c.Slug,

@@ -1,5 +1,4 @@
 ﻿using AutoMapper;
-using Azure.Core;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Errors;
@@ -39,7 +38,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
             await _unitOfWork.BeginTransactionAsync(ct);
             try
             {
-                if (await _bookCategoryRepository.ExistsByNameAndGroupIdAsync(request.Name, request.GroupId, ct))
+                if (await _bookCategoryRepository.ExistsByNameAsync(request.Name, ct))
                 {
                     await _unitOfWork.RollbackAsync(ct);
                     return Result<int>.Failure("名稱不能重複", ErrorCodes.General.Conflict);
@@ -47,7 +46,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
 
                 var entity = _mapper.Map<BookCategory>(request);
                 entity.DisplayOrder = await _bookCategoryRepository.HasRecords(ct) ?
-                    await _bookCategoryRepository.GetMaxDisplayOrderByGroupIdAsync(request.GroupId, ct) + 1 : 1;
+                    await _bookCategoryRepository.GetMaxDisplayOrderAsync(ct) + 1 : 1;
                 entity.Slug = Guid.NewGuid().ToString();
 
                 _bookCategoryRepository.Add(entity);
@@ -83,7 +82,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
         /// <summary>
         /// 依照 ID 更新主題分類資料，不能更新排序。
         /// </summary>
-        // HACK: 需考慮 (GroupId, Name), Slug 可能會重複的情況
+        // HACK: 需考慮 Name, Slug 可能會重複的情況
         public async Task<Result<Unit>> UpdateByIdAsync(int id, UpdatePartialBookCategoryRequest request, CancellationToken ct = default)
         {
             try
@@ -92,7 +91,6 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
                 if (entity is null)
                     return Result<Unit>.Failure("找不到要更新的主題分類", ErrorCodes.General.NotFound);
 
-                entity.GroupId = request.GroupId ?? entity.GroupId;
                 entity.Name = request.Name ?? entity.Name;
                 entity.IsActive = request.IsActive ?? entity.IsActive;
                 entity.Slug = request.Slug ?? entity.Slug;
@@ -109,12 +107,12 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
         /// <summary>
         /// 更新所有主題分類順序。
         /// </summary>
-        public async Task<Result<Unit>> UpdateAllOrderByGroupIdAsync(int groupId, IReadOnlyList<UpdateOrderByIdRequest> requestList, CancellationToken ct = default)
+        public async Task<Result<Unit>> UpdateAllOrderAsync(IReadOnlyList<UpdateOrderByIdRequest> requestList, CancellationToken ct = default)
         {
             await _unitOfWork.BeginTransactionAsync(ct);
             try
             {
-                var entityList = await _bookCategoryRepository.GetEntityListByGroupIdAsync(groupId, ct);
+                var entityList = await _bookCategoryRepository.GetEntityListAsync(ct);
 
                 // 檢查數量一致
                 if (entityList.Count != requestList.Count)
@@ -177,11 +175,11 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
             }
         }
 
-        public async Task<Result<IReadOnlyList<BookCategoryDto>>> GetAllByGroupIdAsync(int groupId, CancellationToken ct = default)
+        public async Task<Result<IReadOnlyList<BookCategoryDto>>> GetAllAsync(CancellationToken ct = default)
         {
             try
             {
-                var queryResult = await _bookCategoryRepository.GetAllByGroupIdAsync(groupId, ct);
+                var queryResult = await _bookCategoryRepository.GetAllAsync(ct);
                 var dtos = _mapper.Map<IReadOnlyList<BookCategoryDto>>(queryResult);
 
                 return Result<IReadOnlyList<BookCategoryDto>>.Success(dtos);

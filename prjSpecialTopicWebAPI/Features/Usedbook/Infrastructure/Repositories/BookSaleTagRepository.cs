@@ -58,6 +58,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                     Id = st.Id,
                     Name = st.Name,
                     IsActive = st.IsActive,
+                    Slug = st.Slug,
                 })
                 .SingleOrDefaultAsync(ct);
             return queryResult;
@@ -77,6 +78,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                     Id = st.Id,
                     Name = st.Name,
                     IsActive = st.IsActive,
+                    Slug = st.Slug,
                 })
                 .ToListAsync(ct);
             return queryResult;
@@ -93,6 +95,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                     Id = st.Id,
                     Name = st.Name,
                     IsActive = st.IsActive,
+                    Slug = st.Slug,
                 })
                 .ToListAsync(ct);
             return queryResult;

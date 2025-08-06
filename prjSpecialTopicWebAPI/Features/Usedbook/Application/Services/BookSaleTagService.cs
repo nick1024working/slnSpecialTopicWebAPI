@@ -46,7 +46,8 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 
                 var entity = _mapper.Map<BookSaleTag>(request);
                 entity.DisplayOrder = await _bookSaleTagRepository.HasRecords(ct) ?
-                    await _bookSaleTagRepository.GetMaxDisplayOrderAsync( ct) + 1 : 1;
+                    await _bookSaleTagRepository.GetMaxDisplayOrderAsync(ct) + 1 : 1;
+                entity.Slug = request.Name;
 
                 _bookSaleTagRepository.Add(entity);
 
@@ -92,6 +93,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 
                 entity.Name = request.Name ?? entity.Name;
                 entity.IsActive = request.IsActive ?? entity.IsActive;
+                entity.Slug = request.Slug ?? entity.Slug;
 
                 await _unitOfWork.CommitAsync(ct);
                 return Result<Unit>.Success(Unit.Value);

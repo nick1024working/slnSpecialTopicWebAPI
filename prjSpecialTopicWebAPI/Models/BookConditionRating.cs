@@ -9,7 +9,7 @@ public partial class BookConditionRating
 
     public string Name { get; set; } = null!;
 
-    public string? Description { get; set; }
+    public string Description { get; set; } = null!;
 
     public virtual ICollection<UsedBook> UsedBooks { get; set; } = new List<UsedBook>();
 }

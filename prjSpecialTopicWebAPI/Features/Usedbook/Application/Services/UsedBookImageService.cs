@@ -98,8 +98,15 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             }
         }
 
+
+        // NOTE: 目前不支援更新(等同搬遷)
         /// <summary>
-        /// 使用者更新指定書本的所有書圖片。
+        /// 依照 ID 更新書圖片資料 (僅能更新儲存服務商與金鑰)，不能更新排序。
+        /// </summary>
+        //public async Task<Result<Unit>> UpdateByIdAsync(int id, UpdatePatialUsedBookImageRequest request, CancellationToken ct = default)
+
+        /// <summary>
+        /// 更新指定書本的所有書圖片順序。
         /// </summary>
         public async Task<Result<Unit>> UpdateOrderByBookIdAsync(
             Guid bookId, IReadOnlyList<UpdateOrderByIdRequest> requestList, CancellationToken ct = default)
@@ -142,13 +149,9 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 
         }
 
-        // 上面更改
         /// <summary>
         /// 根據 ImageId 刪除指定書圖片，此操作具備冪等性。
         /// </summary>
-        /// <remarks>
-        /// 此操作具備冪等性：若資料已存在，將不進行任何變更；若尚未存在，則新增追蹤紀錄。
-        /// </remarks>
         public async Task<Result<Unit>> DeleteByImageIdAsync(int imageId, CancellationToken ct = default)
         {
             try

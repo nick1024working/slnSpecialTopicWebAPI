@@ -13,13 +13,11 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Slice.Services
     {
         private UsedbookSliceTestHost _host = default!;
         private BookCategoryService _svc = default!;
-        private BookCategoryGroupService _bookCategoryGroupService = default!;
 
         public Task InitializeAsync()
         {
             _host = new UsedbookSliceTestHost();
             _svc = _host.Services.GetRequiredService<BookCategoryService>();
-            _bookCategoryGroupService = _host.Services.GetRequiredService<BookCategoryGroupService>();
             return Task.CompletedTask;
         }
 
@@ -28,21 +26,12 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Slice.Services
             return _host.DisposeAsync().AsTask();
         }
 
-        private async Task<int> GetNewCategoryGroupId()
-        {
-            var req = new CreateBookCategoryGroupRequest { Name = "電腦科技", IsActive = true };
-            var res = await _bookCategoryGroupService.CreateAsync(req);
-            res.IsSuccess.Should().BeTrue();
-            return res.Value;
-        }
-
         // C + R
         [Fact]
         public async Task Create_ThenRead_ReturnSameData()
         {
             // ---------- Arrange ----------
-            var groupId = await GetNewCategoryGroupId();
-            var req = new CreateBookCategoryRequest { GroupId = groupId, Name = "作業系統", IsActive = true };
+            var req = new CreateBookCategoryRequest { Name = "作業系統", IsActive = true };
 
             // ---------- Act ----------
             var res = await _svc.CreateAsync(req);
@@ -59,8 +48,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Slice.Services
         public async Task Create_ThenUpdate_ThenRead_ReturnsUpdatedData()
         {
             // ---------- Arrange ----------
-            var groupId = await GetNewCategoryGroupId();
-            var createReq = new CreateBookCategoryRequest { GroupId = groupId, Name = "作業系統", IsActive = true };
+            var createReq = new CreateBookCategoryRequest { Name = "作業系統", IsActive = true };
             var createRes = await _svc.CreateAsync(createReq);
             createRes.IsSuccess.Should().BeTrue();
 
@@ -81,12 +69,11 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Slice.Services
         [Fact]
         public async Task Create_ThenUpdateOrder_ThenRead_ReturnsUpdatedOrder()
         {
-            var groupId = await GetNewCategoryGroupId();
-            await _svc.CreateAsync(new CreateBookCategoryRequest { GroupId = groupId, Name = "作業系統", IsActive = true });
-            await _svc.CreateAsync(new CreateBookCategoryRequest { GroupId = groupId, Name = "網際網路", IsActive = false });
-            await _svc.CreateAsync(new CreateBookCategoryRequest { GroupId = groupId, Name = "程式設計", IsActive = true });
-            await _svc.CreateAsync(new CreateBookCategoryRequest { GroupId = groupId, Name = "電子商務", IsActive = false });
-            var createRes = await _svc.GetAllByGroupIdAsync(groupId);
+            await _svc.CreateAsync(new CreateBookCategoryRequest { Name = "作業系統", IsActive = true });
+            await _svc.CreateAsync(new CreateBookCategoryRequest { Name = "網際網路", IsActive = false });
+            await _svc.CreateAsync(new CreateBookCategoryRequest { Name = "程式設計", IsActive = true });
+            await _svc.CreateAsync(new CreateBookCategoryRequest { Name = "電子商務", IsActive = false });
+            var createRes = await _svc.GetAllAsync();
             createRes.Value.Should().NotBeNull();
             var itemList = createRes.Value.ToList();
             itemList.Shuffle();
@@ -94,11 +81,11 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Slice.Services
             var updateReqList = itemList.Select(i => new UpdateOrderByIdRequest { Id = i.Id }).ToList();
 
             // ---------- Act ----------
-            var res = await _svc.UpdateAllOrderByGroupIdAsync(groupId, updateReqList);
+            var res = await _svc.UpdateAllOrderAsync(updateReqList);
 
             // ---------- Assert  ----------
             res.IsSuccess.Should().BeTrue("Update 結果須成功");
-            var readRes = await _svc.GetAllByGroupIdAsync(groupId);
+            var readRes = await _svc.GetAllAsync();
             readRes.IsSuccess.Should().BeTrue("Read 結果須成功");
             readRes.Value.Should().HaveCount(itemList.Count, "應該有相同數量的項目");
             for (int i = 0; i < itemList.Count; i++)
@@ -112,8 +99,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Slice.Services
         public async Task Create_ThenDelete_ThenRead_ReturnsNotFound()
         {
             // ---------- Arrange ----------
-            var groupId = await GetNewCategoryGroupId();
-            var createReq = new CreateBookCategoryRequest { GroupId = groupId, Name = "作業系統", IsActive = true };
+            var createReq = new CreateBookCategoryRequest { Name = "作業系統", IsActive = true };
             var createRes = await _svc.CreateAsync(createReq);
             createRes.IsSuccess.Should().BeTrue();
 
@@ -134,8 +120,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Slice.Services
         public async Task Create_DuplicateName_ReturnsConflict()
         {
             // ---------- Arrange ----------
-            var groupId = await GetNewCategoryGroupId();
-            var createReq = new CreateBookCategoryRequest { GroupId = groupId, Name = "作業系統", IsActive = true };
+            var createReq = new CreateBookCategoryRequest { Name = "作業系統", IsActive = true };
 
             // ---------- Act ----------
             await _svc.CreateAsync(createReq);
@@ -151,8 +136,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Slice.Services
         public async Task Delete_Twice_IsIdempotent()
         {
             // ---------- Arrange ----------
-            var groupId = await GetNewCategoryGroupId();
-            var createReq = new CreateBookCategoryRequest { GroupId = groupId, Name = "作業系統", IsActive = true };
+            var createReq = new CreateBookCategoryRequest { Name = "作業系統", IsActive = true };
             var createRes = await _svc.CreateAsync(createReq);
             createRes.IsSuccess.Should().BeTrue();
 

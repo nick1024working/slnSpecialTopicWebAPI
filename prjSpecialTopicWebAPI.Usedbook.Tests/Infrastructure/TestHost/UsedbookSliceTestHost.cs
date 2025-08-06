@@ -47,13 +47,11 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Infrastructure.TestHost
             services.AddScoped<IUnitOfWork, EfUnitOfWork>();
             services.AddAutoMapper(cfg => cfg.AddProfile<MappingProfile>());
 
-            services.AddScoped<BookCategoryGroupRepository>();
             services.AddScoped<BookCategoryRepository>();
             services.AddScoped<BookSaleTagRepository>();
             services.AddScoped<UsedBookImageRepository>();
             services.AddScoped<UsedBookRepository>();
 
-            services.AddScoped<BookCategoryGroupService>();
             services.AddScoped<BookCategoryService>();
             services.AddScoped<BookSaleTagService>();
             services.AddScoped<ImageService>();

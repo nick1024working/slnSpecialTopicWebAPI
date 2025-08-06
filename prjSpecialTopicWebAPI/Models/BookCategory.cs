@@ -7,8 +7,6 @@ public partial class BookCategory
 {
     public int Id { get; set; }
 
-    public int GroupId { get; set; }
-
     public string Name { get; set; } = null!;
 
     public bool IsActive { get; set; }
@@ -17,7 +15,5 @@ public partial class BookCategory
 
     public string Slug { get; set; } = null!;
 
-    public virtual BookCategoryGroup Group { get; set; } = null!;
-
-    public virtual ICollection<UsedBook> Books { get; set; } = new List<UsedBook>();
+    public virtual ICollection<UsedBook> UsedBooks { get; set; } = new List<UsedBook>();
 }

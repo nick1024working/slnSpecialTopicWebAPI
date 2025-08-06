@@ -10,6 +10,7 @@
         public decimal SalePrice { get; set; }
         public string Title { get; set; } = string.Empty;
         public string Authors { get; set; } = string.Empty;
+        public string CategoryName { get; set; } = string.Empty;
         public string ConditionRatingName { get; set; } = string.Empty;
 
         public string? ConditionDescription { get; set; }

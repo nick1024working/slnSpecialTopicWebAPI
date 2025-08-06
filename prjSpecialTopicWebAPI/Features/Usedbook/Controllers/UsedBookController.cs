@@ -65,7 +65,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         // ========== 查詢 ==========
 
         [HttpGet("{bookId:Guid}")]
-        public async Task<ActionResult<IEnumerable<PublicBookListItemDto>>> GetPubicDetail([FromRoute] Guid bookId, CancellationToken ct)
+        public async Task<ActionResult<PublicBookDetailDto>> GetPubicDetail([FromRoute] Guid bookId, CancellationToken ct)
         {
             var result = await _bookService.GetPubicDetailAsync(bookId, ct);
             if (!result.IsSuccess)
@@ -87,7 +87,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         // ========== 子資源圖片 ==========
 
         // HACK: 更新
-        [HttpPost("{bookId:Guid}/images/metadata")]
+        [HttpPost("{bookId:Guid}/images")]
         public async Task<ActionResult<IEnumerable<int>>> CreateBookImages(
             [FromRoute] Guid bookId, [FromBody] List<CreateUsedBookImageRequest> requestList)
         {
@@ -99,8 +99,8 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         }
 
         // HACK: 更新
-        [HttpPut("{bookId:Guid}/images/metadata")]
-        public async Task<ActionResult<IEnumerable<int>>> UpdateBookImages(
+        [HttpPut("{bookId:Guid}/images/order")]
+        public async Task<ActionResult<IEnumerable<int>>> UpdateBookImagesOrder(
             [FromRoute] Guid bookId, [FromBody] List<UpdateOrderByIdRequest> requestList, CancellationToken ct)
         {
             var result = await _bookImageService.UpdateOrderByBookIdAsync(bookId, requestList, ct);

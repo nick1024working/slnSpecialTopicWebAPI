@@ -4,8 +4,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests
 {
     public class UpdateBookRequest
     {
-        public List<UpdateUsedBookImageRequest> ImageList { get; set; } = [];
-
         [Display(Name = "賣家所在縣市")]
         [Required(ErrorMessage = "縣市為必填欄位")]
         public int SellerCountyId { get; set; }
@@ -28,6 +26,10 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests
         [Required(ErrorMessage = "作者為必填欄位")]
         [StringLength(100, ErrorMessage = "作者不可超過 100 字")]
         public string Authors { get; set; } = string.Empty;
+
+        [Display(Name = "主題分類")]
+        [Required(ErrorMessage = "主題分類為必填欄位")]
+        public int CategoryId { get; set; }
 
         [Display(Name = "書況評等")]
         [Required(ErrorMessage = "書況為必填欄位")]

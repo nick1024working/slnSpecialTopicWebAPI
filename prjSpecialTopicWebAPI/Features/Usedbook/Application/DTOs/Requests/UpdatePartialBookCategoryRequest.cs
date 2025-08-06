@@ -4,9 +4,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests
 {
     public record UpdatePartialBookCategoryRequest
     {
-        [Display(Name = "主題分類群 ID")]
-        public int? GroupId { get; set; }
-
         [Display(Name = "主題類別名稱")]
         [StringLength(50, ErrorMessage = "不可超過 50 字")]
         public string? Name { get; set; }

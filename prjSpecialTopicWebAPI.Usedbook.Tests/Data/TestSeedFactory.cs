@@ -1,7 +1,5 @@
-﻿using Azure.Core;
-using prjSpecialTopicWebAPI.Features.Usedbook.Enums;
+﻿using prjSpecialTopicWebAPI.Features.Usedbook.Enums;
 using prjSpecialTopicWebAPI.Models;
-using System;
 
 namespace prjSpecialTopicWebAPI.Usedbook.Tests.Data
 {
@@ -14,7 +12,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Data
             _db = db;
         }
 
-        public async Task<Guid> CreateUser()
+        public async Task<Guid> CreateUserAsync()
         {
             var id = Guid.NewGuid();
             var entity = new User
@@ -32,7 +30,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Data
             return id;
         }
 
-        public async Task<int> CreateCounty()
+        public async Task<int> CreateCountyAsync()
         {
             var entity = new County { Name = "測試市" };
             _db.Counties.Add(entity);
@@ -40,16 +38,16 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Data
             return entity.Id;
         }
 
-        public async Task<int> CreateDistrict()
+        public async Task<int> CreateDistrictAsync()
         {
-            var countyId = await CreateCounty();
+            var countyId = await CreateCountyAsync();
             var entity = new District { CountyId = countyId, Name = "測試區" };
             _db.Districts.Add(entity);
             await _db.SaveChangesAsync();
             return entity.Id;
         }
 
-        public async Task<int> CreateLanguage()
+        public async Task<int> CreateLanguageAsync()
         {
             var entity = new Language { Name = "測試語言" };
             _db.Languages.Add(entity);
@@ -57,7 +55,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Data
             return entity.Id;
         }
 
-        public async Task<int> CreateContentRating()
+        public async Task<int> CreateContentRatingAsync()
         {
             var entity = new ContentRating { Name = "測試分級" };
             _db.ContentRatings.Add(entity);
@@ -65,15 +63,15 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Data
             return entity.Id;
         }
 
-        public async Task<int> CreateBookConditionRating()
+        public async Task<int> CreateBookConditionRatingAsync()
         {
-            var entity = new BookConditionRating { Name = "測試書況" };
+            var entity = new BookConditionRating { Name = "測試書況", Description= "測試書況描述" };
             _db.BookConditionRatings.Add(entity);
             await _db.SaveChangesAsync();
             return entity.Id;
         }
 
-        public async Task<int> CreateBookBinding()
+        public async Task<int> CreateBookBindingAsync()
         {
             var entity = new BookBinding { Name = "測試裝訂" };
             _db.BookBindings.Add(entity);
@@ -81,22 +79,31 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Data
             return entity.Id;
         }
 
-        public async Task<Guid> CreateUsedBook()
+        public async Task<int> CreateBookCategoryAsync()
+        {
+            var entity = new BookCategory { Name = "測試分類", IsActive = true, DisplayOrder = 1, Slug = "1" };
+            _db.BookCategories.Add(entity);
+            await _db.SaveChangesAsync();
+            return entity.Id;
+        }
+
+        public async Task<Guid> CreateUsedBookAsync()
         {
             var id = Guid.NewGuid();
             var entity = new UsedBook
             {
                 Id = id,
-                SellerId = await CreateUser(),
-                SellerDistrictId = await CreateDistrict(),
+                SellerId = await CreateUserAsync(),
+                SellerDistrictId = await CreateDistrictAsync(),
                 SalePrice = 100m,
                 Title = "測試書籍",
                 Authors = "測試作者",
-                ConditionRatingId = await CreateBookConditionRating(),
+                CategoryId = await CreateBookCategoryAsync(),
+                ConditionRatingId = await CreateBookConditionRatingAsync(),
                 Isbn = "9876543210000",
-                BindingId = await CreateBookBinding(),
-                LanguageId = await CreateLanguage(),
-                ContentRatingId = await CreateContentRating(),
+                BindingId = await CreateBookBindingAsync(),
+                LanguageId = await CreateLanguageAsync(),
+                ContentRatingId = await CreateContentRatingAsync(),
                 IsOnShelf = true,
                 IsSold = false,
                 IsActive = true,
@@ -109,13 +116,13 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Data
             return id;
         }
 
-        public async Task<int> CreateBookImage(Guid? bookId)
+        public async Task<int> CreateBookImageAsync(Guid? bookId)
         {
             var entity = new UsedBookImage
             {
-                BookId = bookId ?? await CreateUsedBook(),
+                BookId = bookId ?? await CreateUsedBookAsync(),
                 IsCover = false,
-                ImageIndex = 1,
+                DisplayOrder = 1,
                 StorageProvider = (byte)StorageProvider.Local,
                 ObjectKey = Guid.NewGuid().ToString(),
                 Sha256 = Convert.FromBase64String("mZpOErm5t5R1P6zEvW+d+ZzXcW8dHZc52S9tfdlVeFY="),
@@ -124,6 +131,17 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Data
             _db.UsedBookImages.Add(entity);
             await _db.SaveChangesAsync();
             return entity.Id;
+        }
+
+        public async Task<IReadOnlyList<int>> CreateBookImageListAsync(Guid? bookId, int n)
+        {
+            List<int> result = [];
+            while (n-- > 0)
+            {
+                var id = await CreateBookImageAsync(bookId);
+                result.Add(id);
+            }
+            return result;
         }
     }
 }

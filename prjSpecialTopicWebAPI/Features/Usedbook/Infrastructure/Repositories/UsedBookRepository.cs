@@ -30,7 +30,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
         public async Task<UsedBook?> GetEntityByIdAsync(Guid id, CancellationToken ct = default) =>
             await _db.UsedBooks.SingleOrDefaultAsync(b => b.Id == id, ct);
 
-
         // ========== 新增、更新 ==========
 
         public void Add(UsedBook entity) =>
@@ -46,6 +45,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             entity.SalePrice = request.SalePrice;
             entity.Title = request.Title;
             entity.Authors = request.Authors;
+            entity.CategoryId = request.CategoryId;
             entity.ConditionRatingId = request.ConditionRatingId;
             entity.ConditionDescription = request.ConditionDescription;
             entity.Edition = request.Edition;
@@ -90,6 +90,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                     SalePrice = b.SalePrice,
                     Title = b.Title,
                     Authors = b.Authors,
+                    CategoryName = b.Category.Name,
                     ConditionRatingName = b.ConditionRating.Name,
 
                     ConditionDescription = b.ConditionDescription,
