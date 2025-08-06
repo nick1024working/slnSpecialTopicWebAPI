@@ -55,7 +55,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                 {
                     Id = bi.Id,
                     IsCover = bi.IsCover,
-                    ImageIndex = bi.ImageIndex,
+                    DisplayOrder = bi.DisplayOrder,
                     StorageProvider = (StorageProvider)bi.StorageProvider,
                     ObjectKey = bi.ObjectKey,
                     Sha256 = bi.Sha256
@@ -73,12 +73,12 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                 {
                     Id = bi.Id,
                     IsCover = bi.IsCover,
-                    ImageIndex = bi.ImageIndex,
+                    DisplayOrder = bi.DisplayOrder,
                     StorageProvider = (StorageProvider)bi.StorageProvider,
                     ObjectKey = bi.ObjectKey,
                     Sha256 = bi.Sha256
                 })
-                .OrderBy(bi => bi.ImageIndex)
+                .OrderBy(bi => bi.DisplayOrder)
                 .ToListAsync(ct);
             return queryResult;
         }
@@ -96,7 +96,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                 {
                     Id = bi.Id,
                     IsCover = bi.IsCover,
-                    ImageIndex = bi.ImageIndex,
+                    DisplayOrder = bi.DisplayOrder,
                     StorageProvider = (StorageProvider)bi.StorageProvider,
                     ObjectKey = bi.ObjectKey,
                     Sha256 = bi.Sha256

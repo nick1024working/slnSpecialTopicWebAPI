@@ -6,6 +6,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests
     // NOTE: 
     // 當無 Id 時，表示新增書圖片；
     // 當有 Id 時，表示更新書圖片 IsCover 或 ImageIndex。
+    [Obsolete]
     public class UpdateUsedBookImageRequest
     {
         [Display(Name = "圖片 ID")]

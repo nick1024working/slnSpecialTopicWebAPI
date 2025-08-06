@@ -157,8 +157,11 @@ public partial class TeamAProjectContext : DbContext
 
             entity.HasIndex(e => e.Name, "UQ_BookSaleTags_Name").IsUnique();
 
+            entity.HasIndex(e => e.Slug, "UQ__BookSale__BC7B5FB6AD57D42D").IsUnique();
+
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.Name).HasMaxLength(10);
+            entity.Property(e => e.Slug).HasMaxLength(255);
         });
 
         modelBuilder.Entity<ContentRating>(entity =>
@@ -929,8 +932,6 @@ public partial class TeamAProjectContext : DbContext
             entity.HasKey(e => e.Id).HasName("PK__UsedBook__3214EC0756533187");
 
             entity.HasIndex(e => new { e.StorageProvider, e.ObjectKey }, "UQ__UsedBook__19B1FA10C8C16175").IsUnique();
-
-            entity.HasIndex(e => new { e.BookId, e.ImageIndex }, "UQ__UsedBook__D26AE13703BB75E8").IsUnique();
 
             entity.Property(e => e.ObjectKey).HasMaxLength(300);
             entity.Property(e => e.Sha256)

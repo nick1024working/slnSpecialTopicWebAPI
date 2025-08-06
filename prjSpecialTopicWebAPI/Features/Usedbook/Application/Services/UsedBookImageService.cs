@@ -31,6 +31,8 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             _logger = logger;
         }
 
+        // ========== 新增、更新 ==========
+
         /// <summary>
         /// 使用者建立指定書本的所有書圖片
         /// </summary>
@@ -75,7 +77,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                     { 
                         BookId = bookId,
                         IsCover = i == coverIndex,
-                        ImageIndex = i,
+                        DisplayOrder = i,
                         StorageProvider = (byte)request.StorageProvider,
                         ObjectKey = request.ObjectKey,
                         Sha256 = Convert.FromBase64String("mZpOErm5t5R1P6zEvW+d+ZzXcW8dHZc52S9tfdlVeFY="),
@@ -99,110 +101,48 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
         /// <summary>
         /// 使用者更新指定書本的所有書圖片。
         /// </summary>
-        /// <remarks>此處暫不考慮效能。</remarks>
-        public async Task<Result<IReadOnlyList<int>>> UpdateAsync(
-            Guid bookId, List<UpdateUsedBookImageRequest> requestList, CancellationToken ct = default)
+        public async Task<Result<Unit>> UpdateOrderByBookIdAsync(
+            Guid bookId, IReadOnlyList<UpdateOrderByIdRequest> requestList, CancellationToken ct = default)
         {
-            // 取出當前追蹤實體集合 + 建表
-            var entities = await _usedBookImageRepository.GetEntitiesByBookIdAsync(bookId, ct);
-            var existingImageIds = entities.Select(e => e.Id).ToHashSet();
+            var entityList = await _usedBookImageRepository.GetEntitiesByBookIdAsync(bookId, ct);
 
-            // 基本驗證 - 不為空
-            if (requestList.Count == 0)
-                return Result<IReadOnlyList<int>>.Failure("書圖片清單不可為空", ErrorCodes.General.BadRequest);
-
-            // 基本驗證 - 封面 + Provider + ID
-            byte? coverIndex = null;
-            for (byte i = 0; i < requestList.Count; ++i)
-            {
-                var request = requestList[i];
-
-                // ID 為 null 視作新增
-                if (request.Id == null && !Enum.IsDefined(request.StorageProvider))
-                    return Result<IReadOnlyList<int>>.Failure("尚未支援的圖片儲存提供者。", ErrorCodes.General.BadRequest);
-
-                // ID 不為 null 視作修改
-                if (request.Id != null && !existingImageIds.Contains(request.Id.Value))
-                    return Result<IReadOnlyList<int>>.Failure("書圖片 ID 不正確", ErrorCodes.General.BadRequest);
-
-                if (request.IsCover == true)
-                {
-                    if (coverIndex != null)
-                        return Result<IReadOnlyList<int>>.Failure("封面數量必須為一張。", ErrorCodes.General.BadRequest);
-                    coverIndex = i;
-                }
-
-            }
-            if (coverIndex == null)
-            {
-                _logger.LogInformation("使用者未指定封面，預設設第一張為封面。");
-                coverIndex = 0;
-            }
-
-            // 準備覆蓋的實體集合
-            var toAddEntities = new List<UsedBookImage>();
-
-            var utcNow = DateTime.UtcNow;
-
-            // 遍歷 requestList，更新或沿用實體，把其加入 toAddEntities
-            for (byte i = 0; i < requestList.Count; ++i)
-            {
-                var request = requestList[i];
-
-                // 請求不帶有 imageId 表示新增
-                if (request.Id == null)
-                {
-                    toAddEntities.Add(new UsedBookImage
-                    {
-                        BookId = bookId,
-                        IsCover = i == coverIndex,
-                        ImageIndex = i,
-                        StorageProvider = (byte)request.StorageProvider,
-                        ObjectKey = request.ObjectKey,
-                        Sha256 = Convert.FromBase64String("mZpOErm5t5R1P6zEvW+d+ZzXcW8dHZc52S9tfdlVeFY="),
-                        UploadedAt = utcNow
-                    });
-                }
-                // 請求帶有 imageId 表示嘗試更新，注意基本驗證時就已經把不存在的情形駁回
-                else
-                {
-                    var entity = entities.Single(e => e.Id == request.Id);
-                    toAddEntities.Add(new UsedBookImage
-                    {
-                        BookId = bookId,
-                        IsCover = i == coverIndex,
-                        ImageIndex = i,
-                        StorageProvider = entity.StorageProvider,
-                        ObjectKey = entity.ObjectKey,
-                        Sha256 = entity.Sha256,
-                        UploadedAt = entity.UploadedAt
-                    });
-                }
-            }
-
-            await _unitOfWork.BeginTransactionAsync(ct);
-            try
-            {
-                _usedBookImageRepository.RemoveRange(entities);
-                _usedBookImageRepository.AddRange(toAddEntities);
-
-                await _unitOfWork.CommitAsync(ct);
-
-                // 組裝回應
-                var response = toAddEntities
-                    .Select(e => e.Id)
-                    .ToList()
-                    .AsReadOnly();
-
-                return Result<IReadOnlyList<int>>.Success(response);
-            }
-            catch (Exception ex)
+            // 檢查數量一致
+            if (entityList.Count != requestList.Count)
             {
                 await _unitOfWork.RollbackAsync(ct);
-                return ExceptionToErrorResultMapper<IReadOnlyList<int>>.Map(ex, _logger);
+                return Result<Unit>.Failure("請求列表與實際二手書圖列表數量不符", ErrorCodes.General.Conflict);
             }
+
+            var entityDict = entityList.ToDictionary(x => x.Id);
+            var seen = new HashSet<int>();
+
+            int order = 1;
+            foreach (var request in requestList)
+            {
+                // 檢查存在
+                if (!entityDict.TryGetValue(request.Id, out var entity))
+                {
+                    await _unitOfWork.RollbackAsync(ct);
+                    return Result<Unit>.Failure($"有不合法的二手書圖 Id: {request.Id}", ErrorCodes.General.BadRequest);
+                }
+
+                // 檢查重複
+                if (!seen.Add(request.Id))
+                {
+                    await _unitOfWork.RollbackAsync(ct);
+                    return Result<Unit>.Failure($"請求列表中二手書圖 Id 重複: {request.Id}", ErrorCodes.General.BadRequest);
+                }
+
+                entity.DisplayOrder = order;
+                ++order;
+            }
+
+            await _unitOfWork.CommitAsync(ct);
+            return Result<Unit>.Success(Unit.Value);
+
         }
 
+        // 上面更改
         /// <summary>
         /// 根據 ImageId 刪除指定書圖片，此操作具備冪等性。
         /// </summary>
@@ -228,6 +168,8 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             }
         }
 
+        // ========== 查詢 ==========
+
         /// <summary>
         /// 根據 ImageId 查詢指定書圖片
         /// </summary>
@@ -251,20 +193,22 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
         /// <summary>
         /// 根據 BookId 查詢所有書圖片，將依照 ImageIndex 升序排序。
         /// </summary>
-        public async Task<Result<IEnumerable<BookImageDto>>> GetByBookIdAsync(Guid bookId, CancellationToken ct = default)
+        public async Task<Result<IReadOnlyList<BookImageDto>>> GetByBookIdAsync(Guid bookId, CancellationToken ct = default)
         {
             try
             {
                 var queryResult = await _usedBookImageRepository.GetByBookIdAsync(bookId, ct);
 
-                var dto = _mapper.Map<IEnumerable<BookImageDto>>(queryResult);
-                return Result<IEnumerable<BookImageDto>>.Success(dto);
+                var dto = _mapper.Map<IReadOnlyList<BookImageDto>>(queryResult);
+                return Result<IReadOnlyList<BookImageDto>>.Success(dto);
             }
             catch (Exception ex)
             {
-                return ExceptionToErrorResultMapper<IEnumerable<BookImageDto>>.Map(ex, _logger);
+                return ExceptionToErrorResultMapper<IReadOnlyList<BookImageDto>>.Map(ex, _logger);
             }
         }
+
+        // ========== 封面相關 ==========
 
         /// <summary>
         /// 查詢指定書本的封面圖片

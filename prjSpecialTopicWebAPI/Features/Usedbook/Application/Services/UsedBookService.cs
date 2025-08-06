@@ -78,25 +78,25 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             }
         }
 
-        public async Task<Result<Unit>> UpdateAsync(Guid id, UpdateBookRequest request, CancellationToken ct = default)
-        {
-            try
-            {
-                await _usedBookImageService.UpdateAsync(id, request.ImageList, ct);
-                var commandResult = await _usedBookRepository.UpdateAsync(id, request, ct);
+        //public async Task<Result<Unit>> UpdateAsync(Guid id, UpdateBookRequest request, CancellationToken ct = default)
+        //{
+        //    try
+        //    {
+        //        await _usedBookImageService.UpdateByBookIdAsync(id, request.ImageList, ct);
+        //        var commandResult = await _usedBookRepository.UpdateAsync(id, request, ct);
 
-                if (commandResult == false)
-                    return Result<Unit>.Failure("非此資源擁有者", ErrorCodes.General.NotFound);
+        //        if (commandResult == false)
+        //            return Result<Unit>.Failure("非此資源擁有者", ErrorCodes.General.NotFound);
 
-                await _unitOfWork.CommitAsync(ct);
+        //        await _unitOfWork.CommitAsync(ct);
 
-                return Result<Unit>.Success(Unit.Value);
-            }
-            catch (Exception ex)
-            {
-                return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
-            }
-        }
+        //        return Result<Unit>.Success(Unit.Value);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
+        //    }
+        //}
 
         public async Task<Result<Unit>> UpdateActiveStatusAsync(Guid id, bool isActive, CancellationToken ct = default)
         {

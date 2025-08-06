@@ -56,6 +56,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Infrastructure.TestHost
             services.AddScoped<BookCategoryGroupService>();
             services.AddScoped<BookCategoryService>();
             services.AddScoped<BookSaleTagService>();
+            services.AddScoped<ImageService>();
             services.AddScoped<UsedBookImageService>();
             services.AddScoped<UsedBookService>();
 

@@ -5,7 +5,6 @@ using prjSpecialTopicWebAPI.Features.Usedbook.Application.Errors;
 using prjSpecialTopicWebAPI.Usedbook.Application.Services;
 using prjSpecialTopicWebAPI.Usedbook.Tests.Extensions;
 using prjSpecialTopicWebAPI.Usedbook.Tests.Infrastructure.TestHost;
-using System.Text.RegularExpressions;
 
 namespace prjSpecialTopicWebAPI.Usedbook.Tests.Slice.Services
 {

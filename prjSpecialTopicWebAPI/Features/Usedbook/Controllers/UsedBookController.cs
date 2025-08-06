@@ -44,14 +44,14 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             return CreatedAtAction(nameof(GetPubicDetail), new { bookId = result.Value }, result.Value);
         }
 
-        [HttpPut("{bookId:Guid}")]
-        public async Task<ActionResult> UpdateBook([FromRoute] Guid bookId, [FromBody] UpdateBookRequest request, CancellationToken ct)
-        {
-            var result = await _bookService.UpdateAsync(bookId, request, ct);
-            if (!result.IsSuccess)
-                return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
-            return NoContent();
-        }
+        //[HttpPut("{bookId:Guid}")]
+        //public async Task<ActionResult> UpdateBook([FromRoute] Guid bookId, [FromBody] UpdateBookRequest request, CancellationToken ct)
+        //{
+        //    var result = await _bookService.UpdateAsync(bookId, request, ct);
+        //    if (!result.IsSuccess)
+        //        return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
+        //    return NoContent();
+        //}
 
         [HttpDelete("{bookId:Guid}")]
         public async Task<ActionResult> DeleteBook([FromRoute] Guid bookId, CancellationToken ct)
@@ -86,6 +86,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
 
         // ========== 子資源圖片 ==========
 
+        // HACK: 更新
         [HttpPost("{bookId:Guid}/images/metadata")]
         public async Task<ActionResult<IEnumerable<int>>> CreateBookImages(
             [FromRoute] Guid bookId, [FromBody] List<CreateUsedBookImageRequest> requestList)
@@ -97,11 +98,12 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             return StatusCode(StatusCodes.Status201Created, result.Value);
         }
 
+        // HACK: 更新
         [HttpPut("{bookId:Guid}/images/metadata")]
         public async Task<ActionResult<IEnumerable<int>>> UpdateBookImages(
-            [FromRoute] Guid bookId, [FromBody] List<UpdateUsedBookImageRequest> requestList, CancellationToken ct)
+            [FromRoute] Guid bookId, [FromBody] List<UpdateOrderByIdRequest> requestList, CancellationToken ct)
         {
-            var result = await _bookImageService.UpdateAsync(bookId, requestList, ct);
+            var result = await _bookImageService.UpdateOrderByBookIdAsync(bookId, requestList, ct);
             if (!result.IsSuccess)
                 return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
             return Ok(result.Value);
