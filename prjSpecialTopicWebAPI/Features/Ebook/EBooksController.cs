@@ -10,10 +10,13 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
     public class EbooksController : ControllerBase
     {
         private readonly TeamAProjectContext _db;
+        private readonly IWebHostEnvironment _env; // [新增]
 
-        public EbooksController(TeamAProjectContext db)
+
+        public EbooksController(TeamAProjectContext db, IWebHostEnvironment env)
         {
             _db = db;
+            _env = env;
         }
 
         /// <summary>
@@ -289,6 +292,69 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
             await _db.SaveChangesAsync();
 
             return NoContent();
+        }
+
+
+        /// <summary>
+        /// 上傳或更新指定書籍的電子書檔案
+        /// </summary>
+        /// <param name="ebookId">要上傳檔案的書籍 ID</param>
+        /// <param name="file">上傳的電子書檔案 (例如 .epub 或 .pdf)</param>
+        [HttpPost("{ebookId}/file")]
+        public async Task<IActionResult> UploadEbookFile(long ebookId, IFormFile file)
+        {
+            // 1. 檢查書籍是否存在
+            var ebook = await _db.EBookMains.FindAsync(ebookId);
+            if (ebook == null)
+            {
+                return NotFound($"找不到 ID 為 {ebookId} 的書籍");
+            }
+
+            // 2. 驗證上傳的檔案
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest("未提供上傳檔案");
+            }
+
+            // (可選) 檢查副檔名
+            var allowedExtensions = new[] { ".epub", ".pdf" };
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+            {
+                return BadRequest("不支援的檔案格式");
+            }
+
+            // 3. 規劃儲存路徑與檔名
+            var uploadPath = Path.Combine(_env.WebRootPath, "ebook-files"); // e.g., wwwroot/ebook-files
+                                                                            // 建立一個較不易重複的檔名，例如用書籍ID + GUID
+            var uniqueFileName = $"{ebookId}-{Guid.NewGuid()}{extension}";
+            var filePath = Path.Combine(uploadPath, uniqueFileName);
+
+            // 確保儲存的資料夾存在
+            Directory.CreateDirectory(uploadPath);
+
+            // [進階處理] 如果這本書已經有舊檔案，先將其刪除
+            if (!string.IsNullOrEmpty(ebook.EBookPosition))
+            {
+                var oldFilePath = Path.Combine(_env.WebRootPath, ebook.EBookPosition.TrimStart('/'));
+                if (System.IO.File.Exists(oldFilePath))
+                {
+                    System.IO.File.Delete(oldFilePath);
+                }
+            }
+
+            // 4. 將新檔案儲存到伺服器
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            // 5. 更新資料庫中的 EBookPosition 欄位
+            ebook.EBookPosition = $"/ebook-files/{uniqueFileName}"; // 存入Web可存取的相對路徑
+            await _db.SaveChangesAsync();
+
+            // 6. 回傳成功訊息，包含新的檔案路徑
+            return Ok(new { filePath = ebook.EBookPosition });
         }
     }
 }
