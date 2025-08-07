@@ -44,19 +44,43 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             return CreatedAtAction(nameof(GetPubicDetail), new { bookId = result.Value }, result.Value);
         }
 
-        //[HttpPut("{bookId:Guid}")]
-        //public async Task<ActionResult> UpdateBook([FromRoute] Guid bookId, [FromBody] UpdateBookRequest request, CancellationToken ct)
-        //{
-        //    var result = await _bookService.UpdateAsync(bookId, request, ct);
-        //    if (!result.IsSuccess)
-        //        return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
-        //    return NoContent();
-        //}
-
-        [HttpDelete("{bookId:Guid}")]
-        public async Task<ActionResult> DeleteBook([FromRoute] Guid bookId, CancellationToken ct)
+        [HttpPut("{bookId:Guid}")]
+        public async Task<ActionResult> UpdateBook(
+            [FromRoute] Guid bookId, [FromBody] UpdateBookRequest request, CancellationToken ct)
         {
-            var result = await _bookService.UpdateActiveStatusAsync(bookId, false, ct);
+            var result = await _bookService.UpdateAsync(bookId, request, ct);
+            if (!result.IsSuccess)
+                return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
+            return NoContent();
+        }
+
+        // ========== 更改狀態 ==========
+
+        [HttpPut("{bookId:Guid}/on-shelf")]
+        public async Task<ActionResult<IEnumerable<int>>> UpdateBookOnShelfStatus(
+            [FromRoute] Guid bookId, [FromBody] UpdateStatusRequest status, CancellationToken ct)
+        {
+            var result = await _bookService.UpdateOnShelfStatusAsync(bookId, status, ct);
+            if (!result.IsSuccess)
+                return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
+            return NoContent();
+        }
+
+        [HttpPut("{bookId:Guid}/active")]
+        public async Task<ActionResult<IEnumerable<int>>> UpdateBookActiveStatus(
+            [FromRoute] Guid bookId, [FromBody] UpdateStatusRequest status, CancellationToken ct)
+        {
+            var result = await _bookService.UpdateActiveStatusAsync(bookId, status, ct);
+            if (!result.IsSuccess)
+                return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
+            return NoContent();
+        }
+
+        [HttpPut("{bookId:Guid}/sold")]
+        public async Task<ActionResult<IEnumerable<int>>> UpdateBookSoldStatus(
+            [FromRoute] Guid bookId, [FromBody] UpdateStatusRequest status, CancellationToken ct)
+        {
+            var result = await _bookService.UpdateSoldStatusAsync(bookId, status, ct);
             if (!result.IsSuccess)
                 return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
             return NoContent();
@@ -65,9 +89,9 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         // ========== 查詢 ==========
 
         [HttpGet("{bookId:Guid}")]
-        public async Task<ActionResult<PublicBookTextDetailDto>> GetPubicDetail([FromRoute] Guid bookId, CancellationToken ct)
+        public async Task<ActionResult<PublicUsedBookDetailDto>> GetPubicDetail([FromRoute] Guid bookId, CancellationToken ct)
         {
-            var result = await _bookService.GetPubicDetailAsync(bookId, ct);
+            var result = await _bookService.GetPublicDetailByIdAsync(bookId, ct);
             if (!result.IsSuccess)
                 return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
 

@@ -9,6 +9,7 @@ using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.UnitOfWork;
 using prjSpecialTopicWebAPI.Features.Usedbook.Utilities;
 using prjSpecialTopicWebAPI.Models;
 using System.Linq.Expressions;
+using System.Net;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 {
@@ -45,6 +46,9 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 
         // ========== 新增、更新 ==========
 
+        /// <summary>
+        /// 新增完整書本資源，圖片部分交給 ImageService
+        /// </summary>
         public async Task<Result<Guid>> CreateAsync(Guid sellerId, CreateBookRequest request, CancellationToken ct = default)
         {
             Guid usedBookId = Guid.NewGuid();
@@ -63,6 +67,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             try
             {
                 _usedBookRepository.Add(entity);
+                // 此處呼叫 ImageService 來處理封面圖片
                 var commandResult = await _usedBookImageService.CreateAsync(usedBookId, request.ImageList);
                 if (!commandResult.IsSuccess)
                     throw new Exception(commandResult.ErrorMessage);
@@ -78,31 +83,83 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             }
         }
 
-        //public async Task<Result<Unit>> UpdateAsync(Guid id, UpdateBookRequest request, CancellationToken ct = default)
-        //{
-        //    try
-        //    {
-        //        await _usedBookImageService.UpdateByBookIdAsync(id, request.ImageList, ct);
-        //        var commandResult = await _usedBookRepository.UpdateAsync(id, request, ct);
-
-        //        if (commandResult == false)
-        //            return Result<Unit>.Failure("非此資源擁有者", ErrorCodes.General.NotFound);
-
-        //        await _unitOfWork.CommitAsync(ct);
-
-        //        return Result<Unit>.Success(Unit.Value);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
-        //    }
-        //}
-
-        public async Task<Result<Unit>> UpdateActiveStatusAsync(Guid id, bool isActive, CancellationToken ct = default)
+        /// <summary>
+        /// 更新指定書本資源 (僅更新書本實體)
+        /// </summary>
+        public async Task<Result<Unit>> UpdateAsync(Guid id, UpdateBookRequest request, CancellationToken ct = default)
         {
             try
             {
-                bool commandResult = await _usedBookRepository.UpdateActiveStatusAsync(id, isActive, ct);
+                var entity = await _usedBookRepository.GetEntityByIdAsync(id, ct);
+                if (entity is null)
+                    return Result<Unit>.Failure("找不到要更新的書本", ErrorCodes.General.NotFound);
+
+                entity.SellerDistrictId = request.SellerDistrictId;
+                entity.SalePrice = request.SalePrice;
+                entity.Title = request.Title;
+                entity.Authors = request.Authors;
+                entity.CategoryId = request.CategoryId;
+                entity.ConditionRatingId = request.ConditionRatingId;
+                entity.ConditionDescription = request.ConditionDescription;
+                entity.Edition = request.Edition;
+                entity.Publisher = request.Publisher;
+                entity.PublicationDate = request.PublicationDate;
+                entity.Isbn = request.Isbn;
+                entity.BindingId = request.BindingId;
+                entity.LanguageId = request.LanguageId;
+                entity.Pages = request.Pages;
+                entity.ContentRatingId = request.ContentRatingId;
+                entity.IsOnShelf = request.IsOnShelf;
+                entity.UpdatedAt = DateTime.UtcNow;
+
+                await _unitOfWork.CommitAsync(ct);
+                return Result<Unit>.Success(Unit.Value);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
+            }
+        }
+
+        // ========== 更改狀態 ==========
+
+        public async Task<Result<Unit>> UpdateOnShelfStatusAsync(Guid id, UpdateStatusRequest request, CancellationToken ct = default)
+        {
+            try
+            {
+                bool commandResult = await _usedBookRepository.UpdateOnShelfStatusAsync(id, request.Value, ct);
+                if (commandResult)
+                    await _unitOfWork.CommitAsync(ct);
+
+                return Result<Unit>.Success(Unit.Value);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
+            }
+        }
+
+        public async Task<Result<Unit>> UpdateActiveStatusAsync(Guid id, UpdateStatusRequest request, CancellationToken ct = default)
+        {
+            try
+            {
+                bool commandResult = await _usedBookRepository.UpdateActiveStatusAsync(id, request.Value, ct);
+                if (commandResult)
+                    await _unitOfWork.CommitAsync(ct);
+
+                return Result<Unit>.Success(Unit.Value);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
+            }
+        }
+
+        public async Task<Result<Unit>> UpdateSoldStatusAsync(Guid id, UpdateStatusRequest request, CancellationToken ct = default)
+        {
+            try
+            {
+                bool commandResult = await _usedBookRepository.UpdateSoldStatusAsync(id, request.Value, ct);
                 if (commandResult)
                     await _unitOfWork.CommitAsync(ct);
 
@@ -137,26 +194,48 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             }
         }
 
-        public async Task<Result<PublicBookTextDetailDto>> GetPubicDetailAsync(Guid id, CancellationToken ct = default)
+        public async Task<Result<PublicUsedBookDetailDto>> GetPublicDetailByIdAsync(Guid id, CancellationToken ct = default)
         {
             try
             {
-                var bookQueryResult = await _usedBookRepository.GetTextByIdAsync(id, ct);
+                var bookQueryResult = await _usedBookRepository.GetDetailByIdAsync(id, ct);
                 if (bookQueryResult == null)
-                    return Result<PublicBookTextDetailDto>.Failure("找不到符合的資料", ErrorCodes.General.NotFound);
+                    return Result<PublicUsedBookDetailDto>.Failure("找不到符合的資料", ErrorCodes.General.NotFound);
 
                 var imageQueryResult = await _usedBookImageRepository.GetByBookIdAsync(id, ct);
 
-                var dto = _mapper.Map<PublicBookTextDetailDto>(bookQueryResult);
+                var dto = _mapper.Map<PublicUsedBookDetailDto>(bookQueryResult);
                 dto.ImageList = _mapper.Map<IEnumerable<BookImageDto>>(imageQueryResult);
 
-                return Result<PublicBookTextDetailDto>.Success(dto);
+                return Result<PublicUsedBookDetailDto>.Success(dto);
             }
             catch (Exception ex)
             {
-                return ExceptionToErrorResultMapper<PublicBookTextDetailDto>.Map(ex, _logger);
+                return ExceptionToErrorResultMapper<PublicUsedBookDetailDto>.Map(ex, _logger);
             }
         }
+
+        public async Task<Result<AdminUsedBookDetailDto>> GetAdminDetailByIdAsync(Guid id, CancellationToken ct = default)
+        {
+            try
+            {
+                var bookQueryResult = await _usedBookRepository.GetDetailByIdAsync(id, ct);
+                if (bookQueryResult == null)
+                    return Result<AdminUsedBookDetailDto>.Failure("找不到符合的資料", ErrorCodes.General.NotFound);
+
+                var imageQueryResult = await _usedBookImageRepository.GetByBookIdAsync(id, ct);
+
+                var dto = _mapper.Map<AdminUsedBookDetailDto>(bookQueryResult);
+                dto.ImageList = _mapper.Map<IEnumerable<BookImageDto>>(imageQueryResult);
+
+                return Result<AdminUsedBookDetailDto>.Success(dto);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<AdminUsedBookDetailDto>.Map(ex, _logger);
+            }
+        }
+
 
         // TODO: 需要分頁
         public async Task<Result<IReadOnlyList<PublicBookListItemDto>>> GetPublicListAsync(BookListQuery query, CancellationToken ct = default)
@@ -284,10 +363,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
             }
         }
-
-        // ========== 主題分類相關 ==========
-
-
 
         // ========== 私有方法 ==========
 

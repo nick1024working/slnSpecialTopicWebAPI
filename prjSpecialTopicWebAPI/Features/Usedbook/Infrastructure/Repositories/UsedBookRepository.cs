@@ -35,40 +35,33 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
         public void Add(UsedBook entity) =>
             _db.UsedBooks.Add(entity);
 
-        public async Task<bool> UpdateAsync(Guid id, UpdateBookRequest request, CancellationToken ct = default)
+        public async Task<bool> UpdateOnShelfStatusAsync(Guid id, bool status, CancellationToken ct = default)
         {
-            var entity = await _db.UsedBooks
-                .SingleOrDefaultAsync(b => b.Id == id, ct);
-            if (entity == null)
+            var result = await _db.UsedBooks.SingleOrDefaultAsync(b => b.Id == id, ct);
+            if (result == null)
                 return false;
-
-            entity.SalePrice = request.SalePrice;
-            entity.Title = request.Title;
-            entity.Authors = request.Authors;
-            entity.CategoryId = request.CategoryId;
-            entity.ConditionRatingId = request.ConditionRatingId;
-            entity.ConditionDescription = request.ConditionDescription;
-            entity.Edition = request.Edition;
-            entity.Publisher = request.Publisher;
-            entity.PublicationDate = request.PublicationDate;
-            entity.Isbn = request.Isbn;
-            entity.BindingId = request.BindingId;
-            entity.LanguageId = request.LanguageId;
-            entity.Pages = request.Pages;
-            entity.ContentRatingId = request.ContentRatingId;
-            entity.IsOnShelf = request.IsOnShelf;
-            entity.UpdatedAt = DateTime.UtcNow;
-
+            result.IsOnShelf = status ;
+            result.UpdatedAt = DateTime.UtcNow;
             return true;
         }
 
-        public async Task<bool> UpdateActiveStatusAsync(Guid id, bool isActive, CancellationToken ct = default)
+        public async Task<bool> UpdateSoldStatusAsync(Guid id, bool status, CancellationToken ct = default)
         {
-            var result = await _db.UsedBooks
-                .SingleOrDefaultAsync(b => b.Id == id, ct);
+            var result = await _db.UsedBooks.SingleOrDefaultAsync(b => b.Id == id, ct);
             if (result == null)
                 return false;
-            result.IsActive = isActive;
+            result.IsSold = status;
+            result.UpdatedAt = DateTime.UtcNow;
+            return true;
+        }
+
+        public async Task<bool> UpdateActiveStatusAsync(Guid id, bool status, CancellationToken ct = default)
+        {
+            var result = await _db.UsedBooks.SingleOrDefaultAsync(b => b.Id == id, ct);
+            if (result == null)
+                return false;
+            result.IsActive = status;
+            result.UpdatedAt = DateTime.UtcNow;
             return true;
         }
 
@@ -77,11 +70,11 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
         /// <summary>
         /// 根據 ID 查詢書本完整資訊 (關聯欄位已用字串顯示)。
         /// </summary>
-        public async Task<UsedBookTextDetailQueryResult?> GetTextByIdAsync(Guid id, CancellationToken ct = default)
+        public async Task<UsedBookDetailQueryResult?> GetDetailByIdAsync(Guid id, CancellationToken ct = default)
         {
             var queryResult = await _db.UsedBooks
                 .Where(b => b.Id == id)
-                .Select(b => new UsedBookTextDetailQueryResult
+                .Select(b => new UsedBookDetailQueryResult
                 {
                     Id = b.Id,
                     SellerId = b.SellerId,
@@ -303,6 +296,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
         /// <summary>
         /// 為指定書籍賦予 SaleTag 促銷標籤
         /// </summary>
+        [Obsolete("目前 service 直接使用實體")]
         public async Task<bool> AddSaleTagAsync(Guid bookId, int tagId, CancellationToken ct = default)
         {
             var book = await _db.UsedBooks
@@ -323,6 +317,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
         /// <summary>
         /// 把指定書籍移除 SaleTag 促銷標籤
         /// </summary>
+        [Obsolete("目前 service 直接使用實體")]
         public async Task<bool> RemoveBookSaleTagAsync(Guid bookId, int tagId, CancellationToken ct = default)
         {
             var bookWithTagsEntity = await _db.UsedBooks
@@ -340,15 +335,5 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             bookWithTagsEntity.Tags.Remove(saleTagToRemove);
             return true;
         }
-
-        // ========== 主題分類相關 ==========
-
-        /// <summary>
-        /// 為指定書籍賦予 BookCategory 主題分類
-        /// </summary>
-
-        /// <summary>
-        /// 把指定書籍移除 BookCategory 主題分類
-        /// </summary>
     }
 }

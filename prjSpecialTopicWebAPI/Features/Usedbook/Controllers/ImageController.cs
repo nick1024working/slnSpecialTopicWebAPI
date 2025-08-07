@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
 using prjSpecialTopicWebAPI.Features.Usedbook.Utilities;
 
@@ -17,24 +18,25 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateImage([FromBody] IFormFile file, CancellationToken ct)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> CreateImage([FromForm] UploadImageRequest request, CancellationToken ct)
         {
-            var queryResult = await _imageService.SaveImageAsync(file, Request, ct);
+            var queryResult = await _imageService.SaveImageAsync(request.File, Request, ct);
             if (!queryResult.IsSuccess)
                 return BadRequest(queryResult.ErrorMessage);
             return Ok(queryResult);
         }
 
         [HttpPost("batch")]
-        public async Task<IActionResult> CreateImages([FromBody] IEnumerable<IFormFile> files, CancellationToken ct)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> CreateImages([FromForm] UploadImagesRequest request, CancellationToken ct)
         {
-            var result = await _imageService.SaveImagesAsync(files, Request, ct);
+            var result = await _imageService.SaveImagesAsync(request.Files, Request, ct);
             if (!result.IsSuccess)
                 return BadRequest(result.ErrorMessage);
 
             return Ok(result.Value);
         }
-
 
         [HttpDelete("{id}")]
         public IActionResult DeleteImage(string id)

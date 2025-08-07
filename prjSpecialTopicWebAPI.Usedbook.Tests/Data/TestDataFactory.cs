@@ -5,7 +5,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Data
 {
     public class TestDataFactory
     {
-        public static CreateBookRequest GetCreateBookRequest()
+        public static CreateBookRequest GetCreateBookRequestWithoutRelationalFields()
         {
             return new CreateBookRequest
             {
@@ -19,6 +19,22 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Data
                 PublicationDate = new DateOnly(2023, 10, 1),
                 Isbn = "9781234567890",
                 IsOnShelf = true,
+            };
+        }
+
+        public static UpdateBookRequest GetUpdateBookRequestWithoutRelationalFields()
+        {
+            return new UpdateBookRequest
+            {
+                SalePrice = 200,
+                Title = "測試書名2",
+                Authors = "測試作者2",
+                ConditionDescription = "書況不良",
+                Edition = "第2版",
+                Publisher = "測試出版社2",
+                PublicationDate = new DateOnly(2022, 10, 1),
+                Isbn = "01234567890",
+                IsOnShelf = false,
             };
         }
 

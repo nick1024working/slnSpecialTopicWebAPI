@@ -1,15 +1,18 @@
 ﻿using prjSpecialTopicWebAPI.Features.Usedbook.Enums;
 using prjSpecialTopicWebAPI.Models;
+using prjSpecialTopicWebAPI.Usedbook.Tests.Utilities;
 
 namespace prjSpecialTopicWebAPI.Usedbook.Tests.Data
 {
-    public class TestSeedFactory
+    public class RandomTestSeedFactory
     {
         private readonly TeamAProjectContext _db;
+        private readonly ChineseFakeGenerator _fake;
 
-        public TestSeedFactory(TeamAProjectContext db)
+        public RandomTestSeedFactory(TeamAProjectContext db)
         {
             _db = db;
+            _fake = new ChineseFakeGenerator();
         }
 
         public async Task<Guid> CreateUserAsync()
@@ -18,10 +21,10 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Data
             var entity = new User
             {
                 Uid = id,
-                Phone = "0912345678",
-                Password = "password123",
-                Name = "測試用戶",
-                Email = "test@test.com",
+                Phone = _fake.Phone(),
+                Password = _fake.Password(),
+                Name = _fake.Name(),
+                Email = _fake.Email(),
                 Gender = true,
                 Birthday = new DateOnly(1990, 1, 1),
             };
@@ -32,7 +35,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Data
 
         public async Task<int> CreateCountyAsync()
         {
-            var entity = new County { Name = "測試市" };
+            var entity = new County { Name = _fake.Name() };
             _db.Counties.Add(entity);
             await _db.SaveChangesAsync();
             return entity.Id;
@@ -41,7 +44,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Data
         public async Task<int> CreateDistrictAsync()
         {
             var countyId = await CreateCountyAsync();
-            var entity = new District { CountyId = countyId, Name = "測試區" };
+            var entity = new District { CountyId = countyId, Name = _fake.Name() };
             _db.Districts.Add(entity);
             await _db.SaveChangesAsync();
             return entity.Id;
@@ -49,7 +52,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Data
 
         public async Task<int> CreateLanguageAsync()
         {
-            var entity = new Language { Name = "測試語言" };
+            var entity = new Language { Name = _fake.Name() };
             _db.Languages.Add(entity);
             await _db.SaveChangesAsync();
             return entity.Id;
@@ -57,7 +60,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Data
 
         public async Task<int> CreateContentRatingAsync()
         {
-            var entity = new ContentRating { Name = "測試分級" };
+            var entity = new ContentRating { Name = _fake.Name() };
             _db.ContentRatings.Add(entity);
             await _db.SaveChangesAsync();
             return entity.Id;
@@ -65,7 +68,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Data
 
         public async Task<int> CreateBookConditionRatingAsync()
         {
-            var entity = new BookConditionRating { Name = "測試書況", Description= "測試書況描述" };
+            var entity = new BookConditionRating { Name = _fake.Name(), Description = _fake.Word(10, 50) };
             _db.BookConditionRatings.Add(entity);
             await _db.SaveChangesAsync();
             return entity.Id;
@@ -73,7 +76,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Data
 
         public async Task<int> CreateBookBindingAsync()
         {
-            var entity = new BookBinding { Name = "測試裝訂" };
+            var entity = new BookBinding { Name = _fake.Name() };
             _db.BookBindings.Add(entity);
             await _db.SaveChangesAsync();
             return entity.Id;
@@ -81,7 +84,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Data
 
         public async Task<int> CreateBookSaleTagAsync()
         {
-            var entity = new BookSaleTag { Name = "測試促銷標籤", IsActive = true, DisplayOrder = 1, Slug = "1" };
+            var entity = new BookSaleTag { Name = _fake.Name(), IsActive = true, DisplayOrder = 1, Slug = _fake.Name() };
             _db.BookSaleTags.Add(entity);
             await _db.SaveChangesAsync();
             return entity.Id;
@@ -89,7 +92,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Data
 
         public async Task<int> CreateBookCategoryAsync()
         {
-            var entity = new BookCategory { Name = "測試分類", IsActive = true, DisplayOrder = 1, Slug = "1" };
+            var entity = new BookCategory { Name = _fake.Name(), IsActive = true, DisplayOrder = 1, Slug = _fake.Name() };
             _db.BookCategories.Add(entity);
             await _db.SaveChangesAsync();
             return entity.Id;
@@ -104,11 +107,11 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Data
                 SellerId = await CreateUserAsync(),
                 SellerDistrictId = await CreateDistrictAsync(),
                 SalePrice = 100m,
-                Title = "測試書籍",
-                Authors = "測試作者",
+                Title = _fake.Word(5, 10),
+                Authors = _fake.Name(),
                 CategoryId = await CreateBookCategoryAsync(),
                 ConditionRatingId = await CreateBookConditionRatingAsync(),
-                Isbn = "9876543210000",
+                Isbn = _fake.Isbn(),
                 BindingId = await CreateBookBindingAsync(),
                 LanguageId = await CreateLanguageAsync(),
                 ContentRatingId = await CreateContentRatingAsync(),

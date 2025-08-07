@@ -1,6 +1,6 @@
 ﻿namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses
 {
-    public class PublicBookTextDetailDto
+    public class PublicUsedBookDetailDto
     {
         public IEnumerable<BookImageDto> ImageList { get; set; } = new List<BookImageDto>();
 

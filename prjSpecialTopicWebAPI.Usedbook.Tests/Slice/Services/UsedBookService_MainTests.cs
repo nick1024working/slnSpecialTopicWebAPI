@@ -8,17 +8,19 @@ using prjSpecialTopicWebAPI.Usedbook.Tests.Infrastructure.TestHost;
 namespace prjSpecialTopicWebAPI.Usedbook.Tests.Slice.Services
 {
 
-    public class UsedBookServiceTests : IAsyncLifetime
+    public class UsedBookService_MainTests : IAsyncLifetime
     {
         private UsedbookSliceTestHost _host = default!;
         private UsedBookService _svc = default!;
         private TestSeedFactory _factory = default!;
+        private RandomTestSeedFactory _randFactory = default!;
 
         public Task InitializeAsync()
         {
             _host = new UsedbookSliceTestHost();
             _svc = _host.Services.GetRequiredService<UsedBookService>();
             _factory = new TestSeedFactory(_host.Services.GetRequiredService<TeamAProjectContext>());
+            _randFactory = new RandomTestSeedFactory(_host.Services.GetRequiredService<TeamAProjectContext>());
             return Task.CompletedTask;
         }
 
@@ -33,7 +35,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Slice.Services
         {
             // ---------- Arrange ----------
             Guid sellerId = await _factory.CreateUserAsync();
-            var req = TestDataFactory.GetCreateBookRequest();
+            var req = TestDataFactory.GetCreateBookRequestWithoutRelationalFields();
             req.SellerDistrictId = await _factory.CreateDistrictAsync();
             req.CategoryId = await _factory.CreateBookCategoryAsync();
             req.ConditionRatingId = await _factory.CreateBookConditionRatingAsync();
@@ -46,16 +48,34 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Slice.Services
 
             // ---------- Assert  ----------
             res.IsSuccess.Should().BeTrue("Create 結果須成功");
-            var readRes = await _svc.GetPubicDetailAsync(res.Value);
+            var readRes = await _svc.GetPublicDetailByIdAsync(res.Value);
             readRes.IsSuccess.Should().BeTrue("Get 結果須成功");
             readRes.Value.Should().BeEquivalentTo(req, opt => opt.ExcludingMissingMembers(), "request, readRes.Value 兩者需相同");
         }
 
         // C + U + R
-        //[Fact]
-        //public async Task Create_ThenUpdateOrder_ThenRead_ReturnsUpdatedOrder()
-        //{
-        //}
+        [Fact]
+        public async Task Create_ThenUpdate_ThenRead_ReturnsUpdatedData()
+        {
+            // ---------- Arrange ----------
+            Guid id = await _randFactory.CreateUsedBookAsync();
+            var req = TestDataFactory.GetUpdateBookRequestWithoutRelationalFields();
+            req.SellerDistrictId = await _randFactory.CreateDistrictAsync();
+            req.CategoryId = await _randFactory.CreateBookCategoryAsync();
+            req.ConditionRatingId = await _randFactory.CreateBookConditionRatingAsync();
+            req.BindingId = await _randFactory.CreateBookBindingAsync();
+            req.LanguageId = await _randFactory.CreateLanguageAsync();
+            req.ContentRatingId = await _randFactory.CreateContentRatingAsync();
+
+            // ---------- Act ----------
+            var res = await _svc.UpdateAsync(id, req);
+
+            // ---------- Assert  ----------
+            res.IsSuccess.Should().BeTrue("Update 結果須成功");
+            var readRes = await _svc.GetPublicDetailByIdAsync(id);
+            readRes.IsSuccess.Should().BeTrue("Get 結果須成功");
+            readRes.Value.Should().BeEquivalentTo(req, opt => opt.ExcludingMissingMembers(), "request, readRes.Value 兩者需相同");
+        }
 
     }
 }
