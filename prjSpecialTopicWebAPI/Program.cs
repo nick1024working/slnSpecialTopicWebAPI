@@ -71,11 +71,26 @@ builder.Services.AddScoped<UsedBookService>();
 
 builder.Services.AddControllers();
 
-// 加入 Swagger 服務
+// 註冊 Swagger 服務
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// 註冊 CORS 服務與策略
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        // 允許 Angular 前端
+        policy.WithOrigins("http://localhost:4200")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
+
+// 啟用 CORS
+app.UseCors();
 
 // 設定 HTTP 處理管線（Middleware）
 if (app.Environment.IsDevelopment())

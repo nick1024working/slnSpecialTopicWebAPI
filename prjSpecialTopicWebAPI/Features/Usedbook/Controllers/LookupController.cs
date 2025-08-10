@@ -24,7 +24,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             if (!queryResult.IsSuccess)
                 return BadRequest(queryResult.ErrorMessage);
 
-            return Ok(queryResult);
+            return Ok(queryResult.Value);
         }
 
         [HttpGet("counties/{countyId}/districts")]
@@ -35,7 +35,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             if (!queryResult.IsSuccess)
                 return BadRequest(queryResult.ErrorMessage);
 
-            return Ok(queryResult);
+            return Ok(queryResult.Value);
         }
 
         [HttpGet("languages")]
@@ -46,7 +46,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             if (!queryResult.IsSuccess)
                 return BadRequest(queryResult.ErrorMessage);
 
-            return Ok(queryResult);
+            return Ok(queryResult.Value);
         }
 
         [HttpGet("usedbooks/condition-rating-desc/{id:int}")]
@@ -57,18 +57,18 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             if (!queryResult.IsSuccess)
                 return BadRequest(queryResult.ErrorMessage);
 
-            return Ok(queryResult);
+            return Ok(queryResult.Value);
         }
 
-        [HttpGet("usedbooks/ui-lookups")]
-        public async Task<ActionResult<BookConditionRatingDescriptionDto>> GetUsedBookUILookupsList( CancellationToken ct)
+        [HttpGet("usedbooks/all-ui-lookups")]
+        public async Task<ActionResult<AllUsedBookLookupListsDto>> GetAllUsedBookUILookupsList( CancellationToken ct)
         {
-            var queryResult = await _lookupService.GetUsedBookUILookupsList(ct);
+            var queryResult = await _lookupService.GetAllUsedBookUILookupsList(ct);
 
             if (!queryResult.IsSuccess)
                 return BadRequest(queryResult.ErrorMessage);
 
-            return Ok(queryResult);
+            return Ok(queryResult.Value);
         }
     }
 }

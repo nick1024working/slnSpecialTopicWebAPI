@@ -9,7 +9,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
 {
     [ApiController]
     [Route("api/usedbooks/books")]
-    [Produces("application/json")]
     public class UsedBookController : ControllerBase
     {
         private readonly UsedBookService _bookService;

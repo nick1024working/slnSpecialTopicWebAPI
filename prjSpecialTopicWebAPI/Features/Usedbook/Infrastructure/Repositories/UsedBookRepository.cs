@@ -120,10 +120,9 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
         {
             // 1. 建立查詢（包含關聯載入與篩選條件）
             var query = _db.UsedBooks
-                .AsNoTracking()
                 .Where(predicate)
                 .Include(b => b.Tags)
-                .Include(b => b.ContentRating);
+                .Include(b => b.ConditionRating);
 
             // 2. 排序條件
             var orderedQuery = orderBy(query);
@@ -137,7 +136,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             // 4. 封面快取
             var bookIds = pagedBooks.Select(b => b.Id).ToList();
             var coverDict = await _db.UsedBookImages
-                .AsNoTracking()
                 .Where(img => bookIds.Contains(img.BookId) && img.IsCover)
                 .ToDictionaryAsync(img => img.BookId, ct);
 
@@ -176,10 +174,9 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
         {
             // 1. 建立查詢（包含關聯載入與篩選條件）
             var query = _db.UsedBooks
-                .AsNoTracking()
                 .Where(predicate)
                 //.Include(b => b.Tags)     // NOTE: 使用者書本清單不需要 Tags
-                .Include(b => b.ContentRating);
+                .Include(b => b.ConditionRating);
 
             // 2. 排序條件
             var orderedQuery = orderBy(query);
@@ -194,7 +191,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             // NOTE: 此處再次連線，優點是分開處理可讀性+維護性+SQL好寫
             var bookIds = pagedBooks.Select(b => b.Id).ToList();
             var coverDict = await _db.UsedBookImages
-                .AsNoTracking()
                 .Where(img => bookIds.Contains(img.BookId) && img.IsCover)
                 .ToDictionaryAsync(img => img.BookId, ct);
 
@@ -210,7 +206,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                     Title = b.Title,
                     SellerId = b.SellerId,
                     SalePrice = b.SalePrice,
-                    ConditionRating = b.ContentRating.Name,
+                    ConditionRating = b.ConditionRating?.Name ?? "",
 
                     IsOnShelf = b.IsOnShelf,
                     IsSold = b.IsSold,
@@ -235,10 +231,9 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
         {
             // 1. 建立查詢（包含關聯載入與篩選條件）
             var query = _db.UsedBooks
-                .AsNoTracking()
                 .Where(predicate)
                 .Include(b => b.Tags)
-                .Include(b => b.ContentRating);
+                .Include(b => b.ConditionRating);
 
             // 2. 排序條件
             var orderedQuery = orderBy(query);
@@ -253,7 +248,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             // NOTE: 此處再次連線，優點是分開處理可讀性+維護性+SQL好寫
             var bookIds = pagedBooks.Select(b => b.Id).ToList();
             var coverDict = await _db.UsedBookImages
-                .AsNoTracking()
                 .Where(img => bookIds.Contains(img.BookId) && img.IsCover)
                 .ToDictionaryAsync(img => img.BookId, ct);
 
@@ -276,7 +270,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                     Title = b.Title,
                     SellerId = b.SellerId,
                     SalePrice = b.SalePrice,
-                    ConditionRating = b.ContentRating.Name,
+                    ConditionRating = b.ConditionRating?.Name ?? "",
 
                     IsOnShelf = b.IsOnShelf,
                     IsActive = b.IsActive,

@@ -37,7 +37,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
         /// <summary>
         /// 讀取所有 UsedBook需要的下拉選單資料。
         /// </summary>
-        public async Task<Result<AllUsedBookLookupListsDto>> GetUsedBookUILookupsList(CancellationToken ct = default)
+        public async Task<Result<AllUsedBookLookupListsDto>> GetAllUsedBookUILookupsList(CancellationToken ct = default)
         {
             try
             {

@@ -24,7 +24,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             var queryResult = await _imageService.SaveImageAsync(request.File, Request, ct);
             if (!queryResult.IsSuccess)
                 return BadRequest(queryResult.ErrorMessage);
-            return Ok(queryResult);
+            return Ok(queryResult.Value);
         }
 
         [HttpPost("batch")]
@@ -46,12 +46,13 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         }
 
         // ========== 查詢 ==========
-
         [HttpGet]
         public IActionResult GetImageList()
         {
-            var queryResult = _imageService.GetImageList();
-            return Ok(queryResult);
+            var result = _imageService.GetImageList();
+            if (!result.IsSuccess)
+                return BadRequest(result.ErrorMessage);
+            return Ok(result.Value);
         }
 
         // ========== 查詢圖片 URL ==========

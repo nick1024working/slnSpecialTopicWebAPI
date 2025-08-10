@@ -66,22 +66,22 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             return Result<ImageFileDto>.Success(dto);
         }
 
-        public async Task<Result<IReadOnlyList<ImageFileDto>>> SaveImagesAsync(IEnumerable<IFormFile> files, HttpRequest request, CancellationToken ct)
+        public async Task<Result<IEnumerable<ImageFileDto>>> SaveImagesAsync(IEnumerable<IFormFile> files, HttpRequest request, CancellationToken ct)
         {
-            var dtoList = new List<ImageFileDto>();
+            List<ImageFileDto> dtoList = [];
             foreach (var file in files)
             {
                 var result = await SaveImageAsync(file, request, ct);
                 if (!result.IsSuccess)
                 {
-                    return Result<IReadOnlyList<ImageFileDto>>.Failure(
+                    return Result<IEnumerable<ImageFileDto>>.Failure(
                         result.ErrorMessage ?? "圖片儲存失敗",
                         result.ErrorCode ?? ErrorCodes.General.Unexpected
                     );
                 }
                 dtoList.Add(result.Value);
             }
-            return Result<IReadOnlyList<ImageFileDto>>.Success(dtoList);
+            return Result<IEnumerable<ImageFileDto>>.Success(dtoList);
         }
 
         public void DeleteImage(string id)
@@ -92,17 +92,17 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 
         // ========== 查詢 ==========
 
-        public List<string> GetImageList()
+        public Result<IEnumerable<string>> GetImageList()
         {
-            List<string> dto = [];
+            List<string> dtoList = [];
             string root = Path.Combine(_env.WebRootPath, "uploads/main");
 
-            if (Directory.Exists(root))
-            {
-                foreach (var file in Directory.EnumerateFiles(root))
-                    dto.Add(Path.GetFileName(file));
-            }
-            return dto;
+            if (!Directory.Exists(root))
+                return Result<IEnumerable<string>>.Failure("查無圖片", ErrorCodes.General.NotFound);
+
+            foreach (var file in Directory.EnumerateFiles(root))
+                dtoList.Add(Path.GetFileName(file));
+            return Result<IEnumerable<string>>.Success(dtoList);
         }
 
         public string? GetMainAbsolutePath(string id)
