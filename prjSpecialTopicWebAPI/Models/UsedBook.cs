@@ -49,7 +49,11 @@ public partial class UsedBook
 
     public DateTime UpdatedAt { get; set; }
 
+    public int CategoryId { get; set; }
+
     public virtual BookBinding? Binding { get; set; }
+
+    public virtual BookCategory Category { get; set; } = null!;
 
     public virtual BookConditionRating ConditionRating { get; set; } = null!;
 
@@ -62,8 +66,6 @@ public partial class UsedBook
     public virtual District SellerDistrict { get; set; } = null!;
 
     public virtual ICollection<UsedBookImage> UsedBookImages { get; set; } = new List<UsedBookImage>();
-
-    public virtual ICollection<BookCategory> Categories { get; set; } = new List<BookCategory>();
 
     public virtual ICollection<BookConditionDetail> Conditions { get; set; } = new List<BookConditionDetail>();
 

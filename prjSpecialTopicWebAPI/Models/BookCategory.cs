@@ -9,15 +9,11 @@ public partial class BookCategory
 
     public string Name { get; set; } = null!;
 
-    public int? ParentId { get; set; }
-
     public bool IsActive { get; set; }
 
     public int DisplayOrder { get; set; }
 
-    public virtual ICollection<BookCategory> InverseParent { get; set; } = new List<BookCategory>();
+    public string Slug { get; set; } = null!;
 
-    public virtual BookCategory? Parent { get; set; }
-
-    public virtual ICollection<UsedBook> Books { get; set; } = new List<UsedBook>();
+    public virtual ICollection<UsedBook> UsedBooks { get; set; } = new List<UsedBook>();
 }

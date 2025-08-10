@@ -13,5 +13,7 @@ public partial class BookSaleTag
 
     public int DisplayOrder { get; set; }
 
+    public string Slug { get; set; } = null!;
+
     public virtual ICollection<UsedBook> Books { get; set; } = new List<UsedBook>();
 }

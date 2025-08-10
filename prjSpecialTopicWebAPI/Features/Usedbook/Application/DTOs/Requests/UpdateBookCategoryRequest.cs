@@ -1,0 +1,18 @@
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests
+{
+    public record UpdateBookCategoryRequest
+    {
+        [Display(Name = "主題類別名稱")]
+        [Required(ErrorMessage = "主題類別名稱為必填欄位")]
+        [StringLength(10, ErrorMessage = "不可超過 10 字")]
+        public string Name { get; set; } = string.Empty;
+
+
+        [Display(Name = "顯示順序")]
+        [Range(1, int.MaxValue, ErrorMessage = "顯示順序必須大於等於 1")]
+        [Required(ErrorMessage = "顯示順序為必填欄位")]
+        public int DisplayOrder { get; set; }
+    }
+}

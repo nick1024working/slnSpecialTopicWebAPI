@@ -97,70 +97,72 @@ public partial class TeamAProjectContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("PK__BookBind__3214EC0714C9AF18");
 
-            entity.HasIndex(e => e.Name, "UQ__BookBind__737584F6966C8B55").IsUnique();
+            entity.HasIndex(e => e.Name, "UQ_BookBindings_Name").IsUnique();
 
-            entity.Property(e => e.Name).HasMaxLength(10);
+            entity.Property(e => e.Name).HasMaxLength(5);
         });
 
         modelBuilder.Entity<BookCategory>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__BookCate__3214EC075A079EC6");
 
-            entity.HasIndex(e => e.Name, "UQ__BookCate__737584F680CEF102").IsUnique();
+            entity.HasIndex(e => e.Name, "UQ_BookCategories_Name").IsUnique();
+
+            entity.HasIndex(e => e.Slug, "UQ__BookCate__BC7B5FB6FD738B82").IsUnique();
 
             entity.Property(e => e.IsActive).HasDefaultValue(true);
-            entity.Property(e => e.Name).HasMaxLength(50);
-
-            entity.HasOne(d => d.Parent).WithMany(p => p.InverseParent)
-                .HasForeignKey(d => d.ParentId)
-                .HasConstraintName("FK__BookCateg__Paren__2116E6DF");
+            entity.Property(e => e.Name).HasMaxLength(10);
+            entity.Property(e => e.Slug).HasMaxLength(255);
         });
 
         modelBuilder.Entity<BookConditionDetail>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__BookCond__3214EC07303AAF88");
 
-            entity.HasIndex(e => e.Name, "UQ__BookCond__737584F60F4372FA").IsUnique();
+            entity.HasIndex(e => e.Name, "UQ_BookConditionDetails_Name").IsUnique();
 
-            entity.Property(e => e.Name).HasMaxLength(20);
+            entity.Property(e => e.Name).HasMaxLength(10);
         });
 
         modelBuilder.Entity<BookConditionRating>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__BookCond__3214EC0740E6D402");
 
-            entity.HasIndex(e => e.Name, "UQ__BookCond__737584F6B9C32403").IsUnique();
+            entity.HasIndex(e => e.Name, "UQ_BookConditionRatings_Name").IsUnique();
 
             entity.Property(e => e.Description).HasMaxLength(100);
-            entity.Property(e => e.Name).HasMaxLength(10);
+            entity.Property(e => e.Name).HasMaxLength(5);
         });
 
         modelBuilder.Entity<BookSaleTag>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__BookSale__3214EC070308E9D2");
 
-            entity.HasIndex(e => e.Name, "UQ__BookSale__737584F662E2FB7D").IsUnique();
+            entity.HasIndex(e => e.Name, "UQ_BookSaleTags_Name").IsUnique();
+
+            entity.HasIndex(e => e.Slug, "UQ__BookSale__BC7B5FB64115DA5C").IsUnique();
 
             entity.Property(e => e.IsActive).HasDefaultValue(true);
-            entity.Property(e => e.Name).HasMaxLength(50);
+            entity.Property(e => e.Name).HasMaxLength(10);
+            entity.Property(e => e.Slug).HasMaxLength(255);
         });
 
         modelBuilder.Entity<ContentRating>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__ContentR__3214EC07773A60C5");
 
-            entity.HasIndex(e => e.Name, "UQ__ContentR__737584F6E59B0541").IsUnique();
+            entity.HasIndex(e => e.Name, "UQ_ContentRatings_Name").IsUnique();
 
-            entity.Property(e => e.Name).HasMaxLength(10);
+            entity.Property(e => e.Name).HasMaxLength(5);
         });
 
         modelBuilder.Entity<County>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Counties__3214EC079DBA9590");
 
-            entity.HasIndex(e => e.Name, "UQ__Counties__737584F60AE764B6").IsUnique();
+            entity.HasIndex(e => e.Name, "UQ_Counties_Name").IsUnique();
 
-            entity.Property(e => e.Name).HasMaxLength(10);
+            entity.Property(e => e.Name).HasMaxLength(5);
         });
 
         modelBuilder.Entity<District>(entity =>
@@ -169,7 +171,7 @@ public partial class TeamAProjectContext : DbContext
 
             entity.HasIndex(e => new { e.CountyId, e.Name }, "UQ_Districts_CountyId_Name").IsUnique();
 
-            entity.Property(e => e.Name).HasMaxLength(10);
+            entity.Property(e => e.Name).HasMaxLength(5);
 
             entity.HasOne(d => d.County).WithMany(p => p.Districts)
                 .HasForeignKey(d => d.CountyId)
@@ -592,9 +594,9 @@ public partial class TeamAProjectContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("PK__Language__3214EC075FBBB677");
 
-            entity.HasIndex(e => e.Name, "UQ__Language__737584F64B7B8C3D").IsUnique();
+            entity.HasIndex(e => e.Name, "UQ_Language_Name").IsUnique();
 
-            entity.Property(e => e.Name).HasMaxLength(10);
+            entity.Property(e => e.Name).HasMaxLength(5);
         });
 
         modelBuilder.Entity<LoginLog>(entity =>
@@ -823,7 +825,7 @@ public partial class TeamAProjectContext : DbContext
             entity.HasIndex(e => e.Slug, "UQ__UsedBook__BC7B5FB6EEFDDB88").IsUnique();
 
             entity.Property(e => e.Id).ValueGeneratedNever();
-            entity.Property(e => e.Authors).HasMaxLength(200);
+            entity.Property(e => e.Authors).HasMaxLength(100);
             entity.Property(e => e.ConditionDescription).HasMaxLength(200);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
             entity.Property(e => e.Edition).HasMaxLength(20);
@@ -834,12 +836,17 @@ public partial class TeamAProjectContext : DbContext
             entity.Property(e => e.Publisher).HasMaxLength(100);
             entity.Property(e => e.SalePrice).HasColumnType("decimal(10, 2)");
             entity.Property(e => e.Slug).HasMaxLength(255);
-            entity.Property(e => e.Title).HasMaxLength(100);
+            entity.Property(e => e.Title).HasMaxLength(50);
 
             entity.HasOne(d => d.Binding).WithMany(p => p.UsedBooks)
                 .HasForeignKey(d => d.BindingId)
                 .OnDelete(DeleteBehavior.SetNull)
                 .HasConstraintName("FK__UsedBooks__Bindi__1975C517");
+
+            entity.HasOne(d => d.Category).WithMany(p => p.UsedBooks)
+                .HasForeignKey(d => d.CategoryId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_UsedBook_BookCategory");
 
             entity.HasOne(d => d.ConditionRating).WithMany(p => p.UsedBooks)
                 .HasForeignKey(d => d.ConditionRatingId)
@@ -865,21 +872,6 @@ public partial class TeamAProjectContext : DbContext
                 .HasForeignKey(d => d.SellerId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__UsedBooks__Selle__1699586C");
-
-            entity.HasMany(d => d.Categories).WithMany(p => p.Books)
-                .UsingEntity<Dictionary<string, object>>(
-                    "UsedBookCategory",
-                    r => r.HasOne<BookCategory>().WithMany()
-                        .HasForeignKey("CategoryId")
-                        .HasConstraintName("FK__UsedBookC__Categ__24E777C3"),
-                    l => l.HasOne<UsedBook>().WithMany()
-                        .HasForeignKey("BookId")
-                        .HasConstraintName("FK__UsedBookC__BookI__23F3538A"),
-                    j =>
-                    {
-                        j.HasKey("BookId", "CategoryId").HasName("PK__UsedBook__9C7051A724B44702");
-                        j.ToTable("UsedBookCategories");
-                    });
 
             entity.HasMany(d => d.Conditions).WithMany(p => p.Books)
                 .UsingEntity<Dictionary<string, object>>(
@@ -917,8 +909,6 @@ public partial class TeamAProjectContext : DbContext
             entity.HasKey(e => e.Id).HasName("PK__UsedBook__3214EC0756533187");
 
             entity.HasIndex(e => new { e.StorageProvider, e.ObjectKey }, "UQ__UsedBook__19B1FA10C8C16175").IsUnique();
-
-            entity.HasIndex(e => new { e.BookId, e.ImageIndex }, "UQ__UsedBook__D26AE13703BB75E8").IsUnique();
 
             entity.Property(e => e.ObjectKey).HasMaxLength(300);
             entity.Property(e => e.Sha256)
