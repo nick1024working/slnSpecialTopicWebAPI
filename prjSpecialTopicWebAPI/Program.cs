@@ -40,7 +40,14 @@ builder.Services.AddAutoMapper(cfg => { cfg.AddProfile<MappingProfile>(); });
 
 // NOTE: 須同步註冊在 測試專案 UsedbookSliceTestHost 中的 DI 容器
 // 註冊 ImageService
-builder.Services.AddScoped<ImageService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ImageService>(sp =>
+{
+    var env = sp.GetRequiredService<IWebHostEnvironment>();
+    var httpContext = sp.GetRequiredService<IHttpContextAccessor>().HttpContext;
+    var baseUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
+    return new ImageService(env, baseUrl);
+});
 // 註冊 Lookups Repo & Svc
 builder.Services.AddScoped<BookBindingRepository>();
 builder.Services.AddScoped<BookConditionRatingRepository>();

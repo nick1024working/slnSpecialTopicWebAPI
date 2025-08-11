@@ -8,11 +8,14 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 {
     public class ImageService
     {
-        private readonly IWebHostEnvironment _env;
+        
+        private readonly IWebHostEnvironment _env;  // 提供目前應用程式的執行環境資訊，此處負責提供伺服器端實體檔案路徑
+        private readonly string _baseUrl;           // 外部看到的 domain。
 
-        public ImageService(IWebHostEnvironment env)
+        public ImageService(IWebHostEnvironment env, string baseUrl)
         {
             _env = env;
+            _baseUrl = baseUrl;
         }
 
         public async Task<Result<ImageFileDto>> SaveImageAsync(IFormFile file, HttpRequest request, CancellationToken ct)
@@ -84,10 +87,11 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             return Result<IEnumerable<ImageFileDto>>.Success(dtoList);
         }
 
-        public void DeleteImage(string id)
+        public Result<Unit> DeleteImage(string id)
         {
             FileHelper.DeleteFile(id, _env.WebRootPath, "main");
             FileHelper.DeleteFile(id, _env.WebRootPath, "thumb", "_thumb");
+            return Result<Unit>.Success(Unit.Value);
         }
 
         // ========== 查詢 ==========
@@ -108,13 +112,29 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
         public string? GetMainAbsolutePath(string id)
             => FileHelper.GetAbsolutePathByImageId(id, _env.WebRootPath, Path.Combine("uploads", "main"));
 
-        public string? GetMainRelativePath(string id)
-            => FileHelper.GetRelativePathByImageId(id, _env.WebRootPath, Path.Combine("uploads", "main"));
+        public Result<string> GetMainUrl(string id)
+        {
+            var relativePath = FileHelper.GetRelativePathByImageId(id, _env.WebRootPath, Path.Combine("uploads", "main"));
+            if (string.IsNullOrEmpty(relativePath))
+                return Result<string>.Failure("查無圖片", ErrorCodes.General.NotFound);
+
+            var result = _baseUrl + "/" + relativePath.Replace("\\", "/");
+
+            return Result<string>.Success(result);
+        }
 
         public string? GetThumbAbsolutePath(string id)
             => FileHelper.GetAbsolutePathByImageId(id, _env.WebRootPath, Path.Combine("uploads", "thumb"), "_thumb");
 
-        public string? GetThumbRelativePath(string id)
-            => FileHelper.GetRelativePathByImageId(id, _env.WebRootPath, Path.Combine("uploads", "thumb"), "_thumb");
+        public Result<string> GetThumbUrl(string id)
+        {
+            var relativePath = FileHelper.GetRelativePathByImageId(id, _env.WebRootPath, Path.Combine("uploads", "thumb"), "_thumb");
+            if (string.IsNullOrEmpty(relativePath))
+                return Result<string>.Failure("查無圖片", ErrorCodes.General.NotFound);
+
+            var result = _baseUrl + "/" + relativePath.Replace("\\", "/");
+
+            return Result<string>.Success(result);
+        }
     }
 }

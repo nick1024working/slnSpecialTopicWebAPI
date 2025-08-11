@@ -9,7 +9,6 @@ using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.UnitOfWork;
 using prjSpecialTopicWebAPI.Features.Usedbook.Utilities;
 using prjSpecialTopicWebAPI.Models;
 using System.Linq.Expressions;
-using System.Net;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 {
@@ -204,6 +203,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 
                 var imageQueryResult = await _usedBookImageRepository.GetByBookIdAsync(id, ct);
 
+                // HACK: 此處內部的 imageList 並非純 url
                 var dto = _mapper.Map<PublicUsedBookDetailDto>(bookQueryResult);
                 dto.ImageList = _mapper.Map<IEnumerable<BookImageDto>>(imageQueryResult);
 
@@ -225,6 +225,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 
                 var imageQueryResult = await _usedBookImageRepository.GetByBookIdAsync(id, ct);
 
+                // HACK: 此處內部的 imageList 並非純 url
                 var dto = _mapper.Map<AdminUsedBookDetailDto>(bookQueryResult);
                 dto.ImageList = _mapper.Map<IEnumerable<BookImageDto>>(imageQueryResult);
 
@@ -251,7 +252,14 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 foreach (var res in queryResult)
                 {
                     var dto = _mapper.Map<PublicBookListItemDto>(res);
-                    dto.CoverImageUrl = BuildImageUrl(res.CoverStorageProvider, res.CoverObjectKey);
+
+                    // HACK: 將忽略 res.CoverStorageProvider 並呼叫無 fall-back 的方法
+                    if (res.CoverObjectKey != null)
+                    {
+                        var imageUrlRes = _imageService.GetThumbUrl(res.CoverObjectKey);
+                        if (imageUrlRes.IsSuccess)
+                            dto.CoverImageUrl = imageUrlRes.Value;
+                    }
 
                     dtoList.Add(dto);
                 }
@@ -278,7 +286,14 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 foreach (var res in queryResult)
                 {
                     var dto = _mapper.Map<UserBookListItemDto>(res);
-                    dto.CoverImageUrl = BuildImageUrl(res.CoverStorageProvider, res.CoverObjectKey);
+
+                    // HACK: 將忽略 res.CoverStorageProvider 並呼叫無 fall-back 的方法
+                    if (res.CoverObjectKey != null)
+                    {
+                        var imageUrlRes = _imageService.GetThumbUrl(res.CoverObjectKey);
+                        if (imageUrlRes.IsSuccess)
+                            dto.CoverImageUrl = imageUrlRes.Value;
+                    }
 
                     dtoList.Add(dto);
                 }
@@ -305,7 +320,14 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 foreach (var res in queryResult)
                 {
                     var dto = _mapper.Map<AdminBookListItemDto>(res);
-                    dto.CoverImageUrl = BuildImageUrl(res.CoverStorageProvider, res.CoverObjectKey);
+
+                    // HACK: 將忽略 res.CoverStorageProvider 並呼叫無 fall-back 的方法
+                    if (res.CoverObjectKey != null)
+                    {
+                        var imageUrlRes = _imageService.GetThumbUrl(res.CoverObjectKey);
+                        if (imageUrlRes.IsSuccess)
+                            dto.CoverImageUrl = imageUrlRes.Value;
+                    }
 
                     dtoList.Add(dto);
                 }
@@ -353,6 +375,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
         {
             try
             {
+                // FIXME: 須修正
                 var commandResult = await _usedBookRepository.RemoveBookSaleTagAsync(bookId, tagId, ct);
                 if (commandResult)
                     await _unitOfWork.CommitAsync(ct);
@@ -392,21 +415,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 _ when query.SortBy == "price" && query.SortDir == "desc" => q.OrderByDescending(b => b.SalePrice),
                 _ => q.OrderByDescending(b => b.UpdatedAt)
             };
-        }
-
-        private string BuildImageUrl(StorageProvider? provider, string? objectKey)
-        {
-            string? filePath = null;
-            if (provider == StorageProvider.Local && objectKey != null)
-            {
-                filePath = "/" + _imageService.GetThumbRelativePath(objectKey)?.Replace("\\", "/");
-            }
-            else if (provider == StorageProvider.Cloudinary)
-            {
-                // TODO: 這裡放 Cloudinary 的處理方式
-            }
-
-            return filePath ?? "/images/fallback-thumb.jpg";
         }
 
     }
