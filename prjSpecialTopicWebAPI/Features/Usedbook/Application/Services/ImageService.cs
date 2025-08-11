@@ -11,6 +11,8 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
         
         private readonly IWebHostEnvironment _env;  // 提供目前應用程式的執行環境資訊，此處負責提供伺服器端實體檔案路徑
         private readonly string _baseUrl;           // 外部看到的 domain。
+        private readonly string _fallBackMainPath = "images/fallback-main.jpg";
+        private readonly string _fallBackThumbPath = "images/fallback-thumb.jpg";
 
         public ImageService(IWebHostEnvironment env, string baseUrl)
         {
@@ -123,6 +125,22 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             return Result<string>.Success(result);
         }
 
+        public Result<string> GetMainUrlWithFallback(string id)
+        {
+            string? relativePath = null;
+
+            if (!string.IsNullOrWhiteSpace(id))
+                relativePath = FileHelper.GetRelativePathByImageId(id, _env.WebRootPath, Path.Combine("uploads", "main"));
+
+            if (string.IsNullOrWhiteSpace(relativePath))
+                relativePath = _fallBackMainPath;
+
+            var result = _baseUrl + "/" + relativePath.Replace("\\", "/");
+
+            return Result<string>.Success(result);
+        }
+
+
         public string? GetThumbAbsolutePath(string id)
             => FileHelper.GetAbsolutePathByImageId(id, _env.WebRootPath, Path.Combine("uploads", "thumb"), "_thumb");
 
@@ -134,6 +152,27 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 
             var result = _baseUrl + "/" + relativePath.Replace("\\", "/");
 
+            return Result<string>.Success(result);
+        }
+
+        public Result<string> GetThumbUrlWithFallback(string id)
+        {
+            string? relativePath = null;
+
+            if (!string.IsNullOrWhiteSpace(id))
+                relativePath = FileHelper.GetRelativePathByImageId(id, _env.WebRootPath, Path.Combine("uploads", "thumb"), "_thumb");
+
+            if (string.IsNullOrWhiteSpace(relativePath))
+                relativePath = _fallBackThumbPath;
+
+            var result = _baseUrl + "/" + relativePath.Replace("\\", "/");
+
+            return Result<string>.Success(result);
+        }
+
+        public Result<string> GetFallbackThumbUrl()
+        {
+            var result = _baseUrl + "/" + _fallBackThumbPath;
             return Result<string>.Success(result);
         }
     }

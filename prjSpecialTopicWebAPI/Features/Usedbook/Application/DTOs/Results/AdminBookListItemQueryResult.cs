@@ -4,8 +4,8 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results
 {
     public class AdminBookListItemQueryResult
     {
-        public StorageProvider? CoverStorageProvider { get; set; }
-        public string? CoverObjectKey { get; set; }
+        public StorageProvider CoverStorageProvider { get; set; }
+        public string CoverObjectKey { get; set; } = string.Empty;
 
         public IReadOnlyList<BookSaleTagQueryResult> SaleTagList { get; set; } = [];
 
