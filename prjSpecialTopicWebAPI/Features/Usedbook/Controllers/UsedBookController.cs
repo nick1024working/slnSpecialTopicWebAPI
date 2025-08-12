@@ -104,7 +104,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             if (!result.IsSuccess)
                 return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
 
-            return Ok(result.Value);
+            return Ok(result.Value);    
         }
 
         // ========== 子資源圖片 ==========

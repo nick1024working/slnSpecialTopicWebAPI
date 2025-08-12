@@ -31,12 +31,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             if (!result.IsSuccess)
                 return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
 
-            // 將圖片 URL 轉換為完整的 URL
-            foreach (var dto in result.Value)
-            {
-                dto.CoverImageUrl = baseUrl + dto.CoverImageUrl;
-            }
-
             return Ok(result.Value);
         }
 

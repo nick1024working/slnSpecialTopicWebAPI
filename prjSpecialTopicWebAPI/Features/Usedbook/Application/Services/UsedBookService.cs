@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Query;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
@@ -201,17 +202,10 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 if (bookQueryResult == null)
                     return Result<PublicUsedBookDetailDto>.Failure("找不到符合的資料", ErrorCodes.General.NotFound);
 
-                var imageQueryResult = await _usedBookImageRepository.GetByBookIdAsync(id, ct);
+                var imageResult = await _usedBookImageService.GetByBookIdAsync(id, ct);
 
                 var dto = _mapper.Map<PublicUsedBookDetailDto>(bookQueryResult);
-
-                foreach (var imageRes in imageQueryResult)
-                {
-                    var imageDto = _mapper.Map<BookImageDto>(imageRes);
-                    imageDto.MainbUrl = GetMainUrlWithFallback(imageRes.StorageProvider, imageRes.ObjectKey);
-                    imageDto.ThumbUrl = GetThumbUrlWithFallback(imageRes.StorageProvider, imageRes.ObjectKey);
-                    dto.ImageList.Add(imageDto);
-                }
+                dto.ImageList = imageResult?.Value?.ToList() ?? [];
 
                 return Result<PublicUsedBookDetailDto>.Success(dto);
             }
@@ -229,17 +223,10 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 if (bookQueryResult == null)
                     return Result<AdminUsedBookDetailDto>.Failure("找不到符合的資料", ErrorCodes.General.NotFound);
 
-                var imageQueryResult = await _usedBookImageRepository.GetByBookIdAsync(id, ct);
+                var imageResult = await _usedBookImageService.GetByBookIdAsync(id, ct);
 
                 var dto = _mapper.Map<AdminUsedBookDetailDto>(bookQueryResult);
-
-                foreach (var imageRes in imageQueryResult)
-                {
-                    var imageDto = _mapper.Map<BookImageDto>(imageRes);
-                    imageDto.MainbUrl = GetMainUrlWithFallback(imageRes.StorageProvider, imageRes.ObjectKey);
-                    imageDto.ThumbUrl = GetThumbUrlWithFallback(imageRes.StorageProvider, imageRes.ObjectKey);
-                    dto.ImageList.Add(imageDto);
-                }
+                dto.ImageList = imageResult?.Value?.ToList() ?? [];
 
                 return Result<AdminUsedBookDetailDto>.Success(dto);
             }
@@ -264,7 +251,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 foreach (var res in queryResult)
                 {
                     var dto = _mapper.Map<PublicBookListItemDto>(res);
-                    dto.CoverImageUrl = GetThumbUrlWithFallback(res.CoverStorageProvider, res.CoverObjectKey);
+                    dto.CoverImageUrl = _usedBookImageService.GetThumbUrlWithFallback(res.CoverStorageProvider, res.CoverObjectKey);
                     dtoList.Add(dto);
                 }
 
@@ -290,7 +277,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 foreach (var res in queryResult)
                 {
                     var dto = _mapper.Map<UserBookListItemDto>(res);
-                    dto.CoverImageUrl = GetThumbUrlWithFallback(res.CoverStorageProvider, res.CoverObjectKey);
+                    dto.CoverImageUrl = _usedBookImageService.GetThumbUrlWithFallback(res.CoverStorageProvider, res.CoverObjectKey);
                     dtoList.Add(dto);
                 }
 
@@ -316,7 +303,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 foreach (var res in queryResult)
                 {
                     var dto = _mapper.Map<AdminBookListItemDto>(res);
-                    dto.CoverImageUrl = GetThumbUrlWithFallback(res.CoverStorageProvider, res.CoverObjectKey);
+                    dto.CoverImageUrl = _usedBookImageService.GetThumbUrlWithFallback(res.CoverStorageProvider, res.CoverObjectKey);
                     dtoList.Add(dto);
                 }
 
@@ -403,40 +390,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 _ when query.SortBy == "price" && query.SortDir == "desc" => q.OrderByDescending(b => b.SalePrice),
                 _ => q.OrderByDescending(b => b.UpdatedAt)
             };
-        }
-
-        private string GetMainUrlWithFallback(StorageProvider storageProvider, string objectKey)
-        {
-            if (storageProvider == StorageProvider.Local)
-            {
-                var imageUrlRes = _imageService.GetMainUrlWithFallback(objectKey);
-                if (imageUrlRes.IsSuccess)
-                    return imageUrlRes.Value;
-            }
-            else if (storageProvider == StorageProvider.Cloudinary)
-            {
-                //if (!success)
-                //    return _imageService.GetFallbackMainUrl().Value;
-            }
-
-            return string.Empty;
-        }
-
-        private string GetThumbUrlWithFallback(StorageProvider storageProvider, string objectKey)
-        {
-            if (storageProvider == StorageProvider.Local)
-            {
-                var imageUrlRes = _imageService.GetThumbUrlWithFallback(objectKey);
-                if (imageUrlRes.IsSuccess)
-                    return imageUrlRes.Value;
-            }
-            else if (storageProvider == StorageProvider.Cloudinary)
-            {
-                //if (!success)
-                //    return _imageService.GetFallbackThumbUrl().Value;
-            }
-
-            return string.Empty;
         }
 
     }

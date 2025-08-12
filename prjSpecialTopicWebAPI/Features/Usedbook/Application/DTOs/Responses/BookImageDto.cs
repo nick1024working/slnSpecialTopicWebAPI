@@ -4,7 +4,7 @@
     {
         public int Id { get; set; }
         public bool IsCover { get; set; }
-        public byte ImageIndex { get; set; }
+        public int DisplayOrder { get; set; }
 
         public string MainbUrl { get; set; } = string.Empty;
         public string ThumbUrl { get; set; } = string.Empty;
