@@ -132,7 +132,8 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                     EbookName = b.EbookName,
                     Author = b.Author,
                     FixedPrice = b.FixedPrice,
-                    PrimaryCoverPath = b.PrimaryCoverPath
+                    // [修改] 組裝成完整的 URL
+                    PrimaryCoverPath = (b.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{b.PrimaryCoverPath}"
                 })
                 .Skip((pageNumber - 1) * pageSize) // 跳過前面頁數的資料
                 .Take(pageSize)                   // 抓取目前頁面的資料
@@ -184,8 +185,9 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                 CategoryName = ebookEntity.Category.CategoryName,
                 Labels = ebookEntity.Labels.Select(l => l.LabelName).ToList(),
                 // [已補上] 加入圖片路徑的映射
-                PrimaryCoverPath = ebookEntity.PrimaryCoverPath,
-                ImagePaths = ebookEntity.EBookImages.Select(i => i.ImagePath).ToList()
+                // [修改] 組裝成完整的 URL
+                PrimaryCoverPath = (ebookEntity.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{ebookEntity.PrimaryCoverPath}",
+                ImagePaths = ebookEntity.EBookImages.Select(i => $"{Request.Scheme}://{Request.Host}/{i.ImagePath}").ToList()
             };
 
             return Ok(ebookDetail);

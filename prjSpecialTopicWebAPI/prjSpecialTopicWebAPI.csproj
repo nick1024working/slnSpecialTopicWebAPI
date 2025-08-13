@@ -23,6 +23,8 @@
     <Folder Include="Features\Forum\" />
     <Folder Include="Features\Usedbook\_tmp\" />
     <Folder Include="Features\User\" />
+    <Folder Include="wwwroot\ebook\ebookFile\" />
+    <Folder Include="wwwroot\ebook\ebookImage\" />
   </ItemGroup>
 
 </Project>
