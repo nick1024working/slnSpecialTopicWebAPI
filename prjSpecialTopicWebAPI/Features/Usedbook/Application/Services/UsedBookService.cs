@@ -49,7 +49,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
         /// <summary>
         /// 新增完整書本資源，圖片部分交給 ImageService
         /// </summary>
-        public async Task<Result<Guid>> CreateAsync(Guid sellerId, CreateBookRequest request, CancellationToken ct = default)
+        public async Task<Result<Guid>> CreateAsync(Guid sellerId, CreateBookRequest request, HttpRequest httpRequest,CancellationToken ct = default)
         {
             Guid usedBookId = Guid.NewGuid();
             DateTime nowTime = DateTime.UtcNow;
@@ -67,10 +67,22 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             try
             {
                 _usedBookRepository.Add(entity);
+                var saveImageResult = await _imageService.SaveImagesAsync(request.ImageList, httpRequest, ct);
+                if (!saveImageResult.IsSuccess)
+                    throw new Exception(saveImageResult.ErrorMessage);
+
+                var createRequestList = saveImageResult.Value
+                    .Select((image, index) => new CreateUsedBookImageRequest
+                    {
+                        IsCover = index == 0, // 假設第一張圖片為封面
+                        StorageProvider = StorageProvider.Local,
+                        ObjectKey = image.Id,
+                    }).ToList();
+
                 // 此處呼叫 ImageService 來處理封面圖片
-                var commandResult = await _usedBookImageService.CreateAsync(usedBookId, request.ImageList);
-                if (!commandResult.IsSuccess)
-                    throw new Exception(commandResult.ErrorMessage);
+                var createImageResult = await _usedBookImageService.CreateAsync(usedBookId, createRequestList, ct);
+                if (!createImageResult.IsSuccess)
+                    throw new Exception(createImageResult.ErrorMessage);
 
                 await _unitOfWork.CommitAsync(ct);
 
