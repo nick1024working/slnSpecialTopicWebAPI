@@ -11,7 +11,7 @@ public partial class UsedBookImage
 
     public bool IsCover { get; set; }
 
-    public byte ImageIndex { get; set; }
+    public int DisplayOrder { get; set; }
 
     public byte StorageProvider { get; set; }
 
