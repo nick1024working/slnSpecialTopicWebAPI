@@ -105,6 +105,19 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             return Result<IEnumerable<string>>.Success(dtoList);
         }
 
+        public Result<IEnumerable<string>> GetFolderList()
+        {
+            List<string> dtoList = [];
+            string root = Path.Combine(_env.WebRootPath, "uploads");
+
+            if (!Directory.Exists(root))
+                return Result<IEnumerable<string>>.Failure("查無根目錄資料夾", ErrorCodes.General.NotFound);
+
+            foreach (var dir in Directory.EnumerateDirectories(root))
+                dtoList.Add(Path.GetFileName(dir));
+            return Result<IEnumerable<string>>.Success(dtoList);
+        }
+
         public string? GetMainAbsolutePath(string id)
             => FileHelper.GetAbsolutePathByImageId(id, _env.WebRootPath, Path.Combine("uploads", "main"));
 

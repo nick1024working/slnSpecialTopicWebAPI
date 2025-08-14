@@ -55,6 +55,15 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             return Ok(result.Value);
         }
 
+        [HttpGet("folders")]
+        public IActionResult GetFolderList()
+        {
+            var result = _imageService.GetFolderList();
+            if (!result.IsSuccess)
+                return BadRequest(result.ErrorMessage);
+            return Ok(result.Value);
+        }
+
         // ========== 查詢圖片 URL ==========
 
         [HttpGet("{id}/main-url")]
