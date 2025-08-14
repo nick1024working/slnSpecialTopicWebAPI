@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Azure.Core;
+using Microsoft.AspNetCore.Mvc;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Query;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
@@ -25,7 +26,8 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         // ========== 新增、更新、刪除 ==========
 
         [HttpPost]
-        public async Task<ActionResult<Guid>> CreateBook([FromBody] CreateBookRequest request, CancellationToken ct)
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult<Guid>> CreateBook([FromForm] CreateBookRequest request, CancellationToken ct)
         {
             // HACK: 驗證政策尚未完成
             string userIdString = "22B888CB-32AB-4B07-96BF-228B60D3717A";
@@ -36,7 +38,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             //    return ErrorCodeToHttpResponseMapper.Map(ErrorCodes.Auth.Unauthorized);
 
             // 呼叫 Service Layer
-            var result = await _bookService.CreateAsync(userId, request, ct);
+            var result = await _bookService.CreateAsync(userId, request, Request, ct);
             if (!result.IsSuccess)
                 return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
 

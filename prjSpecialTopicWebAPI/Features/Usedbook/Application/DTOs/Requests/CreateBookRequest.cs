@@ -4,7 +4,11 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests
 {
     public class CreateBookRequest
     {
-        public List<CreateUsedBookImageRequest> ImageList { get; set; } = [];
+        [Display(Name = "圖片檔案清單")]
+        [Required(ErrorMessage = "圖片檔案為必填欄位")]
+        public List<IFormFile> ImageList { get; set; } = [];
+
+        //public List<CreateUsedBookImageRequest> ImageList { get; set; } = [];
 
         [Display(Name = "賣家所在鄉鎮市區")]
         [Required(ErrorMessage = "鄉鎮市區為必填欄位")]
