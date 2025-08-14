@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results;
 using prjSpecialTopicWebAPI.Features.Usedbook.Enums;
 using prjSpecialTopicWebAPI.Models;
@@ -121,6 +122,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             // 1. 建立查詢（包含關聯載入與篩選條件）
             var query = _db.UsedBooks
                 .Where(predicate)
+                .Include(b => b.Category)
                 .Include(b => b.Tags)
                 .Include(b => b.ConditionRating);
 
@@ -147,13 +149,22 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                     CoverStorageProvider = (StorageProvider)coverDict[b.Id].StorageProvider,
                     CoverObjectKey = coverDict[b.Id].ObjectKey,
 
-                    SaleTagList = b.Tags.Select(t => t.Name).ToList(),
-
                     Id = b.Id,
                     Title = b.Title,
                     SalePrice = b.SalePrice,
                     Authors = b.Authors,
                     ConditionRating = b.ConditionRating?.Name ?? "",
+
+                    Category = new IdNameDto
+                    {
+                        Id = b.Category.Id,
+                        Name = b.Category.Name
+                    },
+                    SaleTagList = b.Tags.Select(t => new IdNameDto
+                    {
+                        Id = t.Id,
+                        Name = t.Name
+                    }).ToList(),
 
                     Slug = b.Slug,
                 })
@@ -311,23 +322,20 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
         /// <summary>
         /// 把指定書籍移除 SaleTag 促銷標籤
         /// </summary>
-        [Obsolete("目前 service 直接使用實體")]
         public async Task<bool> RemoveBookSaleTagAsync(Guid bookId, int tagId, CancellationToken ct = default)
         {
-            var bookWithTagsEntity = await _db.UsedBooks
+            var book = await _db.UsedBooks
                 .Include(b => b.Tags)
                 .FirstOrDefaultAsync(b => b.Id == bookId, ct);
-
-            if (bookWithTagsEntity == null)
+            if (book == null)
                 return false;
 
-            var saleTagToRemove = bookWithTagsEntity.Tags
-                .SingleOrDefault(st => st.Id == tagId);
-            if (saleTagToRemove == null)
-                return false;
+            var tagStub = new BookSaleTag { Id = tagId };
+            _db.Attach(tagStub);
 
-            bookWithTagsEntity.Tags.Remove(saleTagToRemove);
-            return true;
+            // 若集合已載入，Remove 會把 join 標成 Deleted；否則不會有動作
+            var removed = book.Tags.Remove(tagStub);
+            return removed;
         }
     }
 }

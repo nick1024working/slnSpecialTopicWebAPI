@@ -15,11 +15,10 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Query
         public string? Keyword { get; init; }
 
         /// <summary>主分類 ID；若為 null 表示全部。</summary>
-        //public Guid? CategoryId { get; init; }
+        public int? CategoryId { get; init; }
 
         /// <summary>多重標籤 (tag) 篩選。以半形逗號分隔，如 &quot;1,2,3&quot;。</summary>
-        //[BindProperty(BindingBehavior.Never)]
-        //public IReadOnlyList<Guid>? TagIds { get; init; }
+        public IReadOnlyList<int>? SaleTagIds { get; init; }
 
         /// <summary>價格下限。</summary>
         [Range(0, 999_999)]

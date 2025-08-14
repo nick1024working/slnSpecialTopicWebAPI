@@ -362,7 +362,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
         {
             try
             {
-                // FIXME: 須修正
                 var commandResult = await _usedBookRepository.RemoveBookSaleTagAsync(bookId, tagId, ct);
                 if (commandResult)
                     await _unitOfWork.CommitAsync(ct);
@@ -378,14 +377,25 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 
         private Expression<Func<UsedBook, bool>> BuildPredicate(BookListQuery query)
         {
+            // 預處理
+            var saleTagIds = query.SaleTagIds ?? Array.Empty<int>();
+            var keyword = query.Keyword?.Trim();
+            var status = query.BookStatus?.Trim().ToLowerInvariant();
+
             return b =>
-                (
-                    string.IsNullOrWhiteSpace(query.BookStatus) ||
-                    query.BookStatus == "all" ||
-                    query.BookStatus == "unsold" && !b.IsSold ||
-                    query.BookStatus == "onshelf" && b.IsOnShelf
-                ) &&
-                (string.IsNullOrWhiteSpace(query.Keyword) || b.Title.Contains(query.Keyword)) &&
+                // 主題分類 N:1
+                (!query.CategoryId.HasValue || b.CategoryId == query.CategoryId) &&
+                // 促標標籤 N:M
+                (saleTagIds.Count == 0 || b.Tags.Any(t => saleTagIds.Contains(t.Id))) &&
+                // 狀態
+                (string.IsNullOrWhiteSpace(status) ||
+                    status == "all" ||
+                    (status == "unsold" && !b.IsSold) ||
+                    (status == "onshelf" && b.IsOnShelf)) &&
+                // 關鍵字
+                (string.IsNullOrWhiteSpace(query.Keyword)
+                    || b.Title.Contains(query.Keyword)) &&
+                // 價格區間
                 (!query.MinPrice.HasValue || b.SalePrice >= query.MinPrice) &&
                 (!query.MaxPrice.HasValue || b.SalePrice <= query.MaxPrice);
         }
