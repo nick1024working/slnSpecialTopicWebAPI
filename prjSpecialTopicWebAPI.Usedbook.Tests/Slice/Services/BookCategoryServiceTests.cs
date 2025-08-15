@@ -78,10 +78,11 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Slice.Services
             var itemList = createRes.Value.ToList();
             itemList.Shuffle();
 
-            var updateReqList = itemList.Select(i => new UpdateOrderByIdRequest { Id = i.Id }).ToList();
+            var updateReq = new UpdateOrderByIdRequest();
+            updateReq.IdList = itemList.Select(i => i.Id).ToList();
 
             // ---------- Act ----------
-            var res = await _svc.UpdateAllOrderAsync(updateReqList);
+            var res = await _svc.UpdateAllOrderAsync(updateReq);
 
             // ---------- Assert  ----------
             res.IsSuccess.Should().BeTrue("Update 結果須成功");

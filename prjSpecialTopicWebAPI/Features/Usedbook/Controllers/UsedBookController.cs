@@ -1,5 +1,4 @@
-﻿using Azure.Core;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Query;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
@@ -126,9 +125,9 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         // HACK: 更新
         [HttpPut("{bookId:Guid}/images/order")]
         public async Task<ActionResult<IEnumerable<int>>> UpdateBookImagesOrder(
-            [FromRoute] Guid bookId, [FromBody] List<UpdateOrderByIdRequest> requestList, CancellationToken ct)
+            [FromRoute] Guid bookId, [FromBody] UpdateOrderByIdRequest request, CancellationToken ct)
         {
-            var result = await _bookImageService.UpdateOrderByBookIdAsync(bookId, requestList, ct);
+            var result = await _bookImageService.UpdateOrderByBookIdAsync(bookId, request, ct);
             if (!result.IsSuccess)
                 return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
             return Ok(result.Value);

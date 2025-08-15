@@ -4,6 +4,7 @@ using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results;
 using prjSpecialTopicWebAPI.Features.Usedbook.Enums;
 using prjSpecialTopicWebAPI.Models;
+using System.Collections.Generic;
 using System.Linq.Expressions;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
@@ -324,18 +325,11 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
         /// </summary>
         public async Task<bool> RemoveBookSaleTagAsync(Guid bookId, int tagId, CancellationToken ct = default)
         {
-            var book = await _db.UsedBooks
-                .Include(b => b.Tags)
-                .FirstOrDefaultAsync(b => b.Id == bookId, ct);
-            if (book == null)
-                return false;
-
-            var tagStub = new BookSaleTag { Id = tagId };
-            _db.Attach(tagStub);
-
-            // 若集合已載入，Remove 會把 join 標成 Deleted；否則不會有動作
-            var removed = book.Tags.Remove(tagStub);
-            return removed;
+            var affected = await _db.Set<Dictionary<string, object>> ("UsedBookSaleTag")
+                .Where(e => (Guid)e["BookId"] == bookId
+                    && (int)e["TagId"] == tagId)
+                .ExecuteDeleteAsync(ct);
+            return affected > 0;
         }
     }
 }

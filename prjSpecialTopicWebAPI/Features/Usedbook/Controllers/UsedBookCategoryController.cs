@@ -47,7 +47,7 @@ namespace prjBookAppCoreMVC.Controllers.UsedBook
         }
 
         [HttpPut("{id:int}/order")]
-        public async Task<ActionResult> UpdateBookCategoryListOrder([FromBody] IReadOnlyList<UpdateOrderByIdRequest> request, CancellationToken ct)
+        public async Task<ActionResult> UpdateBookCategoryListOrder([FromBody] UpdateOrderByIdRequest request, CancellationToken ct)
         {
             var result = await _bookCategoryService.UpdateAllOrderAsync(request, ct);
             if (!result.IsSuccess)
