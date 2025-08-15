@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using prjSpecialTopicWebAPI.Features.Fund.Services;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.UnitOfWork;
@@ -28,6 +29,10 @@ builder.Services.AddDbContext<TeamAProjectContext>(options =>
 
 
 // Fund
+builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<IfundImageService, fundImageService>();
+builder.Services.AddScoped<IPlanService, PlanService>();
 
 
 // Usedbook

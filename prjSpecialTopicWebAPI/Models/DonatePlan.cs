@@ -15,6 +15,8 @@ public partial class DonatePlan
 
     public string? PlanDescription { get; set; }
 
+    public virtual ICollection<DonateImage> DonateImages { get; set; } = new List<DonateImage>();
+
     public virtual ICollection<DonateOrderItem> DonateOrderItems { get; set; } = new List<DonateOrderItem>();
 
     public virtual DonateProject DonateProject { get; set; } = null!;

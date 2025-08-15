@@ -13,5 +13,11 @@ public partial class DonateImage
 
     public bool? IsMain { get; set; }
 
+    public string? ProjectGalleryPath { get; set; }
+
+    public int? DonatePlanId { get; set; }
+
+    public virtual DonatePlan? DonatePlan { get; set; }
+
     public virtual DonateProject DonateProject { get; set; } = null!;
 }

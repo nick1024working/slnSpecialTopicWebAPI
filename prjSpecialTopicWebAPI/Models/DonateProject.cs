@@ -31,6 +31,12 @@ public partial class DonateProject
 
     public bool IsDeleted { get; set; }
 
+    public string? ProjectLongDescription { get; set; }
+
+    public int? BackerCount { get; set; }
+
+    public bool? ProjectIsFavorite { get; set; }
+
     public virtual DonateCategory DonateCategories { get; set; } = null!;
 
     public virtual ICollection<DonateImage> DonateImages { get; set; } = new List<DonateImage>();

@@ -6,6 +6,10 @@ namespace prjSpecialTopicWebAPI.Models;
 
 public partial class TeamAProjectContext : DbContext
 {
+    public TeamAProjectContext()
+    {
+    }
+
     public TeamAProjectContext(DbContextOptions<TeamAProjectContext> options)
         : base(options)
     {
@@ -91,6 +95,10 @@ public partial class TeamAProjectContext : DbContext
 
     public virtual DbSet<User> Users { get; set; }
 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
+        => optionsBuilder.UseSqlServer("Data Source=.;Initial Catalog=TeamA_Project;Integrated Security=True;Trust Server Certificate=True");
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<BookBinding>(entity =>
@@ -108,7 +116,7 @@ public partial class TeamAProjectContext : DbContext
 
             entity.HasIndex(e => e.Name, "UQ_BookCategories_Name").IsUnique();
 
-            entity.HasIndex(e => e.Slug, "UQ__BookCate__BC7B5FB6FD738B82").IsUnique();
+            entity.HasIndex(e => e.Slug, "UQ__BookCate__BC7B5FB6E79E9755").IsUnique();
 
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.Name).HasMaxLength(10);
@@ -140,7 +148,7 @@ public partial class TeamAProjectContext : DbContext
 
             entity.HasIndex(e => e.Name, "UQ_BookSaleTags_Name").IsUnique();
 
-            entity.HasIndex(e => e.Slug, "UQ__BookSale__BC7B5FB64115DA5C").IsUnique();
+            entity.HasIndex(e => e.Slug, "UQ__BookSale__BC7B5FB69D030C93").IsUnique();
 
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.Name).HasMaxLength(10);
@@ -197,12 +205,22 @@ public partial class TeamAProjectContext : DbContext
 
             entity.ToTable("donateImages");
 
+            entity.HasIndex(e => e.DonatePlanId, "IX_donateImages_donatePlan_id");
+
             entity.Property(e => e.DonateImageId).HasColumnName("donateImage_id");
             entity.Property(e => e.DonateImagePath)
                 .HasMaxLength(50)
                 .HasColumnName("donateImagePath");
+            entity.Property(e => e.DonatePlanId).HasColumnName("donatePlan_id");
             entity.Property(e => e.DonateProjectId).HasColumnName("donateProject_id");
             entity.Property(e => e.IsMain).HasColumnName("is_main");
+            entity.Property(e => e.ProjectGalleryPath)
+                .HasMaxLength(50)
+                .HasColumnName("projectGalleryPath");
+
+            entity.HasOne(d => d.DonatePlan).WithMany(p => p.DonateImages)
+                .HasForeignKey(d => d.DonatePlanId)
+                .HasConstraintName("FK_donateImages_donatePlans");
 
             entity.HasOne(d => d.DonateProject).WithMany(p => p.DonateImages)
                 .HasForeignKey(d => d.DonateProjectId)
@@ -289,6 +307,7 @@ public partial class TeamAProjectContext : DbContext
             entity.ToTable("donateProjects");
 
             entity.Property(e => e.DonateProjectId).HasColumnName("donateProject_id");
+            entity.Property(e => e.BackerCount).HasColumnName("backerCount");
             entity.Property(e => e.CreatedAt)
                 .HasColumnType("datetime")
                 .HasColumnName("created_at");
@@ -301,6 +320,8 @@ public partial class TeamAProjectContext : DbContext
             entity.Property(e => e.ProjectDescription)
                 .HasColumnType("text")
                 .HasColumnName("projectDescription");
+            entity.Property(e => e.ProjectIsFavorite).HasColumnName("projectIsFavorite");
+            entity.Property(e => e.ProjectLongDescription).HasColumnName("projectLongDescription");
             entity.Property(e => e.ProjectTitle)
                 .HasMaxLength(200)
                 .HasColumnName("projectTitle");
