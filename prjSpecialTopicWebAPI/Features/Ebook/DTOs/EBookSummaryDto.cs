@@ -7,5 +7,8 @@
         public string Author { get; set; } = null!;
         public decimal FixedPrice { get; set; }
         public string? PrimaryCoverPath { get; set; }
+
+        // [新增] 請將這一行加入到您的 class 中
+        public bool IsReadable { get; set; }
     }
 }

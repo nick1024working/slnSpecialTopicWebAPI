@@ -133,7 +133,10 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                     Author = b.Author,
                     FixedPrice = b.FixedPrice,
                     // [修改] 組裝成完整的 URL
-                    PrimaryCoverPath = (b.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{b.PrimaryCoverPath}"
+                    PrimaryCoverPath = (b.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{b.PrimaryCoverPath}",
+                    // [修改] 新增 IsReadable 屬性的判斷邏輯
+                    // 如果 EBookPosition 不是 null 也不是空字串，就代表這本書有檔案，是可閱讀的
+            IsReadable = !string.IsNullOrEmpty(b.EBookPosition)
                 })
                 .Skip((pageNumber - 1) * pageSize) // 跳過前面頁數的資料
                 .Take(pageSize)                   // 抓取目前頁面的資料
@@ -150,6 +153,8 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
 
             return Ok(response);
         }
+
+
 
         /// <summary>
         /// 根據 ID 取得單本電子書的詳細資訊
@@ -192,6 +197,46 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
 
             return Ok(ebookDetail);
         }
+
+        // EbooksController.cs
+
+        // ... GetEbookDetail 方法結束後 ...
+
+        /// <summary>
+        /// 根據 ID 取得電子書的 PDF 檔案內容
+        /// </summary>
+        /// <param name="id">電子書 ID</param>
+        /// <returns>PDF 檔案</returns>
+        [HttpGet("{id}/file")] // 這個路由會匹配前端的請求 GET /api/ebooks/301/file
+        public async Task<IActionResult> GetEbookFile(long id)
+        {
+            // 1. 根據 id 從資料庫中尋找書籍
+            var ebook = await _db.EBookMains.FindAsync(id);
+
+            // 2. 檢查書籍是否存在，以及 EBookPosition 欄位是否有儲存路徑
+            if (ebook == null || string.IsNullOrEmpty(ebook.EBookPosition))
+            {
+                return NotFound("找不到電子書或檔案路徑紀錄");
+            }
+
+            // 3. 組合出檔案在伺服器上的完整實體路徑
+            //    _env.WebRootPath 會指向您的 wwwroot 資料夾
+            var filePath = Path.Combine(_env.WebRootPath, ebook.EBookPosition.TrimStart('/'));
+
+            // 4. 檢查實體檔案是否存在
+            if (!System.IO.File.Exists(filePath))
+            {
+                return NotFound("在伺服器上找不到對應的 PDF 檔案");
+            }
+
+            // 5. 讀取檔案內容
+            var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
+
+            // 6. 將檔案以 "application/pdf" 的形式回傳給前端
+            return File(fileBytes, "application/pdf");
+        }
+
+        // ... CreateEbook 方法開始前 ...
 
         /// <summary>
         /// 新增一本書籍
