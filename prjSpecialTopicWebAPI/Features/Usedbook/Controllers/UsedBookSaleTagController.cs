@@ -4,7 +4,7 @@ using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Errors;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
 
-namespace prjBookAppCoreMVC.Controllers.UsedBook
+namespace prjSpecialTopicWebAPI.Controllers.UsedBook
 {
     [ApiController]
     [Route("api/usedbooks/sale-tags")]

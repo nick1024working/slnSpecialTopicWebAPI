@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
+using prjSpecialTopicWebAPI.Features.Usedbook.Controllers;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.UnitOfWork;
 using prjSpecialTopicWebAPI.Features.Usedbook.Mapping;
@@ -16,6 +17,14 @@ builder.Services.AddDbContext<TeamAProjectContext>(options =>
 {
     options.UseSqlServer(connectionString,
         sql => sql.MigrationsAssembly(typeof(TeamAProjectContext).Assembly.FullName));
+});
+
+// 註冊 HttpClient 用於 LinePay API
+builder.Services.AddHttpClient("LinePay", client =>
+{
+    client.BaseAddress = new Uri(
+        builder.Configuration["LinePay:BaseUrl"] ?? "https://sandbox-api-pay.line.me");
+    client.Timeout = TimeSpan.FromSeconds(20);
 });
 
 // ========== 各自需要的服務於以下註冊 ==========
@@ -68,6 +77,9 @@ builder.Services.AddScoped<UsedBookRepository>();
 builder.Services.AddScoped<UsedBookImageService>();
 builder.Services.AddScoped<UsedBookService>();
 //builder.Services.AddScoped<UsedBookOrderService>();
+
+// 註冊 LinePayController
+builder.Services.AddScoped<LinePayController>();
 
 // User
 
