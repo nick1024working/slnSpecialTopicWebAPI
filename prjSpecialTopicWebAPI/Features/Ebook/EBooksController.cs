@@ -238,6 +238,38 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
 
         // ... CreateEbook 方法開始前 ...
 
+
+        /// <summary>
+        /// 取得所有已購買的電子書列表 (目前為演示用，未根據使用者篩選)
+        /// </summary>
+        [HttpGet("purchased")] // 這個路由會匹配 GET /api/ebooks/purchased
+        public async Task<IActionResult> GetPurchasedBooks()
+        {
+            // 根據您的資料庫結構，我們需要從 EbookPurchaseds 出發
+            var purchasedBooks = await _db.EbookPurchaseds
+                .AsNoTracking()
+                .Include(p => p.EBook) // 透過導覽屬性，自動 JOIN EBookMains 資料表
+                .Select(p => new PurchasedBookDto
+                {
+                    EbookId = p.EBook.EbookId,
+                    EbookName = p.EBook.EbookName,
+                    Author = p.EBook.Author,
+                    PrimaryCoverPath = (p.EBook.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{p.EBook.PrimaryCoverPath}",
+                    ReadingProgress = p.ReadingProgress,
+                    IsReadable = !string.IsNullOrEmpty(p.EBook.EBookPosition)
+                })
+                .ToListAsync();
+
+            // 移除重複的書籍 (因為同本書可能被不同使用者購買)
+            // 待未來實作依使用者篩選時，即可移除這段
+            var distinctBooks = purchasedBooks
+                .GroupBy(b => b.EbookId)
+                .Select(g => g.First())
+                .ToList();
+
+            return Ok(distinctBooks);
+        }
+
         /// <summary>
         /// 新增一本書籍
         /// </summary>
