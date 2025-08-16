@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Microsoft.AspNetCore.Http;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Query;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
@@ -48,7 +49,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
         /// <summary>
         /// 新增完整書本資源，圖片部分交給 ImageService
         /// </summary>
-        public async Task<Result<Guid>> CreateAsync(Guid sellerId, CreateBookRequest request, HttpRequest httpRequest,CancellationToken ct = default)
+        public async Task<Result<Guid>> CreateAsync(Guid sellerId, CreateBookRequest request, HttpRequest httpRequest, CancellationToken ct = default)
         {
             Guid usedBookId = Guid.NewGuid();
             DateTime nowTime = DateTime.UtcNow;
@@ -95,10 +96,11 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
         }
 
         /// <summary>
-        /// 更新指定書本資源 (僅更新書本實體)
+        /// 更新指定書本資源，圖片部分交給 ImageService
         /// </summary>
-        public async Task<Result<Unit>> UpdateAsync(Guid id, UpdateBookRequest request, CancellationToken ct = default)
+        public async Task<Result<Unit>> UpdateAsync(Guid id, UpdateBookRequest request, HttpRequest httpRequest, CancellationToken ct = default)
         {
+            using var tx = _unitOfWork.BeginTransactionAsync(ct);
             try
             {
                 var entity = await _usedBookRepository.GetEntityByIdAsync(id, ct);
@@ -123,11 +125,42 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 entity.IsOnShelf = request.IsOnShelf;
                 entity.UpdatedAt = DateTime.UtcNow;
 
+                // 更新圖片
+                var updateRequest = new UpdateOrderByIdRequest();
+                foreach (var image in request.ImageList)
+                {
+                    if (image.Id != null)
+                        updateRequest.IdList.Add((int)image.Id);
+                    else if (image.Image != null)
+                    {
+                        var saveResult = await _imageService.SaveImageAsync(image.Image, httpRequest, ct);
+                        if (!saveResult.IsSuccess)
+                            throw new Exception(saveResult.ErrorMessage);
+
+                        var createRequest = new CreateUsedBookImageRequest
+                        {
+                            IsCover = false,
+                            StorageProvider = StorageProvider.Local,
+                            ObjectKey = saveResult.Value.Id,
+                        };
+                        var createResult = await _usedBookImageService.CreateAsync(id, createRequest, ct);
+                        if (!createResult.IsSuccess)
+                            throw new Exception(createResult.ErrorMessage);
+
+                        updateRequest.IdList.Add(createResult.Value);
+                    }
+                }
+
+                var updateOrderResult = await _usedBookImageService.UpdateOrderByBookIdAsync(id, updateRequest, ct);
+                if (!updateOrderResult.IsSuccess)
+                    throw new Exception(updateOrderResult.ErrorMessage);
+
                 await _unitOfWork.CommitAsync(ct);
                 return Result<Unit>.Success(Unit.Value);
             }
             catch (Exception ex)
             {
+                await _unitOfWork.RollbackAsync(ct);
                 return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
             }
         }

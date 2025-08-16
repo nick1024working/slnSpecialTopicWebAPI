@@ -8,7 +8,6 @@ using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.UnitOfWork;
 using prjSpecialTopicWebAPI.Features.Usedbook.Utilities;
 using prjSpecialTopicWebAPI.Models;
-using System.Collections.Generic;
 using System.Data;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
@@ -16,14 +15,12 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
     public class UsedBookImageService
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
         private readonly UsedBookImageRepository _usedBookImageRepository;
         private readonly ImageService _imageService;
         private readonly ILogger<UsedBookImageService> _logger;
 
         public UsedBookImageService(
             IUnitOfWork unitOfWork,
-            IMapper mapper,
             UsedBookImageRepository usedBookImageRepository,
             ImageService imageService,
             ILogger<UsedBookImageService> logger
@@ -32,7 +29,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             _unitOfWork = unitOfWork;
             _usedBookImageRepository = usedBookImageRepository;
             _imageService = imageService;
-            _mapper = mapper;
             _logger = logger;
         }
 
@@ -103,12 +99,38 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             }
         }
 
-
-        // NOTE: 目前不支援更新(等同搬遷)
+        // HACK: 單獨建立
         /// <summary>
-        /// 依照 ID 更新書圖片資料 (僅能更新儲存服務商與金鑰)，不能更新排序。
+        /// 使用者建立指定書本的書圖片
         /// </summary>
-        //public async Task<Result<Unit>> UpdateByIdAsync(int id, UpdatePatialUsedBookImageRequest request, CancellationToken ct = default)
+        public async Task<Result<int>> CreateAsync(
+            Guid bookId, CreateUsedBookImageRequest request, CancellationToken ct = default)
+        {
+            try
+            {
+                var entity = new UsedBookImage
+                {
+                    BookId = bookId,
+                    IsCover = false,
+                    DisplayOrder = 1000,
+                    StorageProvider = (byte)request.StorageProvider,
+                    ObjectKey = request.ObjectKey,
+                    Sha256 = Convert.FromBase64String("mZpOErm5t5R1P6zEvW+d+ZzXcW8dHZc52S9tfdlVeFY="),
+                    UploadedAt = DateTime.UtcNow
+                };
+
+                _usedBookImageRepository.Add(entity);
+                await _unitOfWork.CommitAsync(ct);
+
+                var response = entity.Id;
+
+                return Result<int>.Success(response);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<int>.Map(ex, _logger);
+            }
+        }
 
         /// <summary>
         /// 更新指定書本的所有書圖片順序。

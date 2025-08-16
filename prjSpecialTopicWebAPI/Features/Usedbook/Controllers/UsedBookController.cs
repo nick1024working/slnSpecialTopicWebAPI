@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Azure.Core;
+using Microsoft.AspNetCore.Mvc;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Query;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
@@ -48,7 +49,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         public async Task<ActionResult> UpdateBook(
             [FromRoute] Guid bookId, [FromBody] UpdateBookRequest request, CancellationToken ct)
         {
-            var result = await _bookService.UpdateAsync(bookId, request, ct);
+            var result = await _bookService.UpdateAsync(bookId, request, Request, ct);
             if (!result.IsSuccess)
                 return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
             return NoContent();
