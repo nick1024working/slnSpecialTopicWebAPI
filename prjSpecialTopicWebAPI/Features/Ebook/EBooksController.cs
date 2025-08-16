@@ -136,7 +136,9 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                     PrimaryCoverPath = (b.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{b.PrimaryCoverPath}",
                     // [修改] 新增 IsReadable 屬性的判斷邏輯
                     // 如果 EBookPosition 不是 null 也不是空字串，就代表這本書有檔案，是可閱讀的
-            IsReadable = !string.IsNullOrEmpty(b.EBookPosition)
+                    IsReadable = !string.IsNullOrEmpty(b.EBookPosition),
+                    // [新增] 在此處也加入 ActualPrice
+                    ActualPrice = b.ActualPrice
                 })
                 .Skip((pageNumber - 1) * pageSize) // 跳過前面頁數的資料
                 .Take(pageSize)                   // 抓取目前頁面的資料

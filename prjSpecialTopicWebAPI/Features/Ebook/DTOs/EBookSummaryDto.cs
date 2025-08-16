@@ -10,5 +10,7 @@
 
         // [新增] 請將這一行加入到您的 class 中
         public bool IsReadable { get; set; }
+        // [新增] 請將這一行加入到您的 class 中
+        public decimal? ActualPrice { get; set; }
     }
 }
