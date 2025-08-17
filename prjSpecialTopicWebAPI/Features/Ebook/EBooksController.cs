@@ -194,7 +194,14 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                 // [已補上] 加入圖片路徑的映射
                 // [修改] 組裝成完整的 URL
                 PrimaryCoverPath = (ebookEntity.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{ebookEntity.PrimaryCoverPath}",
-                ImagePaths = ebookEntity.EBookImages.Select(i => $"{Request.Scheme}://{Request.Host}/{i.ImagePath}").ToList()
+                ImagePaths = ebookEntity.EBookImages.Select(i => $"{Request.Scheme}://{Request.Host}/{i.ImagePath}").ToList(),
+                // [修改] 映射新增的欄位
+                Isbn = ebookEntity.Isbn,
+                Eisbn = ebookEntity.Eisbn,
+                PublishedDate = ebookEntity.PublishedDate,
+                Language = ebookEntity.Language,
+                Translator = ebookEntity.Translator,
+                EBookDataType = ebookEntity.EBookDataType,
             };
 
             return Ok(ebookDetail);
