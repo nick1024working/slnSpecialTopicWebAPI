@@ -139,6 +139,11 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             Guid bookId, UpdateOrderByIdRequest request, CancellationToken ct = default)
         {
             var entityList = await _usedBookImageRepository.GetEntitiesByBookIdAsync(bookId, ct);
+            if (entityList == null || !entityList.Any())
+            {
+                await _unitOfWork.RollbackAsync(ct);
+                return Result<Unit>.Failure("找不到符合的資料", ErrorCodes.General.NotFound);
+            }
 
             // 檢查數量一致
             if (entityList.Count != request.IdList.Count)
@@ -151,6 +156,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             var seen = new HashSet<int>();
 
             int order = 1;
+            entityList[0].IsCover = true;
             foreach (var id in request.IdList)
             {
                 // 檢查存在
@@ -183,6 +189,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
         {
             try
             {
+                _imageService.DeleteImage(imageId.ToString());
                 var commandResult = await _usedBookImageRepository.RemoveByImageIdAsync(imageId, ct);
                 if (commandResult)
                     await _unitOfWork.CommitAsync(ct);
@@ -216,7 +223,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                     Id = queryResult.Id,
                     IsCover = queryResult.IsCover,
                     DisplayOrder = queryResult.DisplayOrder,
-                    MainbUrl = GetMainUrlWithFallback(queryResult.StorageProvider, queryResult.ObjectKey),
+                    MainUrl = GetMainUrlWithFallback(queryResult.StorageProvider, queryResult.ObjectKey),
                     ThumbUrl = GetThumbUrlWithFallback(queryResult.StorageProvider, queryResult.ObjectKey),
                 };
                 return Result<BookImageDto>.Success(dto);
@@ -244,7 +251,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                         Id = queryResult.Id,
                         IsCover = queryResult.IsCover,
                         DisplayOrder = queryResult.DisplayOrder,
-                        MainbUrl = GetMainUrlWithFallback(queryResult.StorageProvider, queryResult.ObjectKey),
+                        MainUrl = GetMainUrlWithFallback(queryResult.StorageProvider, queryResult.ObjectKey),
                         ThumbUrl = GetThumbUrlWithFallback(queryResult.StorageProvider, queryResult.ObjectKey),
                     };
                     dtoList.Add(dto);
@@ -275,7 +282,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                     Id = queryResult.Id,
                     IsCover = queryResult.IsCover,
                     DisplayOrder = queryResult.DisplayOrder,
-                    MainbUrl = GetMainUrlWithFallback(queryResult.StorageProvider, queryResult.ObjectKey),
+                    MainUrl = GetMainUrlWithFallback(queryResult.StorageProvider, queryResult.ObjectKey),
                     ThumbUrl = GetThumbUrlWithFallback(queryResult.StorageProvider, queryResult.ObjectKey),
                 };
                 return Result<BookImageDto>.Success(dto);

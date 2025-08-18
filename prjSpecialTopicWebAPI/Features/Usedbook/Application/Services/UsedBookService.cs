@@ -126,11 +126,15 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 entity.UpdatedAt = DateTime.UtcNow;
 
                 // 更新圖片
+                var ids = new HashSet<int>();
                 var updateRequest = new UpdateOrderByIdRequest();
                 foreach (var image in request.ImageList)
                 {
                     if (image.Id != null)
+                    {
+                        ids.Add((int)image.Id);
                         updateRequest.IdList.Add((int)image.Id);
+                    }
                     else if (image.Image != null)
                     {
                         var saveResult = await _imageService.SaveImageAsync(image.Image, httpRequest, ct);
@@ -146,9 +150,18 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                         var createResult = await _usedBookImageService.CreateAsync(id, createRequest, ct);
                         if (!createResult.IsSuccess)
                             throw new Exception(createResult.ErrorMessage);
-
+                        ids.Add(createResult.Value);
                         updateRequest.IdList.Add(createResult.Value);
                     }
+                }
+
+                var currentList = await _usedBookImageService.GetByBookIdAsync(id, ct);
+                if (!currentList.IsSuccess)
+                    throw new Exception(currentList.ErrorMessage);
+                foreach (var item in currentList.Value)
+                {
+                    if (!ids.Contains(item.Id))
+                        await _usedBookImageService.DeleteByImageIdAsync(item.Id, ct);
                 }
 
                 var updateOrderResult = await _usedBookImageService.UpdateOrderByBookIdAsync(id, updateRequest, ct);
@@ -217,27 +230,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 
         // ========== 查詢 ==========
 
-        public async Task<Result<EditBookDto>> GetForEditByIdAsync(Guid id, CancellationToken ct = default)
-        {
-            try
-            {
-                var entoity = await _usedBookRepository.GetEntityByIdAsync(id, ct);
-                if (entoity == null)
-                    return Result<EditBookDto>.Failure("找不到符合的資料", ErrorCodes.General.NotFound);
-
-                var imageQueryResult = await _usedBookImageRepository.GetByBookIdAsync(id, ct);
-
-                var dto = _mapper.Map<EditBookDto>(entoity);
-                dto.ImageList = _mapper.Map<IEnumerable<BookImageDto>>(imageQueryResult);
-
-                return Result<EditBookDto>.Success(dto);
-            }
-            catch (Exception ex)
-            {
-                return ExceptionToErrorResultMapper<EditBookDto>.Map(ex, _logger);
-            }
-        }
-
         public async Task<Result<PublicUsedBookDetailDto>> GetPublicDetailByIdAsync(Guid id, CancellationToken ct = default)
         {
             try
@@ -277,6 +269,28 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             catch (Exception ex)
             {
                 return ExceptionToErrorResultMapper<AdminUsedBookDetailDto>.Map(ex, _logger);
+            }
+        }
+
+        public async Task<Result<UpdateBookPayloadDto>> GetUpdatePayloadByIdAsync(Guid id, CancellationToken ct = default)
+        {
+            try
+            {
+                var entity = await _usedBookRepository.GetEntityByIdWithCountyIdAsync(id, ct);
+                if (entity == null)
+                    return Result<UpdateBookPayloadDto>.Failure("找不到符合的資料", ErrorCodes.General.NotFound);
+
+                var imageResult = await _usedBookImageService.GetByBookIdAsync(id, ct);
+
+                var dto = _mapper.Map<UpdateBookPayloadDto>(entity);
+                dto.ImageList = imageResult?.Value?.ToList() ?? [];
+                dto.SellerCountyId = entity.SellerDistrict.CountyId;
+
+                return Result<UpdateBookPayloadDto>.Success(dto);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<UpdateBookPayloadDto>.Map(ex, _logger);
             }
         }
 

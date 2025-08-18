@@ -1,5 +1,4 @@
-﻿using prjSpecialTopicWebAPI.Features.Usedbook.Enums;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests
 {

@@ -1,10 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results;
 using prjSpecialTopicWebAPI.Features.Usedbook.Enums;
 using prjSpecialTopicWebAPI.Models;
-using System.Collections.Generic;
 using System.Linq.Expressions;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
@@ -25,6 +23,13 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
         /// </summary>
         public async Task<UsedBook?> GetEntityByIdWithSaleTagsAsync(Guid id, CancellationToken ct = default) =>
             await _db.UsedBooks.Include(b => b.Tags).SingleOrDefaultAsync(b => b.Id == id, ct);
+
+        /// <summary>
+        /// 直接返回書本實體 (含促銷標籤)。
+        /// </summary>
+        public async Task<UsedBook?> GetEntityByIdWithCountyIdAsync(Guid id, CancellationToken ct = default) =>
+            await _db.UsedBooks.Include(b => b.SellerDistrict).SingleOrDefaultAsync(b => b.Id == id, ct);
+
 
         /// <summary>
         /// 直接返回書本實體。
