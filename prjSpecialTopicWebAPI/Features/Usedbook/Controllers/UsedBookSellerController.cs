@@ -6,25 +6,26 @@ using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
 {
     [ApiController]
-    [Route("api/usedbooks/admin")]
-    public class UsedbookAdminController : ControllerBase
+    [Route("api/usedbooks/seller")]
+    public class UsedbookSellerController : ControllerBase
     {
         private readonly UsedBookService _usedBookService;
 
-        public UsedbookAdminController(
+        public UsedbookSellerController(
             UsedBookService usedBookService)
         {
             _usedBookService = usedBookService;
         }
 
-        /// <summary>
-        /// 管理員查詢所有書籍清單。
-        /// </summary>
         [HttpGet("books")]
-        public async Task<IActionResult> GetAdminBookList([FromQuery] BookListQuery query)
+        public async Task<IActionResult> GetSellerBookList([FromQuery] BookListQuery query)
         {
+            // HACK: 驗證政策尚未完成
+            string userIdString = "22B888CB-32AB-4B07-96BF-228B60D3717A";
+            Guid.TryParse(userIdString, out Guid userId);
+
             // 呼叫 Service Layer
-            var result = await _usedBookService.GetAdminBookListAsync(query);
+            var result = await _usedBookService.GetUserBookListAsync(userId, query);
             if (!result.IsSuccess)
                 return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
 

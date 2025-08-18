@@ -193,6 +193,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             // 1. 建立查詢（包含關聯載入與篩選條件）
             var query = _db.UsedBooks
                 .Where(predicate)
+                .Where(b => b.IsActive == true)
                 //.Include(b => b.Tags)     // NOTE: 使用者書本清單不需要 Tags
                 .Include(b => b.ConditionRating);
 
