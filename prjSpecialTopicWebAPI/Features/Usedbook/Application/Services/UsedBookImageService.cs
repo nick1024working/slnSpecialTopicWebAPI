@@ -156,7 +156,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             var seen = new HashSet<int>();
 
             int order = 1;
-            entityList[0].IsCover = true;
             foreach (var id in request.IdList)
             {
                 // 檢查存在

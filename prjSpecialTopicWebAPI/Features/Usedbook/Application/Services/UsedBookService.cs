@@ -155,6 +155,8 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                     }
                 }
 
+                await _usedBookImageService.SetCoverAsync(id, new SetBookCoverRequest { ImageId = updateRequest.IdList[0] }, ct);
+                
                 var currentList = await _usedBookImageService.GetByBookIdAsync(id, ct);
                 if (!currentList.IsSuccess)
                     throw new Exception(currentList.ErrorMessage);
