@@ -438,6 +438,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 // 狀態
                 (string.IsNullOrWhiteSpace(status) ||
                     status == "all" ||
+                    (status == "inactive" && !b.IsActive) ||
                     (status == "unsold" && !b.IsSold) ||
                     (status == "onshelf" && b.IsOnShelf)) &&
                 // 關鍵字

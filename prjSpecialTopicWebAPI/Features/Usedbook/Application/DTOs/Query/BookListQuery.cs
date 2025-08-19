@@ -7,8 +7,8 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Query
     /// </summary>
     public class BookListQuery
     {
-        /// <summary>書本狀態過濾條件（all, onshelf, unsold）。</summary>
-        [RegularExpression("all|onshelf|unsold")]
+        /// <summary>書本狀態過濾條件</summary>
+        [RegularExpression("all|inactive|onshelf|unsold")]
         public string BookStatus { get; init; } = "all";
 
         /// <summary>關鍵字搜尋 (書名 / 作者 / ISBN)。</summary>
