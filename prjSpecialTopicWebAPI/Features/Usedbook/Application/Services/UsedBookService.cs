@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Query;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Errors;
 using prjSpecialTopicWebAPI.Features.Usedbook.Enums;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories;
@@ -10,6 +11,7 @@ using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.UnitOfWork;
 using prjSpecialTopicWebAPI.Features.Usedbook.Utilities;
 using prjSpecialTopicWebAPI.Models;
 using System.Linq.Expressions;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 {
@@ -298,7 +300,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 
 
         // TODO: 需要分頁
-        public async Task<Result<IReadOnlyList<PublicBookListItemDto>>> GetPublicListAsync(BookListQuery query, CancellationToken ct = default)
+        public async Task<Result<PagedResult<PublicBookListItemDto>>> GetPublicListAsync(BookListQuery query, CancellationToken ct = default)
         {
             try
             {
@@ -306,20 +308,28 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 Expression<Func<UsedBook, bool>> predicate = BuildPredicate(query);
                 Func<IQueryable<UsedBook>, IOrderedQueryable<UsedBook>> orderBy = BuildOrderBy(query);
 
-                var queryResult = await _usedBookRepository.GetPublicBookListAsync(predicate, orderBy, ct);
-                var dtoList = new List<PublicBookListItemDto>();
-                foreach (var res in queryResult)
+                var queryResult = await _usedBookRepository.GetPublicBookListAsync(predicate, orderBy, query.Paging, ct);
+                var itemList = new List<PublicBookListItemDto>();
+                foreach (var res in queryResult.Items)
                 {
-                    var dto = _mapper.Map<PublicBookListItemDto>(res);
-                    dto.CoverImageUrl = _usedBookImageService.GetThumbUrlWithFallback(res.CoverStorageProvider, res.CoverObjectKey);
-                    dtoList.Add(dto);
+                    var item = _mapper.Map<PublicBookListItemDto>(res);
+                    item.CoverImageUrl = _usedBookImageService.GetThumbUrlWithFallback(res.CoverStorageProvider, res.CoverObjectKey);
+                    itemList.Add(item);
                 }
 
-                return Result<IReadOnlyList<PublicBookListItemDto>>.Success(dtoList);
+                var dto = new PagedResult<PublicBookListItemDto>
+                {
+                    Items = itemList,
+                    PageIndex = query.Paging.PageIndex,
+                    PageSize = query.Paging.PageSize,
+                    TotalRows = queryResult.TotalRows
+                };
+
+                return Result<PagedResult<PublicBookListItemDto>>.Success(dto);
             }
             catch (Exception ex)
             {
-                return ExceptionToErrorResultMapper<IReadOnlyList<PublicBookListItemDto>>.Map(ex, _logger);
+                return ExceptionToErrorResultMapper<PagedResult<PublicBookListItemDto>>.Map(ex, _logger);
             }
         }
 
@@ -453,12 +463,12 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
         {
             return q => query switch
             {
-                _ when query.SortBy == "updated" && query.SortDir == "asc" => q.OrderBy(b => b.UpdatedAt),
-                _ when query.SortBy == "updated" && query.SortDir == "desc" => q.OrderByDescending(b => b.UpdatedAt),
-                _ when query.SortBy == "created" && query.SortDir == "asc" => q.OrderBy(b => b.CreatedAt),
-                _ when query.SortBy == "created" && query.SortDir == "desc" => q.OrderByDescending(b => b.CreatedAt),
-                _ when query.SortBy == "price" && query.SortDir == "asc" => q.OrderBy(b => b.SalePrice),
-                _ when query.SortBy == "price" && query.SortDir == "desc" => q.OrderByDescending(b => b.SalePrice),
+                _ when query.Paging.SortBy == "updated" && query.Paging.SortDir == "asc" => q.OrderBy(b => b.UpdatedAt),
+                _ when query.Paging.SortBy == "updated" && query.Paging.SortDir == "desc" => q.OrderByDescending(b => b.UpdatedAt),
+                _ when query.Paging.SortBy == "created" && query.Paging.SortDir == "asc" => q.OrderBy(b => b.CreatedAt),
+                _ when query.Paging.SortBy == "created" && query.Paging.SortDir == "desc" => q.OrderByDescending(b => b.CreatedAt),
+                _ when query.Paging.SortBy == "price" && query.Paging.SortDir == "asc" => q.OrderBy(b => b.SalePrice),
+                _ when query.Paging.SortBy == "price" && query.Paging.SortDir == "desc" => q.OrderByDescending(b => b.SalePrice),
                 _ => q.OrderByDescending(b => b.UpdatedAt)
             };
         }

@@ -1,8 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Query;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results;
 using prjSpecialTopicWebAPI.Features.Usedbook.Enums;
 using prjSpecialTopicWebAPI.Models;
+using System.Linq;
 using System.Linq.Expressions;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
@@ -116,51 +118,46 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             return queryResult;
         }
 
-        // TODO: 需要分頁
         /// <summary>
         /// 查詢公開書本清單 (清單項目資料，非詳細資料)。
         /// </summary>
-        public async Task<IReadOnlyList<PublicBookListItemQueryResult>> GetPublicBookListAsync(
+        public async Task<PagedResult<PublicBookListItemQueryResult>> GetPublicBookListAsync(
             Expression<Func<UsedBook, bool>> predicate,
             Func<IQueryable<UsedBook>, IOrderedQueryable<UsedBook>> orderBy,
+            PagingQuery paging,
             CancellationToken ct = default)
         {
-            // 1. 建立查詢（包含關聯載入與篩選條件）
-            var query = _db.UsedBooks
-                .Where(predicate)
+            var pageIndex = Math.Max(0, paging.PageIndex);
+            var pageSize = Math.Clamp(paging.PageSize, 1, 100);
+
+            // 1. 基底查詢（不 Include，先 Count）
+            var baseQuery = _db.UsedBooks
+                .AsNoTracking()
                 .Where(b => b.IsActive && b.IsOnShelf)
-                .Include(b => b.Category)
-                .Include(b => b.Tags)
-                .Include(b => b.ConditionRating);
+                .Where(predicate)
+                .Where(b => b.UsedBookImages.Any(i => i.IsCover));
+            var total = await baseQuery.CountAsync(ct);
 
-            // 2. 排序條件
-            var orderedQuery = orderBy(query);
-
-            // 3. 分頁條件
-            var pagedBooks = await orderedQuery
-                //.Skip(pageIndex * pageSize)
-                //.Take(pageSize)
-                .ToListAsync(ct);
-
-            // 4. 封面快取
-            var bookIds = pagedBooks.Select(b => b.Id).ToList();
-            var coverDict = await _db.UsedBookImages
-                .Where(img => bookIds.Contains(img.BookId) && img.IsCover)
-                .ToDictionaryAsync(img => img.BookId, ct);
-
-            // 5. 投影成結果
-            var result = pagedBooks
-                .Where(b => coverDict.ContainsKey(b.Id))
+            // 2) 排序 + 分頁 + 投影（一次把封面/分類/標籤取出）
+            var items = await orderBy(baseQuery)
+                .Skip(pageIndex * pageSize)
+                .Take(pageSize)
                 .Select(b => new PublicBookListItemQueryResult
                 {
-                    CoverStorageProvider = (StorageProvider)coverDict[b.Id].StorageProvider,
-                    CoverObjectKey = coverDict[b.Id].ObjectKey,
+                    CoverStorageProvider = (StorageProvider)b.UsedBookImages
+                        .Where(i => i.IsCover)
+                        .Select(i => i.StorageProvider)
+                        .FirstOrDefault(),
+                    CoverObjectKey = b.UsedBookImages
+                        .Where(i => i.IsCover)
+                        .Select(i => i.ObjectKey)
+                        .FirstOrDefault() ?? "",
 
                     Id = b.Id,
                     Title = b.Title,
                     SalePrice = b.SalePrice,
                     Authors = b.Authors,
-                    ConditionRating = b.ConditionRating?.Name ?? "",
+                    ConditionRating = b.ConditionRating.Name ?? "",
 
                     Category = new IdNameDto
                     {
@@ -174,8 +171,19 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                     }).ToList(),
 
                     Slug = b.Slug,
+
                 })
-                .ToList();
+                .AsSplitQuery()
+                .ToListAsync(ct);
+
+            // 6. 組 PagedResult
+            var result = new PagedResult<PublicBookListItemQueryResult>
+            {
+                Items = items,
+                PageIndex = pageIndex,
+                PageSize = pageSize,
+                TotalRows = total
+            };
 
             return result;
         }
