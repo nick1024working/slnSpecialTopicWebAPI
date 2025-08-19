@@ -1,3 +1,6 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.EntityFrameworkCore;
 using prjSpecialTopicWebAPI.Features.Fund.Services;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
@@ -87,7 +90,23 @@ builder.Services.AddScoped<UsedBookService>();
 builder.Services.AddScoped<LinePayController>();
 
 // User
+// ===== JWT 驗證設定（新增） =====
+var jwtKey = builder.Configuration["Jwt:Key"] ?? "PLEASE_REPLACE_WITH_A_LONG_RANDOM_SECRET"; //  開發用可先寫固定字串
+var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
 
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme) //  啟用 JWT
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = false,   // Demo 先關
+            ValidateAudience = false,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = signingKey
+        };
+    });
+// ===== JWT 區結束 =====
 
 
 // ========== 各自需要的服務於以上註冊 ==========
@@ -125,7 +144,7 @@ if (app.Environment.IsDevelopment())
 }
 app.UseStaticFiles();
 app.UseHttpsRedirection();
-app.UseAuthorization();
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
