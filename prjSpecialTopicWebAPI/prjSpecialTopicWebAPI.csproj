@@ -19,10 +19,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Features\Fund\" />
     <Folder Include="Features\Forum\" />
     <Folder Include="Features\Usedbook\_tmp\" />
     <Folder Include="Features\User\" />
+    <Folder Include="wwwroot\FundImages\" />
   </ItemGroup>
 
 </Project>
