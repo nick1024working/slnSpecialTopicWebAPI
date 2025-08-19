@@ -16,5 +16,13 @@ namespace prjSpecialTopicWebAPI.Features.Ebook.DTOs
         // [請確認或加入這兩行]
         public string? PrimaryCoverPath { get; set; }
         public List<string> ImagePaths { get; set; } = new List<string>();
+
+        // [新增] 加入更多書籍詳細資料欄位
+        public string? Isbn { get; set; }
+        public string? Eisbn { get; set; }
+        public DateOnly? PublishedDate { get; set; }
+        public string? Language { get; set; }
+        public string? Translator { get; set; }
+        public string? EBookDataType { get; set; }
     }
 }

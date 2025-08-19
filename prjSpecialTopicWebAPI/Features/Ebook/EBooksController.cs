@@ -132,7 +132,13 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                     EbookName = b.EbookName,
                     Author = b.Author,
                     FixedPrice = b.FixedPrice,
-                    PrimaryCoverPath = b.PrimaryCoverPath
+                    // [修改] 組裝成完整的 URL
+                    PrimaryCoverPath = (b.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{b.PrimaryCoverPath}",
+                    // [修改] 新增 IsReadable 屬性的判斷邏輯
+                    // 如果 EBookPosition 不是 null 也不是空字串，就代表這本書有檔案，是可閱讀的
+                    IsReadable = !string.IsNullOrEmpty(b.EBookPosition),
+                    // [新增] 在此處也加入 ActualPrice
+                    ActualPrice = b.ActualPrice
                 })
                 .Skip((pageNumber - 1) * pageSize) // 跳過前面頁數的資料
                 .Take(pageSize)                   // 抓取目前頁面的資料
@@ -149,6 +155,8 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
 
             return Ok(response);
         }
+
+
 
         /// <summary>
         /// 根據 ID 取得單本電子書的詳細資訊
@@ -184,11 +192,91 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                 CategoryName = ebookEntity.Category.CategoryName,
                 Labels = ebookEntity.Labels.Select(l => l.LabelName).ToList(),
                 // [已補上] 加入圖片路徑的映射
-                PrimaryCoverPath = ebookEntity.PrimaryCoverPath,
-                ImagePaths = ebookEntity.EBookImages.Select(i => i.ImagePath).ToList()
+                // [修改] 組裝成完整的 URL
+                PrimaryCoverPath = (ebookEntity.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{ebookEntity.PrimaryCoverPath}",
+                ImagePaths = ebookEntity.EBookImages.Select(i => $"{Request.Scheme}://{Request.Host}/{i.ImagePath}").ToList(),
+                // [修改] 映射新增的欄位
+                Isbn = ebookEntity.Isbn,
+                Eisbn = ebookEntity.Eisbn,
+                PublishedDate = ebookEntity.PublishedDate,
+                Language = ebookEntity.Language,
+                Translator = ebookEntity.Translator,
+                EBookDataType = ebookEntity.EBookDataType,
             };
 
             return Ok(ebookDetail);
+        }
+
+        // EbooksController.cs
+
+        // ... GetEbookDetail 方法結束後 ...
+
+        /// <summary>
+        /// 根據 ID 取得電子書的 PDF 檔案內容
+        /// </summary>
+        /// <param name="id">電子書 ID</param>
+        /// <returns>PDF 檔案</returns>
+        [HttpGet("{id}/file")] // 這個路由會匹配前端的請求 GET /api/ebooks/301/file
+        public async Task<IActionResult> GetEbookFile(long id)
+        {
+            // 1. 根據 id 從資料庫中尋找書籍
+            var ebook = await _db.EBookMains.FindAsync(id);
+
+            // 2. 檢查書籍是否存在，以及 EBookPosition 欄位是否有儲存路徑
+            if (ebook == null || string.IsNullOrEmpty(ebook.EBookPosition))
+            {
+                return NotFound("找不到電子書或檔案路徑紀錄");
+            }
+
+            // 3. 組合出檔案在伺服器上的完整實體路徑
+            //    _env.WebRootPath 會指向您的 wwwroot 資料夾
+            var filePath = Path.Combine(_env.WebRootPath, ebook.EBookPosition.TrimStart('/'));
+
+            // 4. 檢查實體檔案是否存在
+            if (!System.IO.File.Exists(filePath))
+            {
+                return NotFound("在伺服器上找不到對應的 PDF 檔案");
+            }
+
+            // 5. 讀取檔案內容
+            var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
+
+            // 6. 將檔案以 "application/pdf" 的形式回傳給前端
+            return File(fileBytes, "application/pdf");
+        }
+
+        // ... CreateEbook 方法開始前 ...
+
+
+        /// <summary>
+        /// 取得所有已購買的電子書列表 (目前為演示用，未根據使用者篩選)
+        /// </summary>
+        [HttpGet("purchased")] // 這個路由會匹配 GET /api/ebooks/purchased
+        public async Task<IActionResult> GetPurchasedBooks()
+        {
+            // 根據您的資料庫結構，我們需要從 EbookPurchaseds 出發
+            var purchasedBooks = await _db.EbookPurchaseds
+                .AsNoTracking()
+                .Include(p => p.EBook) // 透過導覽屬性，自動 JOIN EBookMains 資料表
+                .Select(p => new PurchasedBookDto
+                {
+                    EbookId = p.EBook.EbookId,
+                    EbookName = p.EBook.EbookName,
+                    Author = p.EBook.Author,
+                    PrimaryCoverPath = (p.EBook.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{p.EBook.PrimaryCoverPath}",
+                    ReadingProgress = p.ReadingProgress,
+                    IsReadable = !string.IsNullOrEmpty(p.EBook.EBookPosition)
+                })
+                .ToListAsync();
+
+            // 移除重複的書籍 (因為同本書可能被不同使用者購買)
+            // 待未來實作依使用者篩選時，即可移除這段
+            var distinctBooks = purchasedBooks
+                .GroupBy(b => b.EbookId)
+                .Select(g => g.First())
+                .ToList();
+
+            return Ok(distinctBooks);
         }
 
         /// <summary>
@@ -355,6 +443,52 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
 
             // 6. 回傳成功訊息，包含新的檔案路徑
             return Ok(new { filePath = ebook.EBookPosition });
+        }
+
+        // 檔案: EbooksController.cs
+
+        [HttpPost("purchased/progress")]
+        public async Task<IActionResult> UpdateReadingProgress([FromBody] UpdateProgressDto progressDto)
+        {
+            // [修改] 從 HttpContext 的使用者宣告中，動態取得登入者的 User ID
+            // ClaimTypes.NameIdentifier 通常對應到 JWT Token 中的 'sub' (Subject) 欄位，也就是使用者 ID。
+            // 這需要您的登入功能有正確設定 JWT Token。
+            var userIdString = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            // 如果在 Token 中找不到使用者 ID，代表使用者未登入或 Token 無效，回傳 401 未授權
+            if (string.IsNullOrEmpty(userIdString))
+            {
+                return Unauthorized("無法識別使用者身分，請先登入");
+            }
+
+            var userId = Guid.Parse(userIdString);
+
+            // --- 以下的資料庫操作邏輯完全維持不變 ---
+
+            // 1. 根據 UID 和 EbookId 找到對應的購買紀錄
+            var purchaseRecord = await _db.EbookPurchaseds
+                .FirstOrDefaultAsync(p => p.Uid == userId && p.EBookId == progressDto.EbookId);
+
+            if (purchaseRecord == null)
+            {
+                return NotFound("找不到對應的購買紀錄");
+            }
+
+            // 2. 計算進度百分比
+            if (progressDto.TotalPages > 0)
+            {
+                double percentage = (double)progressDto.CurrentPage / progressDto.TotalPages * 100;
+                purchaseRecord.ReadingProgress = Math.Round(percentage).ToString();
+            }
+
+            // 3. 更新最後閱讀時間
+            purchaseRecord.LastReadTime = DateTime.UtcNow;
+
+            // 4. 儲存變更到資料庫
+            await _db.SaveChangesAsync();
+
+            // 5. 回傳成功
+            return NoContent();
         }
     }
 }
