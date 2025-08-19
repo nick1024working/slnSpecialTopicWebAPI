@@ -12,6 +12,7 @@ public class MappingProfile : Profile
     {
         // UsedBook 轉換
         CreateMap<CreateBookRequest, UsedBook>();
+        CreateMap<UsedBook, UpdateBookPayloadDto>();
         CreateMap<UsedBook, EditBookDto>();
         // Detail
         CreateMap<UsedBookDetailQueryResult, PublicUsedBookDetailDto>();
@@ -21,8 +22,6 @@ public class MappingProfile : Profile
         CreateMap<UserBookListItemQueryResult, UserBookListItemDto>();
         CreateMap<AdminBookListItemQueryResult, AdminBookListItemDto>();
 
-        // BookImage 轉換
-        CreateMap<UsedBookImageQueryResult, BookImageDto>();
 
         // BookCategory 轉換
         CreateMap<CreateBookCategoryRequest, BookCategory>();

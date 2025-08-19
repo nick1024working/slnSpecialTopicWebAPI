@@ -49,6 +49,28 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             return Ok(queryResult.Value);
         }
 
+        [HttpGet("categories")]
+        public async Task<ActionResult<IEnumerable<IdNameDto>>> GetBookCategoryList(CancellationToken ct)
+        {
+            var queryResult = await _lookupService.GetBookCategoryListAsync(ct);
+
+            if (!queryResult.IsSuccess)
+                return BadRequest(queryResult.ErrorMessage);
+
+            return Ok(queryResult.Value);
+        }
+
+        [HttpGet("sale-tags")]
+        public async Task<ActionResult<IEnumerable<IdNameDto>>> GetSaleTagList(CancellationToken ct)
+        {
+            var queryResult = await _lookupService.GetSaleTagListAsync(ct);
+
+            if (!queryResult.IsSuccess)
+                return BadRequest(queryResult.ErrorMessage);
+
+            return Ok(queryResult.Value);
+        }
+
         [HttpGet("usedbooks/condition-rating-desc/{id:int}")]
         public async Task<ActionResult<BookConditionRatingDescriptionDto>> GetBookConditionRatingDescriptionById([FromRoute] int id, CancellationToken ct)
         {

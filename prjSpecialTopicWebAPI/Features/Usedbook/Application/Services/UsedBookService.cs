@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Microsoft.AspNetCore.Http;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Query;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
@@ -9,7 +10,6 @@ using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.UnitOfWork;
 using prjSpecialTopicWebAPI.Features.Usedbook.Utilities;
 using prjSpecialTopicWebAPI.Models;
 using System.Linq.Expressions;
-using System.Net;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 {
@@ -49,7 +49,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
         /// <summary>
         /// 新增完整書本資源，圖片部分交給 ImageService
         /// </summary>
-        public async Task<Result<Guid>> CreateAsync(Guid sellerId, CreateBookRequest request, CancellationToken ct = default)
+        public async Task<Result<Guid>> CreateAsync(Guid sellerId, CreateBookRequest request, HttpRequest httpRequest, CancellationToken ct = default)
         {
             Guid usedBookId = Guid.NewGuid();
             DateTime nowTime = DateTime.UtcNow;
@@ -67,10 +67,22 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             try
             {
                 _usedBookRepository.Add(entity);
+                var saveImageResult = await _imageService.SaveImagesAsync(request.ImageList, httpRequest, ct);
+                if (!saveImageResult.IsSuccess)
+                    throw new Exception(saveImageResult.ErrorMessage);
+
+                var createRequestList = saveImageResult.Value
+                    .Select((image, index) => new CreateUsedBookImageRequest
+                    {
+                        IsCover = index == 0, // 假設第一張圖片為封面
+                        StorageProvider = StorageProvider.Local,
+                        ObjectKey = image.Id,
+                    }).ToList();
+
                 // 此處呼叫 ImageService 來處理封面圖片
-                var commandResult = await _usedBookImageService.CreateAsync(usedBookId, request.ImageList);
-                if (!commandResult.IsSuccess)
-                    throw new Exception(commandResult.ErrorMessage);
+                var createImageResult = await _usedBookImageService.CreateAsync(usedBookId, createRequestList, ct);
+                if (!createImageResult.IsSuccess)
+                    throw new Exception(createImageResult.ErrorMessage);
 
                 await _unitOfWork.CommitAsync(ct);
 
@@ -84,10 +96,11 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
         }
 
         /// <summary>
-        /// 更新指定書本資源 (僅更新書本實體)
+        /// 更新指定書本資源，圖片部分交給 ImageService
         /// </summary>
-        public async Task<Result<Unit>> UpdateAsync(Guid id, UpdateBookRequest request, CancellationToken ct = default)
+        public async Task<Result<Unit>> UpdateAsync(Guid id, UpdateBookRequest request, HttpRequest httpRequest, CancellationToken ct = default)
         {
+            using var tx = _unitOfWork.BeginTransactionAsync(ct);
             try
             {
                 var entity = await _usedBookRepository.GetEntityByIdAsync(id, ct);
@@ -112,11 +125,57 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 entity.IsOnShelf = request.IsOnShelf;
                 entity.UpdatedAt = DateTime.UtcNow;
 
+                // 更新圖片
+                var ids = new HashSet<int>();
+                var updateRequest = new UpdateOrderByIdRequest();
+                foreach (var image in request.ImageList)
+                {
+                    if (image.Id != null)
+                    {
+                        ids.Add((int)image.Id);
+                        updateRequest.IdList.Add((int)image.Id);
+                    }
+                    else if (image.Image != null)
+                    {
+                        var saveResult = await _imageService.SaveImageAsync(image.Image, httpRequest, ct);
+                        if (!saveResult.IsSuccess)
+                            throw new Exception(saveResult.ErrorMessage);
+
+                        var createRequest = new CreateUsedBookImageRequest
+                        {
+                            IsCover = false,
+                            StorageProvider = StorageProvider.Local,
+                            ObjectKey = saveResult.Value.Id,
+                        };
+                        var createResult = await _usedBookImageService.CreateAsync(id, createRequest, ct);
+                        if (!createResult.IsSuccess)
+                            throw new Exception(createResult.ErrorMessage);
+                        ids.Add(createResult.Value);
+                        updateRequest.IdList.Add(createResult.Value);
+                    }
+                }
+
+                await _usedBookImageService.SetCoverAsync(id, new SetBookCoverRequest { ImageId = updateRequest.IdList[0] }, ct);
+                
+                var currentList = await _usedBookImageService.GetByBookIdAsync(id, ct);
+                if (!currentList.IsSuccess)
+                    throw new Exception(currentList.ErrorMessage);
+                foreach (var item in currentList.Value)
+                {
+                    if (!ids.Contains(item.Id))
+                        await _usedBookImageService.DeleteByImageIdAsync(item.Id, ct);
+                }
+
+                var updateOrderResult = await _usedBookImageService.UpdateOrderByBookIdAsync(id, updateRequest, ct);
+                if (!updateOrderResult.IsSuccess)
+                    throw new Exception(updateOrderResult.ErrorMessage);
+
                 await _unitOfWork.CommitAsync(ct);
                 return Result<Unit>.Success(Unit.Value);
             }
             catch (Exception ex)
             {
+                await _unitOfWork.RollbackAsync(ct);
                 return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
             }
         }
@@ -173,27 +232,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 
         // ========== 查詢 ==========
 
-        public async Task<Result<EditBookDto>> GetForEditByIdAsync(Guid id, CancellationToken ct = default)
-        {
-            try
-            {
-                var entoity = await _usedBookRepository.GetEntityByIdAsync(id, ct);
-                if (entoity == null)
-                    return Result<EditBookDto>.Failure("找不到符合的資料", ErrorCodes.General.NotFound);
-
-                var imageQueryResult = await _usedBookImageRepository.GetByBookIdAsync(id, ct);
-
-                var dto = _mapper.Map<EditBookDto>(entoity);
-                dto.ImageList = _mapper.Map<IEnumerable<BookImageDto>>(imageQueryResult);
-
-                return Result<EditBookDto>.Success(dto);
-            }
-            catch (Exception ex)
-            {
-                return ExceptionToErrorResultMapper<EditBookDto>.Map(ex, _logger);
-            }
-        }
-
         public async Task<Result<PublicUsedBookDetailDto>> GetPublicDetailByIdAsync(Guid id, CancellationToken ct = default)
         {
             try
@@ -202,10 +240,10 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 if (bookQueryResult == null)
                     return Result<PublicUsedBookDetailDto>.Failure("找不到符合的資料", ErrorCodes.General.NotFound);
 
-                var imageQueryResult = await _usedBookImageRepository.GetByBookIdAsync(id, ct);
+                var imageResult = await _usedBookImageService.GetByBookIdAsync(id, ct);
 
                 var dto = _mapper.Map<PublicUsedBookDetailDto>(bookQueryResult);
-                dto.ImageList = _mapper.Map<IEnumerable<BookImageDto>>(imageQueryResult);
+                dto.ImageList = imageResult?.Value?.ToList() ?? [];
 
                 return Result<PublicUsedBookDetailDto>.Success(dto);
             }
@@ -223,16 +261,38 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 if (bookQueryResult == null)
                     return Result<AdminUsedBookDetailDto>.Failure("找不到符合的資料", ErrorCodes.General.NotFound);
 
-                var imageQueryResult = await _usedBookImageRepository.GetByBookIdAsync(id, ct);
+                var imageResult = await _usedBookImageService.GetByBookIdAsync(id, ct);
 
                 var dto = _mapper.Map<AdminUsedBookDetailDto>(bookQueryResult);
-                dto.ImageList = _mapper.Map<IEnumerable<BookImageDto>>(imageQueryResult);
+                dto.ImageList = imageResult?.Value?.ToList() ?? [];
 
                 return Result<AdminUsedBookDetailDto>.Success(dto);
             }
             catch (Exception ex)
             {
                 return ExceptionToErrorResultMapper<AdminUsedBookDetailDto>.Map(ex, _logger);
+            }
+        }
+
+        public async Task<Result<UpdateBookPayloadDto>> GetUpdatePayloadByIdAsync(Guid id, CancellationToken ct = default)
+        {
+            try
+            {
+                var entity = await _usedBookRepository.GetEntityByIdWithCountyIdAsync(id, ct);
+                if (entity == null)
+                    return Result<UpdateBookPayloadDto>.Failure("找不到符合的資料", ErrorCodes.General.NotFound);
+
+                var imageResult = await _usedBookImageService.GetByBookIdAsync(id, ct);
+
+                var dto = _mapper.Map<UpdateBookPayloadDto>(entity);
+                dto.ImageList = imageResult?.Value?.ToList() ?? [];
+                dto.SellerCountyId = entity.SellerDistrict.CountyId;
+
+                return Result<UpdateBookPayloadDto>.Success(dto);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<UpdateBookPayloadDto>.Map(ex, _logger);
             }
         }
 
@@ -251,8 +311,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 foreach (var res in queryResult)
                 {
                     var dto = _mapper.Map<PublicBookListItemDto>(res);
-                    dto.CoverImageUrl = BuildImageUrl(res.CoverStorageProvider, res.CoverObjectKey);
-
+                    dto.CoverImageUrl = _usedBookImageService.GetThumbUrlWithFallback(res.CoverStorageProvider, res.CoverObjectKey);
                     dtoList.Add(dto);
                 }
 
@@ -278,8 +337,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 foreach (var res in queryResult)
                 {
                     var dto = _mapper.Map<UserBookListItemDto>(res);
-                    dto.CoverImageUrl = BuildImageUrl(res.CoverStorageProvider, res.CoverObjectKey);
-
+                    dto.CoverImageUrl = _usedBookImageService.GetThumbUrlWithFallback(res.CoverStorageProvider, res.CoverObjectKey);
                     dtoList.Add(dto);
                 }
 
@@ -305,8 +363,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 foreach (var res in queryResult)
                 {
                     var dto = _mapper.Map<AdminBookListItemDto>(res);
-                    dto.CoverImageUrl = BuildImageUrl(res.CoverStorageProvider, res.CoverObjectKey);
-
+                    dto.CoverImageUrl = _usedBookImageService.GetThumbUrlWithFallback(res.CoverStorageProvider, res.CoverObjectKey);
                     dtoList.Add(dto);
                 }
 
@@ -368,14 +425,26 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 
         private Expression<Func<UsedBook, bool>> BuildPredicate(BookListQuery query)
         {
+            // 預處理
+            var saleTagIds = query.SaleTagIds ?? Array.Empty<int>();
+            var keyword = query.Keyword?.Trim();
+            var status = query.BookStatus?.Trim().ToLowerInvariant();
+
             return b =>
-                (
-                    string.IsNullOrWhiteSpace(query.BookStatus) ||
-                    query.BookStatus == "all" ||
-                    query.BookStatus == "unsold" && !b.IsSold ||
-                    query.BookStatus == "onshelf" && b.IsOnShelf
-                ) &&
-                (string.IsNullOrWhiteSpace(query.Keyword) || b.Title.Contains(query.Keyword)) &&
+                // 主題分類 N:1
+                (!query.CategoryId.HasValue || b.CategoryId == query.CategoryId) &&
+                // 促標標籤 N:M
+                (saleTagIds.Count == 0 || b.Tags.Any(t => saleTagIds.Contains(t.Id))) &&
+                // 狀態
+                (string.IsNullOrWhiteSpace(status) ||
+                    status == "all" ||
+                    (status == "inactive" && !b.IsActive) ||
+                    (status == "unsold" && !b.IsSold) ||
+                    (status == "onshelf" && b.IsOnShelf)) &&
+                // 關鍵字
+                (string.IsNullOrWhiteSpace(query.Keyword)
+                    || b.Title.Contains(query.Keyword)) &&
+                // 價格區間
                 (!query.MinPrice.HasValue || b.SalePrice >= query.MinPrice) &&
                 (!query.MaxPrice.HasValue || b.SalePrice <= query.MaxPrice);
         }
@@ -392,21 +461,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 _ when query.SortBy == "price" && query.SortDir == "desc" => q.OrderByDescending(b => b.SalePrice),
                 _ => q.OrderByDescending(b => b.UpdatedAt)
             };
-        }
-
-        private string BuildImageUrl(StorageProvider? provider, string? objectKey)
-        {
-            string? filePath = null;
-            if (provider == StorageProvider.Local && objectKey != null)
-            {
-                filePath = "/" + _imageService.GetThumbRelativePath(objectKey)?.Replace("\\", "/");
-            }
-            else if (provider == StorageProvider.Cloudinary)
-            {
-                // TODO: 這裡放 Cloudinary 的處理方式
-            }
-
-            return filePath ?? "/images/fallback-thumb.jpg";
         }
 
     }

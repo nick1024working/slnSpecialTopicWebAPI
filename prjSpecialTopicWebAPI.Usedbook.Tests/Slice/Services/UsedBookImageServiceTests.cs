@@ -83,20 +83,22 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Slice.Services
             var createRes = await _svc.CreateAsync(bookId, createReqList);
             createRes.Value.Should().NotBeNull();
 
-            var reqList = createRes.Value.Select(r => new UpdateOrderByIdRequest { Id = r }).ToList();
-            reqList.Shuffle();
+            var updateReq = new UpdateOrderByIdRequest();
+            List<int> aux = createRes.Value.ToList();
+            aux.Shuffle();
+            updateReq.IdList = aux;
 
             // ---------- Act ----------
-            var res = await _svc.UpdateOrderByBookIdAsync(bookId, reqList);
+            var res = await _svc.UpdateOrderByBookIdAsync(bookId, updateReq);
 
             // ---------- Assert  ----------
             res.IsSuccess.Should().BeTrue("UpdateOrder 結果須成功");
             var readRes = await _svc.GetByBookIdAsync(bookId);
             readRes.IsSuccess.Should().BeTrue("Get 結果須成功");
-            readRes.Value.Should().HaveCount(reqList.Count, "應該有相同數量的項目");
-            for (int i = 0; i < reqList.Count; i++)
+            readRes.Value.Should().HaveCount(updateReq.IdList.Count, "應該有相同數量的項目");
+            for (int i = 0; i < updateReq.IdList.Count; i++)
             {
-                readRes.Value[i].Id.Should().Be(reqList[i].Id, "rreadRes.Value[i].Id, reqList[i].Id 兩者需相同");
+                readRes.Value[i].Id.Should().Be(updateReq.IdList[i], "readRes.Value[i].Id, updateReq.IdList[i] 兩者需相同");
             }
         }
 

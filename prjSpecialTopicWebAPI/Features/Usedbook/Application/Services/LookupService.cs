@@ -8,7 +8,9 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
     public class LookupService
     {
         private readonly BookBindingRepository _bookBindingRepository;
+        private readonly BookCategoryRepository _bookCategoryRepository;
         private readonly BookConditionRatingRepository _bookConditionRatingRepository;
+        private readonly BookSaleTagRepository _bookSaleTagRepository;
         private readonly ContentRatingRepository _contentRatingRepository;
         private readonly CountyRepository _countyRepository;
         private readonly DistrictRepository _districtRepository;
@@ -17,15 +19,19 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 
         public LookupService(
             BookBindingRepository bookBindingRepository,
+            BookCategoryRepository bookCategoryRepository,
             BookConditionRatingRepository bookConditionRatingRepository,
-            ContentRatingRepository contentRatingRepository,
+            BookSaleTagRepository bookSaleTagRepository,
+        ContentRatingRepository contentRatingRepository,
             CountyRepository countyRepository,
             DistrictRepository districtRepository,
             LanguageRepository languageRepository,
             ILogger<LookupService> logger)
         {
             _bookBindingRepository = bookBindingRepository;
+            _bookCategoryRepository = bookCategoryRepository;
             _bookConditionRatingRepository = bookConditionRatingRepository;
+            _bookSaleTagRepository = bookSaleTagRepository;
             _contentRatingRepository = contentRatingRepository;
             _countyRepository = countyRepository;
             _districtRepository = districtRepository;
@@ -44,6 +50,10 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 var bookBindingResult = await GetBookBindingListAsync(ct);
                 if (!bookBindingResult.IsSuccess)
                     return Result<AllUsedBookLookupListsDto>.Failure("Lookup.GetBookBindingListAsync 發生錯誤", ErrorCodes.General.Unexpected);
+
+                var bookCategoryResult = await GetBookCategoryListAsync(ct);
+                if (!bookCategoryResult.IsSuccess)
+                    return Result<AllUsedBookLookupListsDto>.Failure("Lookup.GetBookCategoryListAsync 發生錯誤", ErrorCodes.General.Unexpected);
 
                 var bookConditionResult = await GetBookConditionRatingListAsync(ct);
                 if (!bookConditionResult.IsSuccess)
@@ -64,6 +74,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 var dto = new AllUsedBookLookupListsDto
                 {
                     BookBindings = bookBindingResult.Value,
+                    BookCategories = bookCategoryResult.Value,
                     BookConditionRatings = bookConditionResult.Value,
                     ContentRatings = contentRatingResult.Value,
                     Counties = countyResult.Value,
@@ -86,6 +97,37 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             try
             {
                 var result = await _bookBindingRepository.GetAllAsync(ct);
+                var dtoList = result.Select(x => new IdNameDto { Id = x.Id, Name = x.Name }).ToList();
+                return Result<IEnumerable<IdNameDto>>.Success(dtoList);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<IEnumerable<IdNameDto>>.Map(ex, _logger);
+            }
+        }
+
+        /// <summary>
+        /// 讀取所有 BookCategoryList，並轉換為 <see cref="IdNameDto"/> 物件列表。
+        /// </summary>
+        public async Task<Result<IEnumerable<IdNameDto>>> GetBookCategoryListAsync(CancellationToken ct = default)
+        {
+            try
+            {
+                var result = await _bookCategoryRepository.GetAllAsync(ct);
+                var dtoList = result.Select(x => new IdNameDto { Id = x.Id, Name = x.Name }).ToList();
+                return Result<IEnumerable<IdNameDto>>.Success(dtoList);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<IEnumerable<IdNameDto>>.Map(ex, _logger);
+            }
+        }
+
+        public async Task<Result<IEnumerable<IdNameDto>>> GetSaleTagListAsync(CancellationToken ct = default)
+        {
+            try
+            {
+                var result = await _bookSaleTagRepository.GetAllAsync(ct);
                 var dtoList = result.Select(x => new IdNameDto { Id = x.Id, Name = x.Name }).ToList();
                 return Result<IEnumerable<IdNameDto>>.Success(dtoList);
             }
