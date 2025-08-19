@@ -205,8 +205,6 @@ public partial class TeamAProjectContext : DbContext
 
             entity.ToTable("donateImages");
 
-            entity.HasIndex(e => e.DonatePlanId, "IX_donateImages_donatePlan_id");
-
             entity.Property(e => e.DonateImageId).HasColumnName("donateImage_id");
             entity.Property(e => e.DonateImagePath)
                 .HasMaxLength(50)
@@ -217,10 +215,6 @@ public partial class TeamAProjectContext : DbContext
             entity.Property(e => e.ProjectGalleryPath)
                 .HasMaxLength(50)
                 .HasColumnName("projectGalleryPath");
-
-            entity.HasOne(d => d.DonatePlan).WithMany(p => p.DonateImages)
-                .HasForeignKey(d => d.DonatePlanId)
-                .HasConstraintName("FK_donateImages_donatePlans");
 
             entity.HasOne(d => d.DonateProject).WithMany(p => p.DonateImages)
                 .HasForeignKey(d => d.DonateProjectId)
@@ -914,7 +908,7 @@ public partial class TeamAProjectContext : DbContext
                     "UsedBookSaleTag",
                     r => r.HasOne<BookSaleTag>().WithMany()
                         .HasForeignKey("TagId")
-                        .HasConstraintName("FK__UsedBookS__TagId__3429BB53"),
+                        .HasConstraintName("FK_UsedBookS_TagId"),
                     l => l.HasOne<UsedBook>().WithMany()
                         .HasForeignKey("BookId")
                         .HasConstraintName("FK__UsedBookS__BookI__3335971A"),

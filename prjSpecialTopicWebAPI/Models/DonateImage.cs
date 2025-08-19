@@ -17,7 +17,5 @@ public partial class DonateImage
 
     public int? DonatePlanId { get; set; }
 
-    public virtual DonatePlan? DonatePlan { get; set; }
-
     public virtual DonateProject DonateProject { get; set; } = null!;
 }
