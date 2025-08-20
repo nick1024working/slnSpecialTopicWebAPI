@@ -30,7 +30,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         public async Task<ActionResult<Guid>> CreateBook([FromForm] CreateBookRequest request, CancellationToken ct)
         {
             // HACK: 驗證政策尚未完成
-            string userIdString = "22B888CB-32AB-4B07-96BF-228B60D3717A";
+            string userIdString = "EBB03874-054F-4FEA-9AE8-02B8D05C4BB3";
             Guid.TryParse(userIdString, out Guid userId);
 
             // 嘗試取出 claims 中的 userId

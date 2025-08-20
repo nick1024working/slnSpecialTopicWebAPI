@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Query;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Errors;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
 
@@ -21,7 +22,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         /// 管理員查詢所有書籍清單。
         /// </summary>
         [HttpGet("books")]
-        public async Task<IActionResult> GetAdminBookList([FromQuery] BookListQuery query)
+        public async Task<ActionResult<IEnumerable<AdminBookListItemDto>>> GetAdminBookList([FromQuery] BookListQuery query)
         {
             // 呼叫 Service Layer
             var result = await _usedBookService.GetAdminBookListAsync(query);

@@ -6,6 +6,8 @@ using prjSpecialTopicWebAPI.Features.Usedbook.Enums;
 using prjSpecialTopicWebAPI.Models;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Net.NetworkInformation;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
 {
@@ -49,7 +51,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             var result = await _db.UsedBooks.SingleOrDefaultAsync(b => b.Id == id, ct);
             if (result == null)
                 return false;
-            result.IsOnShelf = status ;
+            result.IsOnShelf = status;
             result.UpdatedAt = DateTime.UtcNow;
             return true;
         }
@@ -130,7 +132,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             var pageIndex = Math.Max(0, paging.PageIndex);
             var pageSize = Math.Clamp(paging.PageSize, 1, 100);
 
-            // 1. 基底查詢（不 Include，先 Count）
+            // 基底查詢（不 Include，先 Count）
             var baseQuery = _db.UsedBooks
                 .AsNoTracking()
                 .Where(b => b.IsActive && b.IsOnShelf)
@@ -138,7 +140,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                 .Where(b => b.UsedBookImages.Any(i => i.IsCover));
             var total = await baseQuery.CountAsync(ct);
 
-            // 2) 排序 + 分頁 + 投影（一次把封面/分類/標籤取出）
+            // 排序 + 分頁 + 投影（一次把封面/分類/標籤取出）
             var items = await orderBy(baseQuery)
                 .Skip(pageIndex * pageSize)
                 .Take(pageSize)
@@ -157,7 +159,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                     Title = b.Title,
                     SalePrice = b.SalePrice,
                     Authors = b.Authors,
-                    ConditionRating = b.ConditionRating.Name ?? "",
+                    ConditionRating = b.ConditionRating.Name,
 
                     Category = new IdNameDto
                     {
@@ -176,7 +178,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                 .AsSplitQuery()
                 .ToListAsync(ct);
 
-            // 6. 組 PagedResult
+            // 組 PagedResult
             var result = new PagedResult<PublicBookListItemQueryResult>
             {
                 Items = items,
@@ -188,7 +190,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             return result;
         }
 
-        // TODO: 需要分頁
         /// <summary>
         /// 根據 UserId 查詢該使用者書本清單 (清單項目資料，非詳細資料)。
         /// </summary>
@@ -198,11 +199,51 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             Func<IQueryable<UsedBook>, IOrderedQueryable<UsedBook>> orderBy,
             CancellationToken ct = default)
         {
+            IQueryable<UsedBook> query = _db.UsedBooks
+            .AsNoTracking()
+            .Where(b => b.SellerId == userId && b.IsActive)
+            .Where(predicate);
+
+            query = orderBy(query);
+
+            // 排序 + 分頁 + 投影（一次把封面/分類/標籤取出）
+            var result = await query
+                .AsNoTracking()
+                .Select(b => new UserBookListItemQueryResult
+                {
+                    CoverStorageProvider = (StorageProvider)b.UsedBookImages
+                        .Where(i => i.IsCover)
+                        .Select(i => i.StorageProvider)
+                        .FirstOrDefault(),
+                    CoverObjectKey = b.UsedBookImages
+                        .Where(i => i.IsCover)
+                        .Select(i => i.ObjectKey)
+                        .FirstOrDefault() ?? "",
+
+                    Id = b.Id,
+                    Title = b.Title,
+                    SellerId = b.SellerId,
+                    SalePrice = b.SalePrice,
+                    ConditionRating = b.ConditionRating.Name,
+
+                    IsOnShelf = b.IsOnShelf,
+                    IsSold = b.IsSold,
+                    Slug = b.Slug,
+
+                    CreatedAt = b.CreatedAt,
+                    UpdatedAt = b.UpdatedAt
+
+                })
+                .AsSplitQuery()
+                .ToListAsync(ct);
+
+            return result;
+
+            /*
             // 1. 建立查詢（包含關聯載入與篩選條件）
             var query = _db.UsedBooks
                 .Where(predicate)
-                .Where(b => b.IsActive == true)
-                //.Include(b => b.Tags)     // NOTE: 使用者書本清單不需要 Tags
+                .Where(b => b.SellerId == userId && b.IsActive)
                 .Include(b => b.ConditionRating);
 
             // 2. 排序條件
@@ -245,6 +286,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                 .ToList();
 
             return result;
+            */
         }
 
         // TODO: 需要分頁
@@ -340,7 +382,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
         /// </summary>
         public async Task<bool> RemoveBookSaleTagAsync(Guid bookId, int tagId, CancellationToken ct = default)
         {
-            var affected = await _db.Set<Dictionary<string, object>> ("UsedBookSaleTag")
+            var affected = await _db.Set<Dictionary<string, object>>("UsedBookSaleTag")
                 .Where(e => (Guid)e["BookId"] == bookId
                     && (int)e["TagId"] == tagId)
                 .ExecuteDeleteAsync(ct);

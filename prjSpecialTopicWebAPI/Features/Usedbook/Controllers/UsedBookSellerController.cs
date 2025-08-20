@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Query;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Errors;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
 
@@ -18,10 +19,10 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         }
 
         [HttpGet("books")]
-        public async Task<IActionResult> GetSellerBookList([FromQuery] BookListQuery query)
+        public async Task<ActionResult<IEnumerable<UserBookListItemDto>>> GetSellerBookList([FromQuery] BookListQuery query)
         {
             // HACK: 驗證政策尚未完成
-            string userIdString = "22B888CB-32AB-4B07-96BF-228B60D3717A";
+            string userIdString = "EBB03874-054F-4FEA-9AE8-02B8D05C4BB3";
             Guid.TryParse(userIdString, out Guid userId);
 
             // 呼叫 Service Layer
