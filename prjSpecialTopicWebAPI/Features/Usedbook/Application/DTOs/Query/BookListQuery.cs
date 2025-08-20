@@ -17,7 +17,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Query
         /// <summary>主分類 ID；若為 null 表示全部。</summary>
         public int? CategoryId { get; init; }
 
-        /// <summary>多重標籤 (tag) 篩選。以半形逗號分隔，如 &quot;1,2,3&quot;。</summary>
         public IReadOnlyList<int>? SaleTagIds { get; init; }
 
         /// <summary>價格下限。</summary>

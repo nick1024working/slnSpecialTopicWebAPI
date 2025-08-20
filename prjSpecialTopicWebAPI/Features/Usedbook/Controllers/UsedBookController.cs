@@ -2,6 +2,7 @@
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Query;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Errors;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
 
@@ -110,7 +111,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<PublicBookListItemDto>>> GetPublicBookList([FromQuery] BookListQuery query, CancellationToken ct)
+        public async Task<ActionResult<PagedResult<PublicBookListItemDto>>> GetPublicBookList([FromQuery] BookListQuery query, CancellationToken ct)
         {
             var result = await _bookService.GetPublicListAsync(query);
             if (!result.IsSuccess)
