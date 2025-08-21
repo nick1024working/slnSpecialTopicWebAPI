@@ -1,4 +1,5 @@
-﻿using prjSpecialTopicWebAPI.Features.Usedbook.Enums;
+﻿using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
+using prjSpecialTopicWebAPI.Features.Usedbook.Enums;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results
 {
@@ -7,7 +8,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results
         public StorageProvider CoverStorageProvider { get; set; }
         public string CoverObjectKey { get; set; } = string.Empty;
 
-        public IReadOnlyList<BookSaleTagQueryResult> SaleTagList { get; set; } = [];
+        public IReadOnlyList<IdNameDto> SaleTagList { get; set; } = [];
 
         public Guid Id { get; set; }
         public string Title { get; set; } = string.Empty;

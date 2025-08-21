@@ -280,11 +280,10 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                     SalePrice = b.SalePrice,
                     ConditionRating = b.ConditionRating.Name,
 
-                    SaleTagList = b.Tags.Select(t => new BookSaleTagQueryResult
+                    SaleTagList = b.Tags.Select(t => new IdNameDto
                     {
                         Id = t.Id,
                         Name = t.Name,
-                        IsActive = t.IsActive
                     }).ToList(),
 
                     IsOnShelf = b.IsOnShelf,
