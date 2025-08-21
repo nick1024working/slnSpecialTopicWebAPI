@@ -61,6 +61,17 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                 }
             }
 
+            // --- [新增/修改] 在此處加入最後的過濾步驟 ---
+            // 移除那些本身是父分類(不在 categoriesWithBooks 的頂層中)，但底下又沒有任何子分類的項目。
+            // 這種情況發生在：一個父分類本身沒有直接關聯的書，但它底下的子分類才有。
+            // 如果這些子分類又剛好因為沒書而被過濾掉了，這個父分類就會變成空的群組。
+            result.RemoveAll(parent =>
+                parent.Children.Count == 0 && // 條件一：它沒有任何子分類
+                !categoriesWithBooks.Any(c => c.CategoryId == parent.Id && c.ParentCategoryId == null) // 條件二：它也不是一個頂層分類
+            );
+            // --- 新增區塊結束 ---
+
+
             return Ok(result);
         }
     }
