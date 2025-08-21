@@ -19,7 +19,6 @@
   <ItemGroup>
     <Folder Include="Features\Ebook\" />
     <Folder Include="Features\Fund\" />
-    <Folder Include="Features\Forum\" />
     <Folder Include="Features\User\" />
     <Folder Include="Features\Usedbook\" />
     <Folder Include="wwwroot\" />

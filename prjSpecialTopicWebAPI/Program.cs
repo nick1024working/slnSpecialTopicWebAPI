@@ -13,46 +13,38 @@ builder.Services.AddDbContext<TeamAProjectContext>(options =>
         sql => sql.MigrationsAssembly(typeof(TeamAProjectContext).Assembly.FullName));
 });
 
-// ========== 各自需要的服務於以下註冊 ==========
-#region
-
-// Ebook
-
-
-// Forum
-
-
-// Fund
-
-
-// Usedbook
-
-
-// User
-
-
-
-// ========== 各自需要的服務於以上註冊 ==========
-#endregion
-
+// Controllers + Swagger
 builder.Services.AddControllers();
-
-// 加入 Swagger 服務
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// CORS：允許 Angular Dev Server
+const string AllowAngular = "AllowAngular";
+builder.Services.AddCors(opt =>
+{
+    opt.AddPolicy(AllowAngular, p => p
+        .WithOrigins("http://localhost:4200")
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+    // .AllowCredentials() // 需要帶 cookie/token 時再開
+    );
+});
+
 var app = builder.Build();
 
-// 設定 HTTP 處理管線（Middleware）
+// Pipeline
 if (app.Environment.IsDevelopment())
 {
-    // 啟用 Swagger
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
 app.UseStaticFiles();
 app.UseHttpsRedirection();
-app.UseAuthorization();
+
+// ★ 關鍵：一定要加在 MapControllers 之前
+app.UseCors(AllowAngular);
+
 app.UseAuthorization();
 app.MapControllers();
 

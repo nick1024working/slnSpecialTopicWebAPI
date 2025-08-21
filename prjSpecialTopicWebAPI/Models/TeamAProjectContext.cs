@@ -735,9 +735,10 @@ public partial class TeamAProjectContext : DbContext
                 .HasColumnType("image")
                 .HasColumnName("PostImage");
 
-            entity.HasOne(d => d.Post).WithOne(p => p.PostImage)
-                .HasForeignKey<PostImage>(d => d.PostId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
+            entity.HasOne(d => d.Post)
+                  .WithMany(p => p.PostImages)   // ✅ 一對多
+                  .HasForeignKey(d => d.PostId)
+                  .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("FK__PostImage__PostI__60A75C0F");
         });
 
