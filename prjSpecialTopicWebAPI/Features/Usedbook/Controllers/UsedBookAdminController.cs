@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Query;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Errors;
@@ -30,6 +31,16 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
                 return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
 
             return Ok(result.Value);
+        }
+
+        [HttpPut("books/sale-tags/batch")]
+        public async Task<ActionResult<IEnumerable<UserBookListItemDto>>> UpdateBookSaleTagBatch([FromBody] UpdateBookSaleTagRequest request, CancellationToken ct)
+        {
+            var result = await _usedBookService.UpdateBookSaleTagBatchAsync(request, ct);
+            if (!result.IsSuccess)
+                return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
+
+            return NoContent();
         }
 
     }

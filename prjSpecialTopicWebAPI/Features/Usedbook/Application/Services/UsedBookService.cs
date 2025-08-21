@@ -11,6 +11,7 @@ using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.UnitOfWork;
 using prjSpecialTopicWebAPI.Features.Usedbook.Utilities;
 using prjSpecialTopicWebAPI.Models;
 using System.Linq.Expressions;
+using System.Net;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
@@ -392,27 +393,13 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 
         // ========== 促銷標籤相關 ==========
 
-        public async Task<Result<Unit>> AddBookSaleTagAsync(Guid bookId, int tagId, CancellationToken ct = default)
+        public async Task<Result<Unit>> ApplyBookSaleTagAsync(Guid bookId, int tagId, CancellationToken ct = default)
         {
             try
             {
-                // 檢查書籍是否存在
-                UsedBook? bookWithTagsEntity = await _usedBookRepository.GetEntityByIdWithSaleTagsAsync(bookId, ct);
-                if (bookWithTagsEntity == null)
-                    return Result<Unit>.Failure("找不到目標書籍", ErrorCodes.General.NotFound);
-
-                // 檢查重複
-                if (bookWithTagsEntity.Tags.Any(t => t.Id == tagId))
-                    return Result<Unit>.Failure("書籍已經有此銷售標籤", ErrorCodes.General.Conflict);
-
-                // 檢查銷售標籤是否存在
-                BookSaleTag? saleTagsEntity = await _saleTagRepository.GetEntityByIdAsync(tagId, ct);
-                if (saleTagsEntity == null)
-                    return Result<Unit>.Failure("找不到目標銷售標籤", ErrorCodes.General.NotFound);
-
-                bookWithTagsEntity.Tags.Add(saleTagsEntity);
-
-                await _unitOfWork.CommitAsync(ct);
+                var commandResult = await _usedBookRepository.AddSaleTagAsync(bookId, tagId, ct);
+                if (commandResult)
+                    await _unitOfWork.CommitAsync(ct);
                 return Result<Unit>.Success(Unit.Value);
             }
             catch (Exception ex)
@@ -425,9 +412,27 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
         {
             try
             {
-                var commandResult = await _usedBookRepository.RemoveBookSaleTagAsync(bookId, tagId, ct);
+                var commandResult = await _usedBookRepository.RemoveSaleTagAsync(bookId, tagId, ct);
                 if (commandResult)
                     await _unitOfWork.CommitAsync(ct);
+                return Result<Unit>.Success(Unit.Value);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
+            }
+        }
+
+        public async Task<Result<Unit>> UpdateBookSaleTagBatchAsync(UpdateBookSaleTagRequest request, CancellationToken ct = default)
+        {
+            try
+            {
+                var commandResult = request.IsApply ?
+                    await _usedBookRepository.AddSaleTagBatchAsync(request.BookIdList, request.TagId, ct) :
+                    await _usedBookRepository.RemoveSaleTagBatchAsync(request.BookIdList, request.TagId, ct);
+                if (commandResult)
+                    await _unitOfWork.CommitAsync(ct);
+                await _unitOfWork.CommitAsync(ct);
                 return Result<Unit>.Success(Unit.Value);
             }
             catch (Exception ex)

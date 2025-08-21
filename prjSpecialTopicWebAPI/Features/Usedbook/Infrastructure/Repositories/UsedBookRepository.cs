@@ -4,6 +4,7 @@ using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results;
 using prjSpecialTopicWebAPI.Features.Usedbook.Enums;
 using prjSpecialTopicWebAPI.Models;
+using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Net.NetworkInformation;
@@ -314,34 +315,80 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
         /// <summary>
         /// 為指定書籍賦予 SaleTag 促銷標籤
         /// </summary>
-        [Obsolete("目前 service 直接使用實體")]
         public async Task<bool> AddSaleTagAsync(Guid bookId, int tagId, CancellationToken ct = default)
         {
-            var book = await _db.UsedBooks
-                .Include(b => b.Tags)
-                .FirstOrDefaultAsync(b => b.Id == bookId, ct);
+            var joinSet = _db.Set<Dictionary<string, object>>("UsedBookSaleTag");
 
-            if (book == null || book.Tags.Any(t => t.Id == tagId))
-                return false;
+            await joinSet
+                .AddAsync(new Dictionary<string, object>
+                {
+                    ["BookId"] = bookId,
+                    ["TagId"] = tagId
+                }, ct);
 
-            var trackedTag = await _db.BookSaleTags.FirstOrDefaultAsync(t => t.Id == tagId, ct);
-            if (trackedTag == null)
-                return false;
-
-            book.Tags.Add(trackedTag);
             return true;
         }
 
         /// <summary>
         /// 把指定書籍移除 SaleTag 促銷標籤
         /// </summary>
-        public async Task<bool> RemoveBookSaleTagAsync(Guid bookId, int tagId, CancellationToken ct = default)
+        public async Task<bool> RemoveSaleTagAsync(Guid bookId, int tagId, CancellationToken ct = default)
         {
-            var affected = await _db.Set<Dictionary<string, object>>("UsedBookSaleTag")
-                .Where(e => (Guid)e["BookId"] == bookId
-                    && (int)e["TagId"] == tagId)
+            var joinSet = _db.Set<Dictionary<string, object>>("UsedBookSaleTag");
+
+            await joinSet
+                .Where(e => EF.Property<Guid>(e, "BookId") == bookId && EF.Property<int>(e, "TagId") == tagId)
                 .ExecuteDeleteAsync(ct);
-            return affected > 0;
+
+            return true;
+        }
+
+
+        public async Task<bool> AddSaleTagBatchAsync(IReadOnlyList<Guid> bookIds, int tagId, CancellationToken ct = default)
+        {
+            if (bookIds is null || bookIds.Count == 0)
+                return true;
+
+            var joinSet = _db.Set<Dictionary<string, object>>("UsedBookSaleTag");
+            var ids = bookIds.Distinct().ToArray();
+
+            var existing = await joinSet
+                .Where(e => EF.Property<int>(e, "TagId") == tagId
+                         && ids.Contains(EF.Property<Guid>(e, "BookId")))
+                .Select(e => EF.Property<Guid>(e, "BookId"))
+                .ToListAsync(ct);
+
+            var toInsert = ids.Except(existing)
+                .Select(id => new Dictionary<string, object>
+                {
+                    ["BookId"] = id,
+                    ["TagId"] = tagId
+                })
+                .ToList();
+
+            if (toInsert.Count == 0)
+                return true;
+
+            await joinSet.AddRangeAsync(toInsert, ct);
+            return true;
+        }
+
+        public async Task<bool> RemoveSaleTagBatchAsync(IReadOnlyList<Guid> bookIds, int tagId, CancellationToken ct = default)
+        {
+            if (bookIds is null || bookIds.Count == 0)
+                return true;
+
+            var joinSet = _db.Set<Dictionary<string, object>>("UsedBookSaleTag");
+            var ids = bookIds.Distinct().ToArray();
+
+            foreach (var bookId in ids)
+            {
+                await joinSet
+                    .Where(e => EF.Property<int>(e, "TagId") == tagId && EF.Property<Guid>(e, "BookId") == bookId)
+                    .ExecuteDeleteAsync(ct);
+            }
+
+            return true;
         }
     }
 }
