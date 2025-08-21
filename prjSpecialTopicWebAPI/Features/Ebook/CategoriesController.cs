@@ -16,14 +16,20 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
             _context = context;
         }
 
-        // GET: api/categories
         [HttpGet]
         public async Task<ActionResult<IEnumerable<HierarchicalCategoryDto>>> GetCategories()
         {
-            // 1. 找出所有底下有 "上架中" 書籍的分類
+            // [重大修改] 更新查詢邏輯
             var categoriesWithBooks = await _context.EBookCategories
                 .AsNoTracking()
-                .Where(c => c.EBookMains.Any(b => b.IsAvailable)) // [核心] 只選擇有書的分類
+                // [核心修改] 擴充 Where 條件
+                .Where(c =>
+                    // 條件一：這個分類自己本身底下有書
+                    c.EBookMains.Any(b => b.IsAvailable) ||
+                    // OR (或)
+                    // 條件二：這個分類的任何一個子分類(InverseParentCategory)底下有書
+                    c.InverseParentCategory.Any(child => child.EBookMains.Any(b => b.IsAvailable))
+                )
                 .OrderBy(c => c.CategoryId)
                 .Select(c => new
                 {
@@ -33,7 +39,7 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                 })
                 .ToListAsync();
 
-            // 2. 在記憶體中將扁平列表重建成階層結構
+            // --- 以下的階層重組邏輯完全維持不變 ---
             var result = new List<HierarchicalCategoryDto>();
             var categoryLookup = categoriesWithBooks
                 .ToDictionary(c => c.CategoryId, c => new HierarchicalCategoryDto
@@ -44,16 +50,16 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
 
             foreach (var categoryData in categoriesWithBooks)
             {
-                // 如果是子分類，就把它加到對應的父分類的 Children 列表中
                 if (categoryData.ParentCategoryId.HasValue && categoryLookup.ContainsKey(categoryData.ParentCategoryId.Value))
                 {
                     var parent = categoryLookup[categoryData.ParentCategoryId.Value];
-                    parent.Children.Add(new CategoryOptionDto { Id = categoryData.CategoryId, Name = categoryData.CategoryName });
+                    if (!parent.Children.Any(child => child.Id == categoryData.CategoryId))
+                    {
+                        parent.Children.Add(new CategoryOptionDto { Id = categoryData.CategoryId, Name = categoryData.CategoryName });
+                    }
                 }
-                // 如果是父分類 (或沒有父分類)，就把它加到最外層結果中
                 else
                 {
-                    // 確保不重複加入
                     if (!result.Any(r => r.Id == categoryData.CategoryId))
                     {
                         result.Add(categoryLookup[categoryData.CategoryId]);
@@ -61,16 +67,10 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                 }
             }
 
-            // --- [新增/修改] 在此處加入最後的過濾步驟 ---
-            // 移除那些本身是父分類(不在 categoriesWithBooks 的頂層中)，但底下又沒有任何子分類的項目。
-            // 這種情況發生在：一個父分類本身沒有直接關聯的書，但它底下的子分類才有。
-            // 如果這些子分類又剛好因為沒書而被過濾掉了，這個父分類就會變成空的群組。
             result.RemoveAll(parent =>
-                parent.Children.Count == 0 && // 條件一：它沒有任何子分類
-                !categoriesWithBooks.Any(c => c.CategoryId == parent.Id && c.ParentCategoryId == null) // 條件二：它也不是一個頂層分類
+                parent.Children.Count == 0 &&
+                !categoriesWithBooks.Any(c => c.CategoryId == parent.Id && c.ParentCategoryId == null)
             );
-            // --- 新增區塊結束 ---
-
 
             return Ok(result);
         }
