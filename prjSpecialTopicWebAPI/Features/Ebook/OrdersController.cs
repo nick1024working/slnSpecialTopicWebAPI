@@ -61,5 +61,57 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
 
             return Ok(orderDto); // 回傳 200 OK 以及 DTO 物件
         }
+
+        [HttpGet("my-orders")]
+        // [修改] 暫時將 [Authorize] 註解掉，這樣在沒有 Token 的情況下也能測試
+        // [Authorize] 
+        public async Task<ActionResult<IEnumerable<OrderHistoryDto>>> GetMyOrders()
+        {
+            // --- [重大修改] ---
+            // 1. 暫時註解掉從 Token 動態取得 UID 的程式碼
+            // var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            // if (string.IsNullOrEmpty(userIdString))
+            // {
+            //     return Unauthorized("無法識別使用者身分。");
+            // }
+            // if (!Guid.TryParse(userIdString, out Guid userId))
+            // {
+            //     return BadRequest("無效的使用者 ID 格式。");
+            // }
+
+            // 2. 直接指定一個您資料庫中存在的 UID 來進行測試
+            //    我從您提供的範例資料中，選了第一個 UID
+            var userId = Guid.Parse("98C1B4DA-677D-416A-87C3-00104AF158F5");
+
+            // --- 以下的資料庫查詢邏輯完全維持不變 ---
+            var orders = await _context.EBookOrderMains
+                .AsNoTracking()
+                .Where(o => o.Uid == userId) // [核心] 這裡現在會使用我們上面指定的 userId 來篩選
+                .Include(o => o.OrderStatus)
+                .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.EBook)
+                .OrderByDescending(o => o.OrderDateTime)
+                .Select(order => new OrderHistoryDto
+                {
+                    OrderId = order.OrderId.ToString(),
+                    OrderDate = order.OrderDateTime.ToString("yyyy/MM/dd HH:mm:ss"),
+                    Status = order.OrderStatus.StatusName,
+                    TotalAmount = order.TotalAmount,
+                    Items = order.OrderItems.Select(item => new OrderHistoryItemDto
+                    {
+                        EbookId = item.EBookId ?? 0,
+                        EbookName = item.ItemNameSnapshot,
+                        Price = item.UnitPriceAtPurchase,
+                        Quantity = item.Quantity,
+                        PrimaryCoverPath = (item.EBook != null && item.EBook.PrimaryCoverPath != null)
+                                            ? $"{Request.Scheme}://{Request.Host}/{item.EBook.PrimaryCoverPath.TrimStart('/')}"
+                                            : null
+                    }).ToList()
+                })
+                .ToListAsync();
+
+            return Ok(orders);
+        }
+
     }
 }

@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using prjSpecialTopicWebAPI.Models;
 using prjSpecialTopicWebAPI.Features.Ebook.DTOs;
+using System.Linq; // <-- [新增] 請務必加入這一行！
 
 namespace prjSpecialTopicWebAPI.Features.Ebook
 {
@@ -108,17 +109,30 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
         [HttpGet]
         public async Task<IActionResult> GetEbooksList(
             [FromQuery] string? search,
+            [FromQuery] int? categoryId, // <-- [新增] 在這裡加上 categoryId 參數
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10)
         {
             // 1. 建立基礎查詢
-            var query = _db.EBookMains.AsNoTracking().Where(b => b.IsAvailable);
+            IQueryable<EBookMain> query = _db.EBookMains.AsNoTracking()
+                .Where(b => b.IsAvailable)
+        .Include(b => b.Category) // 載入分類
+        .Include(b => b.Labels); // 載入標籤
+           
 
             // 2. 如果 search 參數有值，就加入名稱或作者的過濾條件
             if (!string.IsNullOrWhiteSpace(search))
             {
                 query = query.Where(b => b.EbookName.Contains(search) || b.Author.Contains(search));
             }
+
+            // --- [新增] 在這裡插入新的 if 區塊 ---
+            // 如果 categoryId 參數有值 (且不為0)，就加入分類的過濾條件
+            if (categoryId.HasValue && categoryId > 0)
+            {
+                query = query.Where(b => b.CategoryId == categoryId.Value);
+            }
+            // --- 新增區塊結束 ---
 
             // 3. 取得符合條件的「總筆數」，這個計算必須在分頁(Skip/Take)之前
             var totalCount = await query.CountAsync();
@@ -138,7 +152,11 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                     // 如果 EBookPosition 不是 null 也不是空字串，就代表這本書有檔案，是可閱讀的
                     IsReadable = !string.IsNullOrEmpty(b.EBookPosition),
                     // [新增] 在此處也加入 ActualPrice
-                    ActualPrice = b.ActualPrice
+                    ActualPrice = b.ActualPrice,
+
+                    // --- [新增] 將 CategoryName 和 Labels 加入到 DTO 中 ---
+                    CategoryName = b.Category.CategoryName, // 從關聯的 Category 物件取得名稱
+                    Labels = b.Labels.Select(l => l.LabelName).ToList() // 將關聯的 Labels 集合轉為字串列表
                 })
                 .Skip((pageNumber - 1) * pageSize) // 跳過前面頁數的資料
                 .Take(pageSize)                   // 抓取目前頁面的資料
