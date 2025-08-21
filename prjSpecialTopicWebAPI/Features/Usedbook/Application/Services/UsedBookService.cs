@@ -298,8 +298,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             }
         }
 
-
-        // TODO: 需要分頁
         public async Task<Result<PagedResult<PublicBookListItemDto>>> GetPublicListAsync(BookListQuery query, CancellationToken ct = default)
         {
             try
@@ -359,8 +357,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             }
         }
 
-        // TODO: 需要分頁
-        public async Task<Result<IReadOnlyList<AdminBookListItemDto>>> GetAdminBookListAsync(BookListQuery query, CancellationToken ct = default)
+        public async Task<Result<PagedResult<AdminBookListItemDto>>> GetAdminBookListAsync(BookListQuery query, CancellationToken ct = default)
         {
             try
             {
@@ -368,20 +365,28 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 Expression<Func<UsedBook, bool>> predicate = BuildPredicate(query);
                 Func<IQueryable<UsedBook>, IOrderedQueryable<UsedBook>> orderBy = BuildOrderBy(query);
 
-                var queryResult = await _usedBookRepository.GetAdminBookListAsync(predicate, orderBy, ct);
-                var dtoList = new List<AdminBookListItemDto>();
-                foreach (var res in queryResult)
+                var queryResult = await _usedBookRepository.GetAdminBookListAsync(predicate, orderBy, query.Paging, ct);
+                var itemList = new List<AdminBookListItemDto>();
+                foreach (var res in queryResult.Items)
                 {
-                    var dto = _mapper.Map<AdminBookListItemDto>(res);
-                    dto.CoverImageUrl = _usedBookImageService.GetThumbUrlWithFallback(res.CoverStorageProvider, res.CoverObjectKey);
-                    dtoList.Add(dto);
+                    var item = _mapper.Map<AdminBookListItemDto>(res);
+                    item.CoverImageUrl = _usedBookImageService.GetThumbUrlWithFallback(res.CoverStorageProvider, res.CoverObjectKey);
+                    itemList.Add(item);
                 }
 
-                return Result<IReadOnlyList<AdminBookListItemDto>>.Success(dtoList);
+                var dto = new PagedResult<AdminBookListItemDto>
+                {
+                    Items = itemList,
+                    PageIndex = query.Paging.PageIndex,
+                    PageSize = query.Paging.PageSize,
+                    TotalRows = queryResult.TotalRows
+                };
+
+                return Result<PagedResult<AdminBookListItemDto>>.Success(dto);
             }
             catch (Exception ex)
             {
-                return ExceptionToErrorResultMapper<IReadOnlyList<AdminBookListItemDto>>.Map(ex, _logger);
+                return ExceptionToErrorResultMapper<PagedResult<AdminBookListItemDto>>.Map(ex, _logger);
             }
         }
 

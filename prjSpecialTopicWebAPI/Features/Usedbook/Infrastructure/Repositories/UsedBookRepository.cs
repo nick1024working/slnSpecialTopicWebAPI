@@ -238,95 +238,46 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                 .ToListAsync(ct);
 
             return result;
+        }
 
-            /*
-            // 1. 建立查詢（包含關聯載入與篩選條件）
-            var query = _db.UsedBooks
-                .Where(predicate)
-                .Where(b => b.SellerId == userId && b.IsActive)
-                .Include(b => b.ConditionRating);
+        /// <summary>
+        /// 管理員查詢書本清單 (清單項目資料，非詳細資料)。
+        /// </summary>
+        public async Task<PagedResult<AdminBookListItemQueryResult>> GetAdminBookListAsync(
+            Expression<Func<UsedBook, bool>> predicate,
+            Func<IQueryable<UsedBook>, IOrderedQueryable<UsedBook>> orderBy,
+            PagingQuery paging,
+            CancellationToken ct = default)
+        {
+            var pageIndex = Math.Max(0, paging.PageIndex);
+            var pageSize = Math.Clamp(paging.PageSize, 1, 100);
 
-            // 2. 排序條件
-            var orderedQuery = orderBy(query);
+            // 基底查詢（不 Include，先 Count）
+            var baseQuery = _db.UsedBooks
+                .AsNoTracking()
+                .Where(predicate);
+            var total = await baseQuery.CountAsync(ct);
 
-            // 3. 分頁條件
-            var pagedBooks = await orderedQuery
-                //.Skip(pageIndex * pageSize)
-                //.Take(pageSize)
-                .ToListAsync(ct);        // NOTE: 此處連線把 DB 端資料載入記憶體
-
-            // 4. 封面快取
-            // NOTE: 此處再次連線，優點是分開處理可讀性+維護性+SQL好寫
-            var bookIds = pagedBooks.Select(b => b.Id).ToList();
-            var coverDict = await _db.UsedBookImages
-                .Where(img => bookIds.Contains(img.BookId) && img.IsCover)
-                .ToDictionaryAsync(img => img.BookId, ct);
-
-            // 5. 投影成結果
-            var result = pagedBooks
-                .Where(b => coverDict.ContainsKey(b.Id))
-                .Select(b => new UserBookListItemQueryResult
+            // 排序 + 分頁 + 投影
+            var items = await orderBy(baseQuery)
+                .Skip(pageIndex * pageSize)
+                .Take(pageSize)
+                .Select(b => new AdminBookListItemQueryResult
                 {
-                    CoverStorageProvider = (StorageProvider)coverDict[b.Id].StorageProvider,
-                    CoverObjectKey = coverDict[b.Id].ObjectKey,
+                    CoverStorageProvider = (StorageProvider)b.UsedBookImages
+                        .Where(i => i.IsCover)
+                        .Select(i => i.StorageProvider)
+                        .FirstOrDefault(),
+                    CoverObjectKey = b.UsedBookImages
+                        .Where(i => i.IsCover)
+                        .Select(i => i.ObjectKey)
+                        .FirstOrDefault() ?? "",
 
                     Id = b.Id,
                     Title = b.Title,
                     SellerId = b.SellerId,
                     SalePrice = b.SalePrice,
-                    ConditionRating = b.ConditionRating?.Name ?? "",
-
-                    IsOnShelf = b.IsOnShelf,
-                    IsSold = b.IsSold,
-                    Slug = b.Slug,
-
-                    CreatedAt = b.CreatedAt,
-                    UpdatedAt = b.UpdatedAt
-                })
-                .ToList();
-
-            return result;
-            */
-        }
-
-        // TODO: 需要分頁
-        /// <summary>
-        /// 管理員查詢書本清單 (清單項目資料，非詳細資料)。
-        /// </summary>
-        public async Task<IReadOnlyList<AdminBookListItemQueryResult>> GetAdminBookListAsync(
-            Expression<Func<UsedBook, bool>> predicate,
-            Func<IQueryable<UsedBook>, IOrderedQueryable<UsedBook>> orderBy,
-            CancellationToken ct = default)
-        {
-            // 1. 建立查詢（包含關聯載入與篩選條件）
-            var query = _db.UsedBooks
-                .Where(predicate)
-                .Include(b => b.Tags)
-                .Include(b => b.ConditionRating);
-
-            // 2. 排序條件
-            var orderedQuery = orderBy(query);
-
-            // 3. 分頁條件
-            var pagedBooks = await orderedQuery
-                //.Skip(pageIndex * pageSize)
-                //.Take(pageSize)
-                .ToListAsync(ct);        // NOTE: 此處連線把 DB 端資料載入記憶體
-
-            // 4. 封面快取
-            // NOTE: 此處再次連線，優點是分開處理可讀性+維護性+SQL好寫
-            var bookIds = pagedBooks.Select(b => b.Id).ToList();
-            var coverDict = await _db.UsedBookImages
-                .Where(img => bookIds.Contains(img.BookId) && img.IsCover)
-                .ToDictionaryAsync(img => img.BookId, ct);
-
-            // 5. 投影成結果
-            var result = pagedBooks
-                .Where(b => coverDict.ContainsKey(b.Id))
-                .Select(b => new AdminBookListItemQueryResult
-                {
-                    CoverStorageProvider = (StorageProvider)coverDict[b.Id].StorageProvider,
-                    CoverObjectKey = coverDict[b.Id].ObjectKey,
+                    ConditionRating = b.ConditionRating.Name,
 
                     SaleTagList = b.Tags.Select(t => new BookSaleTagQueryResult
                     {
@@ -334,12 +285,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                         Name = t.Name,
                         IsActive = t.IsActive
                     }).ToList(),
-
-                    Id = b.Id,
-                    Title = b.Title,
-                    SellerId = b.SellerId,
-                    SalePrice = b.SalePrice,
-                    ConditionRating = b.ConditionRating?.Name ?? "",
 
                     IsOnShelf = b.IsOnShelf,
                     IsActive = b.IsActive,
@@ -349,7 +294,17 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                     CreatedAt = b.CreatedAt,
                     UpdatedAt = b.UpdatedAt
                 })
-                .ToList();
+                .AsSplitQuery()
+                .ToListAsync(ct);
+
+            // 組 PagedResult
+            var result = new PagedResult<AdminBookListItemQueryResult>
+            {
+                Items = items,
+                PageIndex = pageIndex,
+                PageSize = pageSize,
+                TotalRows = total
+            };
 
             return result;
         }
