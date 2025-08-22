@@ -6,7 +6,7 @@ namespace prjSpecialTopicWebAPI.Features.Shared.Controllers
 {
     [ApiController]
     [Consumes("application/json")]
-    [Route("api/cart")]
+    [Route("api/carts")]
     public class CartController : ControllerBase
     {
         private const string CartKey = "CART";

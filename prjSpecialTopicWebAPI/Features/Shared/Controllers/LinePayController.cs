@@ -7,7 +7,7 @@ using System.Text.Json;
 namespace prjSpecialTopicWebAPI.Features.Shared.Controllers
 {
     [ApiController]
-    [Route("api/payment/linepay")]
+    [Route("api/payments/line-pay")]
     public class LinePayController : ControllerBase
     {
         private readonly IHttpClientFactory _factory;
