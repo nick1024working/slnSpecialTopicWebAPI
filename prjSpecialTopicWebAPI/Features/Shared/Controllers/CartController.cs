@@ -46,12 +46,12 @@ namespace prjSpecialTopicWebAPI.Features.Shared.Controllers
             return NoContent();
         }
 
-        [HttpDelete("items/{itemId}")]
-        public IActionResult RemoveItemFromCart([FromRoute] string itemId)
+        [HttpDelete("items/{id}")]
+        public IActionResult RemoveItemFromCart([FromRoute] string id)
         {
             var result = HttpContext.Session.GetObject<CartDto>(CartKey) ?? new CartDto();
 
-            result.Items.RemoveAll(i => i.ItemId == itemId);
+            result.Items.RemoveAll(i => i.Id == id);
             result.UpdatedAt = DateTime.UtcNow;
             Recalculate(result);
 
