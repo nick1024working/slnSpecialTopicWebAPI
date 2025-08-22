@@ -4,12 +4,12 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.EntityFrameworkCore;
 using prjSpecialTopicWebAPI.Features.Fund.Services;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
-using prjSpecialTopicWebAPI.Features.Usedbook.Controllers;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.UnitOfWork;
 using prjSpecialTopicWebAPI.Features.Usedbook.Mapping;
 using prjSpecialTopicWebAPI.Models;
 using prjSpecialTopicWebAPI.Usedbook.Application.Services;
+using prjSpecialTopicWebAPI.Features.Shared.Controllers;
 
 var builder = WebApplication.CreateBuilder(args);
 
