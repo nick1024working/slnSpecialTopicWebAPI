@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Azure.Core;
+using Microsoft.AspNetCore.Mvc;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Query;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
@@ -120,9 +121,8 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             return Ok(result.Value);    
         }
 
-        // ========== 子資源圖片 ==========
+        // ========== 子資源 - 圖片 ==========
 
-        // HACK: 更新
         [HttpPost("{bookId:Guid}/images")]
         public async Task<ActionResult<IEnumerable<int>>> CreateBookImages(
             [FromRoute] Guid bookId, [FromBody] List<CreateUsedBookImageRequest> requestList)
@@ -134,7 +134,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             return StatusCode(StatusCodes.Status201Created, result.Value);
         }
 
-        // HACK: 更新
         [HttpPut("{bookId:Guid}/images/order")]
         public async Task<ActionResult<IEnumerable<int>>> UpdateBookImagesOrder(
             [FromRoute] Guid bookId, [FromBody] UpdateOrderByIdRequest request, CancellationToken ct)
@@ -155,7 +154,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             return Ok(result.Value);
         }
 
-        // ========== 子資源圖片 - 封面 ==========
+        // ========== 子資源 - 圖片封面 ==========
 
         [HttpGet("{bookId:Guid}/cover")]
         public async Task<ActionResult<BookImageDto>> GetBookCover([FromRoute] Guid bookId, CancellationToken ct)
@@ -174,5 +173,38 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
                 return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
             return NoContent();
         }
+
+        // ========== 子屬性 - 標籤 ==========
+
+        [HttpPut("{bookId:Guid}/sale-tags/{tagId:int}")]
+        public async Task<IActionResult> ApplyBookSaleTag([FromRoute] Guid bookId, [FromRoute] int tagId, CancellationToken ct)
+        {
+            var result = await _bookService.ApplyBookSaleTagAsync(bookId, tagId, ct);
+            if (!result.IsSuccess)
+                return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
+
+            return NoContent();
+        }
+
+        [HttpDelete("{bookId:Guid}/sale-tags/{tagId:int}")]
+        public async Task<IActionResult> RemoveBookSaleTag([FromRoute] Guid bookId, [FromRoute] int tagId, CancellationToken ct)
+        {
+            var result = await _bookService.RemoveBookSaleTagAsync(bookId, tagId, ct);
+            if (!result.IsSuccess)
+                return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
+
+            return NoContent();
+        }
+
+        [HttpPut("sale-tags/batch")]
+        public async Task<IActionResult> UpdateBookSaleTagBatch([FromBody] UpdateBookSaleTagRequest request, CancellationToken ct)
+        {
+            var result = await _bookService.UpdateBookSaleTagBatchAsync(request, ct);
+            if (!result.IsSuccess)
+                return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
+
+            return NoContent();
+        }
+
     }
 }
