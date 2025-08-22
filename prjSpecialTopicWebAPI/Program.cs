@@ -31,6 +31,19 @@ builder.Services.AddHttpClient("LinePay", client =>
     client.Timeout = TimeSpan.FromSeconds(20);
 });
 
+// 註冊記憶體快取 目前用於 session
+builder.Services.AddDistributedMemoryCache();
+
+// Session
+builder.Services.AddSession(opts =>
+{
+    opts.Cookie.Name = ".UsedBooks.Session";
+    opts.IdleTimeout = TimeSpan.FromMinutes(30);        // 目前設定 30 分鐘閒置過期
+    opts.Cookie.HttpOnly = true;
+    opts.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    opts.Cookie.SameSite = SameSiteMode.None;
+});
+
 // ========== 各自需要的服務於以下註冊 ==========
 #region
 
@@ -144,6 +157,7 @@ if (app.Environment.IsDevelopment())
 }
 app.UseStaticFiles();
 app.UseHttpsRedirection();
+app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
