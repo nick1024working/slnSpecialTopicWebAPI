@@ -5,9 +5,11 @@ using prjSpecialTopicWebAPI.Features.Shared.Extensions;
 namespace prjSpecialTopicWebAPI.Features.Shared.Controllers
 {
     [ApiController]
+    [Consumes("application/json")]
     [Route("api/cart")]
     public class CartController : ControllerBase
     {
+        private const string CartKey = "CART";
         private readonly ILogger<CartController> _logger;
 
         public CartController(ILogger<CartController> logger)
@@ -15,26 +17,62 @@ namespace prjSpecialTopicWebAPI.Features.Shared.Controllers
             _logger = logger;
         }
 
-        [HttpGet("{key}")]
-        public ActionResult<CartItemDto> GetCart([FromRoute] string key)
+        [HttpGet]
+        public ActionResult<CartDto> GetCart()
         {
-            var result = HttpContext.Session.GetObject<CartItemDto>(key);
-            return result is null ? NotFound() : Ok(result);
+            var result = HttpContext.Session.GetObject<CartDto>(CartKey) ?? new CartDto();
+
+            Recalculate(result);
+
+            HttpContext.Session.SetObject(CartKey, result);
+            return Ok(result);
         }
 
-        // 此處先不管設計
-        [HttpPut("{key}")]
-        public ActionResult AddToCart([FromRoute] string key, [FromBody] CartItemDto dto)
+        [HttpPut]
+        public IActionResult ReplaceCart([FromBody] CartDto dto)
         {
-            HttpContext.Session.SetObject<CartItemDto>(key, dto);
+            dto.UpdatedAt = DateTime.UtcNow;
+            Recalculate(dto);
+
+            HttpContext.Session.SetObject(CartKey, dto);
             return NoContent();
         }
 
-        [HttpDelete("{key}")]
-        public ActionResult RemoveFromCart([FromRoute] string key)
+        // TODO: 待處理
+        // NOTE: 此處未把邏輯分到 BLL
+        [HttpPatch("items")]
+        public IActionResult UpsertItem([FromBody] PatchItemRequest req)
         {
-            HttpContext.Session.RemoveObject(key);
             return NoContent();
+        }
+
+        [HttpDelete("items/{itemId}")]
+        public IActionResult RemoveItemFromCart([FromRoute] string itemId)
+        {
+            var result = HttpContext.Session.GetObject<CartDto>(CartKey) ?? new CartDto();
+
+            result.Items.RemoveAll(i => i.ItemId == itemId);
+            result.UpdatedAt = DateTime.UtcNow;
+            Recalculate(result);
+
+            HttpContext.Session.SetObject(CartKey, result);
+            return NoContent();
+        }
+
+        [HttpDelete]
+        public IActionResult ClearCart()
+        {
+            HttpContext.Session.RemoveObject(CartKey);
+            return NoContent();
+        }
+
+        /// <summary>
+        /// 重新計算 cart 的計算欄位
+        /// </summary>
+        private static void Recalculate(CartDto cart)
+        {
+            cart.Subtotal = cart.Items.Sum(i => i.UnitPrice * i.Quantity);
+            cart.GrandTotal = cart.Subtotal - cart.DiscountTotal + cart.ShippingFee;
         }
     }
 }

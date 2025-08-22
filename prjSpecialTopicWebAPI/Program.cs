@@ -37,7 +37,7 @@ builder.Services.AddDistributedMemoryCache();
 // Session
 builder.Services.AddSession(opts =>
 {
-    opts.Cookie.Name = ".UsedBooks.Session";
+    opts.Cookie.Name = ".Session";
     opts.IdleTimeout = TimeSpan.FromMinutes(30);        // 目前設定 30 分鐘閒置過期
     opts.Cookie.HttpOnly = true;
     opts.Cookie.SecurePolicy = CookieSecurePolicy.Always;
