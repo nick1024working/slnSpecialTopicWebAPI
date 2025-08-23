@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using OfficeOpenXml;
+using OfficeOpenXml.Style;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Query;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
@@ -10,6 +11,7 @@ using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.UnitOfWork;
 using prjSpecialTopicWebAPI.Features.Usedbook.Utilities;
 using prjSpecialTopicWebAPI.Models;
+using System.Drawing;
 using System.Linq.Expressions;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
@@ -20,6 +22,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
         private readonly IMapper _mapper;
         private readonly UsedBookRepository _usedBookRepository;
         private readonly UsedBookImageService _usedBookImageService;
+        private readonly LookupService _lookupService;
         private readonly ImageService _imageService;
         private readonly ILogger<UsedBookService> _logger;
 
@@ -29,6 +32,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             UsedBookRepository usedBookRepository,
             UsedBookImageService usedBookImageService,
             UsedBookImageRepository usedBookImageRepository,
+            LookupService lookupService,
             ImageService imageService,
             BookSaleTagRepository saleTagRepository,
             ILogger<UsedBookService> logger)
@@ -37,6 +41,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             _mapper = mapper;
             _usedBookRepository = usedBookRepository;
             _usedBookImageService = usedBookImageService;
+            _lookupService = lookupService;
             _imageService = imageService;
             _logger = logger;
         }
@@ -437,50 +442,359 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 
         // ========== Excel ==========
 
-        public IReadOnlyList<BookSaleTag> ImportBooks(Stream stream)
+        public async Task<Result<byte[]>> ExportUploadExampleAsync(CancellationToken ct = default)
+        {
+            try
+            {
+                var lookupResult = await _lookupService.GetAllUsedBookUILookupsList(ct);
+                if (!lookupResult.IsSuccess)
+                    throw new Exception(lookupResult.ErrorMessage);
+                var lookups = lookupResult.Value;
+
+                var countyDictResult = await _lookupService.GetCountyDistrictDictionaryAsync(ct);
+                if (!countyDictResult.IsSuccess)
+                    throw new Exception(countyDictResult.ErrorMessage);
+                var countyDict = countyDictResult.Value;
+
+                using var package = new ExcelPackage();
+                var ws = package.Workbook.Worksheets.Add("上傳資料表");
+                var rws = package.Workbook.Worksheets.Add("選項表");
+
+                // ========== 建立選項表 ========== 
+
+                // 工具函數
+                void FillRef(ExcelWorksheet s, int col, string title, IEnumerable<string> list)
+                {
+                    s.Cells[1, col].Value = title;
+                    int r = 2;
+                    foreach (var v in list)
+                        s.Cells[r++, col].Value = v;
+
+                    // 定義具名範圍，供資料驗證使用
+                    int endRow = r - 1;
+                    if (endRow >= 2)
+                    {
+                        var addr = s.Cells[2, col, endRow, col];
+                        // 若同名已存在，先移除再新增以避免重複命名錯誤
+                        var wbNames = package.Workbook.Names;
+                        if (wbNames.ContainsKey(title))
+                            wbNames.Remove(title);
+
+                        wbNames.Add(title, addr);
+                    }
+                }
+
+                // 填入選項表
+                int nowCol = 1;
+                FillRef(rws, nowCol++, "裝訂方式", lookups.BookBindings.Select(i => i.Name));
+                FillRef(rws, nowCol++, "主題分類", lookups.BookCategories.Select(i => i.Name));
+                FillRef(rws, nowCol++, "書況評等", lookups.BookConditionRatings.Select(i => i.Name));
+                FillRef(rws, nowCol++, "內容分級", lookups.ContentRatings.Select(i => i.Name));
+                FillRef(rws, nowCol++, "語言", lookups.Languages.Select(i => i.Name));
+                FillRef(rws, nowCol++, "縣市", lookups.Counties.Select(i => i.Name));
+                foreach (var county in lookups.Counties)
+                {
+                    FillRef(rws, nowCol++, "CITY_" + county.Name, countyDict[county.Id]);
+                }
+
+                rws.Hidden = eWorkSheetHidden.VeryHidden;
+
+
+                // ========== 建立資料表 ========== 
+                // 第一列: 說明
+                // 第二列: headers
+                // 第三列: examples
+                // 第四列開始填寫
+                int maxRow = 100 + 4;
+
+                string description = "紅色*欄位為必填，第3列為範例，資料請在第4列~104列填寫。上傳後須補上圖片才能於站內正常顯示。";
+
+                string[] headers = {
+                    "所在縣市*", "所在鄉鎮市區*", "售價*", "書名*", "作者*",
+                    "主題分類*", "書況評等*", "書況描述",
+                    "版次／刷次", "出版社", "出版日期", "ISBN",
+                    "裝訂方式*", "語言*", "頁數", "內容分級*",
+                    "是否上架*"
+                };
+                string[] examples = {
+                    "台北市", "大安區", "299", "C++從入門到放棄（第3版）", "明日科技",
+                    "電腦與資訊科學", "可接受", "封面與封底稍有破損與磨損，內頁有些許筆記但不影響閱讀。",
+                    "3版2刷", "", "2024/06/01", "7302652090",
+                    "平裝", "簡體中文", "393", "普遍級",
+                    "Y"
+                };
+                int[] colWidth = {
+                    10, 10, 10, 35, 35,
+                    15, 10, 60,
+                    10, 10, 10, 15,
+                    10, 10, 10, 10,
+                    10
+                };
+
+                // 填入說明 (r1)
+                ws.Cells[1, 1].Value = description;
+
+                // 填入表頭 (r2)
+                for (int c = 0; c < headers.Length; ++c)
+                {
+                    var cell = ws.Cells[2, c + 1];
+                    cell.Value = headers[c];
+                    cell.Style.Font.Bold = true;
+                    if (headers[c].EndsWith("*"))
+                        cell.Style.Font.Color.SetColor(Color.Red);
+                }
+
+                // 填入範例 (r3)
+                for (int c = 0; c < headers.Length; ++c)
+                {
+                    ws.Cells[3, c + 1].Value = examples[c];
+                }
+
+                nowCol = 1;
+
+                // 所在縣市 (c1)
+                var dvCounty = ws.DataValidations.AddListValidation(ws.Cells[4, nowCol, maxRow, nowCol].Address);
+                dvCounty.Formula.ExcelFormula = "=縣市";
+                dvCounty.AllowBlank = false;
+                dvCounty.ShowErrorMessage = true;
+                dvCounty.ErrorTitle = "所在縣市錯誤";
+                dvCounty.Error = "請從下拉選單選擇有效的『所在縣市』";
+                ++nowCol;
+
+                // 所在鄉鎮市區 (c2)
+                var cityColLetter = OfficeOpenXml.ExcelCellAddress.GetColumnLetter(1);      // 所在縣市在第1欄
+                var dvDistrict = ws.DataValidations.AddListValidation(ws.Cells[4, nowCol, maxRow, nowCol].Address);
+                dvDistrict.Formula.ExcelFormula = $"=INDIRECT(\"CITY_\" & ${cityColLetter}4)";
+                dvDistrict.AllowBlank = false;
+                dvDistrict.ShowErrorMessage = true;
+                dvDistrict.ErrorTitle = "所在鄉鎮市區錯誤";
+                dvDistrict.Error = "請從下拉選單選擇有效的『所在鄉鎮市區』";
+                ++nowCol;
+
+                // (c3)
+                var dvSalePrice = ws.DataValidations.AddIntegerValidation(ws.Cells[4, nowCol, maxRow, nowCol].Address);
+                dvSalePrice.Operator = OfficeOpenXml.DataValidation.ExcelDataValidationOperator.greaterThan;
+                dvSalePrice.Formula.Value = 0;
+                dvSalePrice.AllowBlank = false;
+                dvSalePrice.ShowErrorMessage = true;
+                dvSalePrice.ErrorTitle = "數值錯誤";
+                dvSalePrice.Error = "請輸入大於 0 的整數";
+                ++nowCol;
+
+                // (c4)
+                var dvTitle = ws.DataValidations.AddTextLengthValidation(ws.Cells[4, nowCol, maxRow, nowCol].Address);
+                dvTitle.Operator = OfficeOpenXml.DataValidation.ExcelDataValidationOperator.lessThanOrEqual;
+                dvTitle.Formula.Value = 50;
+                dvTitle.ShowErrorMessage = true;
+                dvTitle.ErrorTitle = "書名錯誤";
+                dvTitle.Error = "最多 50 字";
+                ++nowCol;
+
+                // (c5)
+                var dvAuthor = ws.DataValidations.AddTextLengthValidation(ws.Cells[4, nowCol, maxRow, nowCol].Address);
+                dvAuthor.Operator = OfficeOpenXml.DataValidation.ExcelDataValidationOperator.lessThanOrEqual;
+                dvAuthor.Formula.Value = 100;
+                dvAuthor.ShowErrorMessage = true;
+                dvAuthor.ErrorTitle = "作者錯誤";
+                dvAuthor.Error = "最多 100 字";
+                ++nowCol;
+
+                // 主題分類 (c6)
+                var dvCategory = ws.DataValidations.AddListValidation(ws.Cells[4, nowCol, maxRow, nowCol].Address);
+                dvCategory.Formula.ExcelFormula = "=主題分類";
+                dvCategory.AllowBlank = false;
+                dvCategory.ShowErrorMessage = true;
+                dvCategory.ErrorTitle = "主題分類錯誤";
+                dvCategory.Error = "請從下拉選單選擇有效的『主題分類』";
+                ++nowCol;
+
+                // (c7)
+                var dvCondition = ws.DataValidations.AddListValidation(ws.Cells[4, nowCol, maxRow, nowCol].Address);
+                dvCondition.Formula.ExcelFormula = "=書況評等";
+                dvCondition.AllowBlank = false;
+                dvCondition.ShowErrorMessage = true;
+                dvCondition.ErrorTitle = "書況評等錯誤";
+                dvCondition.Error = "請從下拉選單選擇有效的『書況評等』";
+                ++nowCol;
+
+                // (c8)
+                var dvCondDesc = ws.DataValidations.AddTextLengthValidation(ws.Cells[4, nowCol, maxRow, nowCol].Address);
+                dvCondDesc.Operator = OfficeOpenXml.DataValidation.ExcelDataValidationOperator.lessThanOrEqual;
+                dvCondDesc.Formula.Value = 100;
+                dvCondDesc.ShowErrorMessage = true;
+                dvCondDesc.ErrorTitle = "書況描述錯誤";
+                dvCondDesc.Error = "最多 100 字";
+                ++nowCol;
+
+                var dvEdition = ws.DataValidations.AddTextLengthValidation(ws.Cells[4, nowCol, maxRow, nowCol].Address);
+                dvEdition.Operator = OfficeOpenXml.DataValidation.ExcelDataValidationOperator.lessThanOrEqual;
+                dvEdition.Formula.Value = 10;
+                dvEdition.ShowErrorMessage = true;
+                dvEdition.ErrorTitle = "版次／刷次錯誤";
+                dvEdition.Error = "最多 10 字";
+                ++nowCol;
+
+                var dvPublisher = ws.DataValidations.AddTextLengthValidation(ws.Cells[4, nowCol, maxRow, nowCol].Address);
+                dvPublisher.Operator = OfficeOpenXml.DataValidation.ExcelDataValidationOperator.lessThanOrEqual;
+                dvPublisher.Formula.Value = 50;
+                dvPublisher.ShowErrorMessage = true;
+                dvPublisher.ErrorTitle = "出版社錯誤";
+                dvPublisher.Error = "最多 50 字";
+                ++nowCol;
+
+                ws.Column(nowCol).Style.Numberformat.Format = "yyyy/mm/dd";
+                var dvPubDate = ws.DataValidations.AddDateTimeValidation(ws.Cells[4, nowCol, maxRow, nowCol].Address);
+                dvPubDate.Operator = OfficeOpenXml.DataValidation.ExcelDataValidationOperator.lessThanOrEqual;
+                dvPubDate.Formula.Value = DateTime.Today;
+                dvPubDate.ShowErrorMessage = true;
+                dvPubDate.ErrorTitle = "出版日錯誤";
+                dvPubDate.Error = "須為合法日期";
+                ++nowCol;
+
+                var colLetter = OfficeOpenXml.ExcelCellAddress.GetColumnLetter(nowCol);
+                var dvISBN = ws.DataValidations.AddCustomValidation(ws.Cells[4, nowCol, maxRow, nowCol].Address);
+                dvISBN.Formula.ExcelFormula = $"=AND(ISNUMBER(VALUE(${colLetter}4)),OR(LEN(${colLetter}4)=10,LEN(${colLetter}4)=13))";
+                dvISBN.ShowErrorMessage = true;
+                dvISBN.ErrorTitle = "ISBN錯誤";
+                dvISBN.Error = "ISBN 必須為 10 碼或 13 碼";
+                ++nowCol;
+
+                // 裝訂方式 (c13)
+                var dvBinding = ws.DataValidations.AddListValidation(ws.Cells[4, nowCol, maxRow, nowCol].Address);
+                dvBinding.Formula.ExcelFormula = "=裝訂方式";
+                dvBinding.AllowBlank = false;
+                dvBinding.ShowErrorMessage = true;
+                dvBinding.ErrorTitle = "裝訂方式錯誤";
+                dvBinding.Error = "請從下拉選單選擇有效的『裝訂方式』";
+                ++nowCol;
+
+                var dvLanguage = ws.DataValidations.AddListValidation(ws.Cells[4, nowCol, maxRow, nowCol].Address);
+                dvLanguage.Formula.ExcelFormula = "=語言";
+                dvLanguage.AllowBlank = false;
+                dvLanguage.ShowErrorMessage = true;
+                dvLanguage.ErrorTitle = "語言錯誤";
+                dvLanguage.Error = "請從下拉選單選擇有效的『語言』";
+                ++nowCol;
+
+                var dvPages = ws.DataValidations.AddIntegerValidation(ws.Cells[4, nowCol, maxRow, nowCol].Address);
+                dvPages.Operator = OfficeOpenXml.DataValidation.ExcelDataValidationOperator.greaterThan;
+                dvPages.Formula.Value = 0;
+                dvPages.AllowBlank = false;
+                dvPages.ShowErrorMessage = true;
+                dvPages.ErrorTitle = "數值錯誤";
+                dvPages.Error = "請輸入大於 0 的整數";
+                ++nowCol;
+
+                var dvContentRating = ws.DataValidations.AddListValidation(ws.Cells[4, nowCol, maxRow, nowCol].Address);
+                dvContentRating.Formula.ExcelFormula = "=內容分級";
+                dvContentRating.AllowBlank = false;
+                dvContentRating.ShowErrorMessage = true;
+                dvContentRating.ErrorTitle = "內容分級錯誤";
+                dvContentRating.Error = "請從下拉選單選擇有效的『內容分級』";
+                ++nowCol;
+
+                // 主題分類 (c17)
+                var dvOnShelf = ws.DataValidations.AddListValidation(ws.Cells[4, nowCol, maxRow, nowCol].Address);
+                dvOnShelf.Formula.Values.Add("Y");
+                dvOnShelf.Formula.Values.Add("N");
+                dvOnShelf.AllowBlank = false;
+                dvOnShelf.ShowErrorMessage = true;
+                dvOnShelf.ErrorTitle = "輸入錯誤";
+                dvOnShelf.Error = "請從 Y / N 中選擇";
+
+
+                // UX：凍結首列、調整欄寬
+                ws.View.FreezePanes(4, 1);
+                for (int c = 0; c < colWidth.Length; ++c)
+                {
+                    ws.Column(c + 1).Width = colWidth[c];
+                }
+
+                // UI
+                ws.Cells[1, 1, 1, headers.Length].Merge = true;
+                var desc = ws.Cells[1, 1];
+                desc.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                desc.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(255, 242, 204));
+                desc.Style.WrapText = true;
+
+                using (var target = ws.Cells[3, 1, 3, headers.Length])
+                {
+                    target.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                    target.Style.Fill.BackgroundColor.SetColor(Color.LightGray);
+                }
+
+                return Result<byte[]>.Success(package.GetAsByteArray());
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<byte[]>.Map(ex, _logger);
+            }
+        }
+
+        public IReadOnlyList<UsedBook> ImportBooks(Stream stream)
         {
             using var package = new ExcelPackage(stream);
-            var ws = package.Workbook.Worksheets.FirstOrDefault();
+            var ws = package.Workbook.Worksheets["上傳資料表"];
             if (ws == null || ws.Dimension == null)
-                return Array.Empty<BookSaleTag>();
+                return [];
 
-            var startRow = 2; // 第1列是標題
+            var startRow = 2;
             var endRow = ws.Dimension.End.Row;
 
-            var list = new List<BookSaleTag>(capacity: endRow - startRow + 1);
+            var list = new List<UsedBook>(capacity: endRow - startRow + 1);
 
             for (int row = startRow; row <= endRow; row++)
             {
                 // 判斷整列是否都是空白
                 bool isRowEmpty =
                     string.IsNullOrWhiteSpace(ws.Cells[row, 1].Text) &&
-                    string.IsNullOrWhiteSpace(ws.Cells[row, 2].Text) &&
-                    string.IsNullOrWhiteSpace(ws.Cells[row, 3].Text) &&
-                    string.IsNullOrWhiteSpace(ws.Cells[row, 4].Text) &&
                     string.IsNullOrWhiteSpace(ws.Cells[row, 5].Text);
 
                 if (isRowEmpty) continue;
 
                 // 轉型：盡量用 GetValue<T>()
-                int id = ws.Cells[row, 1].GetValue<int>();
+                
                 string name = ws.Cells[row, 2].GetValue<string>()?.Trim() ?? string.Empty;
                 bool isActive = ParseBool(ws.Cells[row, 3]);        // 支援 1/0, TRUE/FALSE, 是/否
                 int displayOrd = ws.Cells[row, 4].GetValue<int>();
                 string slug = ws.Cells[row, 5].GetValue<string>()?.Trim() ?? string.Empty;
 
-                list.Add(new BookSaleTag
+                Guid id = Guid.NewGuid();
+
+                list.Add(new UsedBook
                 {
                     Id = id,
-                    Name = name,
-                    IsActive = isActive,
-                    DisplayOrder = displayOrd,
-                    Slug = slug
+                    SellerId = default,               // Guid
+
+                    SellerDistrictId = default,       // int
+
+                    SalePrice = default,              // decimal
+                    Title = null!,                    // string
+                    Authors = null!,                  // string
+                    CategoryId = default,             // int
+                    ConditionRatingId = default,      // int
+                    ConditionDescription = null,      // string?
+                    Edition = null,                   // string?
+                    Publisher = null,                 // string?
+                    PublicationDate = null,           // DateOnly?
+                    Isbn = null,                      // string?
+                    BindingId = null,                 // int?
+                    LanguageId = null,                // int?
+                    Pages = null,                     // int?
+                    ContentRatingId = default,        // int
+
+                    IsOnShelf = default,              // bool
+                    IsSold = false,
+                    IsActive = true,
+
+                    Slug = id.ToString(),
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
                 });
             }
 
             return list;
         }
-
 
         // ========== 私有方法 ==========
 

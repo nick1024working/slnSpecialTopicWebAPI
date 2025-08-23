@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using prjSpecialTopicWebAPI.Models;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
 {
@@ -25,6 +26,19 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                     Name = d.Name,
                 })
                 .ToListAsync(ct);
-        } 
+        }
+
+        public async Task<IReadOnlyList<IdNameDto>> GetCountyIdDistrictNameAsync(CancellationToken ct = default)
+        {
+            return await _db.Districts
+                .AsNoTracking()
+                .OrderBy(d => d.Id)
+                .Select(d => new IdNameDto
+                {
+                    Id = d.CountyId,
+                    Name = d.Name,
+                })
+                .ToListAsync(ct);
+        }
     }
 }

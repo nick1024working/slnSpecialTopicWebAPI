@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using OfficeOpenXml;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Query;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
@@ -119,7 +118,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             if (!result.IsSuccess)
                 return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
 
-            return Ok(result.Value);    
+            return Ok(result.Value);
         }
 
         // ========== 子資源 - 圖片 ==========
@@ -207,25 +206,17 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             return NoContent();
         }
 
-        // ========== 子屬性 - 標籤 ==========
-        [HttpGet("export")]
-        public IActionResult ExportBooks()
+        // ========== Excel ==========
+        [HttpGet("export/example")]
+        public async Task<IActionResult> ExportBooks(CancellationToken ct)
         {
-            using var package = new ExcelPackage();
-            var ws = package.Workbook.Worksheets.Add("Books");
+            var result = await _bookService.ExportUploadExampleAsync(ct);
+            if (!result.IsSuccess)
+                return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
 
-            ws.Cells["A1"].Value = "ID";
-            ws.Cells["B1"].Value = "Name";
-            ws.Cells["C1"].Value = "Price";
-
-            ws.Cells["A2"].Value = 1;
-            ws.Cells["B2"].Value = "Book A";
-            ws.Cells["C2"].Value = 200;
-
-            var bytes = package.GetAsByteArray();
-            return File(bytes,
+            return File(result.Value,
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                "books.xlsx");
+                "範例.xlsx");
         }
 
         [HttpPost("import")]

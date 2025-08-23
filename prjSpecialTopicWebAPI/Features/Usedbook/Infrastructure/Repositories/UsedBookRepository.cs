@@ -47,6 +47,9 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
         public void Add(UsedBook entity) =>
             _db.UsedBooks.Add(entity);
 
+        public void AddRange(IReadOnlyList<UsedBook> entity) =>
+            _db.UsedBooks.AddRange(entity);
+
         public async Task<bool> UpdateOnShelfStatusAsync(Guid id, bool status, CancellationToken ct = default)
         {
             var result = await _db.UsedBooks.SingleOrDefaultAsync(b => b.Id == id, ct);
