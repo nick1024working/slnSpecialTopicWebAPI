@@ -208,7 +208,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
 
         // ========== Excel ==========
         [HttpGet("export/example")]
-        public async Task<IActionResult> ExportBooks(CancellationToken ct)
+        public async Task<IActionResult> ExportUploadExample(CancellationToken ct)
         {
             var result = await _bookService.ExportUploadExampleAsync(ct);
             if (!result.IsSuccess)
@@ -220,13 +220,17 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         }
 
         [HttpPost("import")]
-        public ActionResult<IEnumerable<BookSaleTag>> ImportBooks(IFormFile file)
+        public async Task<ActionResult<IEnumerable<Guid>>> ImportBooks(IFormFile file, CancellationToken ct)
         {
+            // HACK: 驗證政策尚未完成
+            string userIdString = "EBB03874-054F-4FEA-9AE8-02B8D05C4BB3";
+            Guid.TryParse(userIdString, out Guid userId);
+
             if (file == null || file.Length == 0)
                 return BadRequest("請上傳 Excel 檔案");
 
             using var stream = file.OpenReadStream();
-            var result = _bookService.ImportBooks(stream);
+            var result = await _bookService.ImportBooks(userId, stream, ct);
             return Ok(result);
         }
 

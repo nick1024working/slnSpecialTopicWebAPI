@@ -40,5 +40,13 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                 })
                 .ToListAsync(ct);
         }
+
+        public async Task<Dictionary<(string, string), int>> GetCountyDistrictNameToDistrictIdAsync(CancellationToken ct = default)
+        {
+            return await _db.Districts
+                .OrderBy(d => d.Id)
+                .Select(d => new { CountyName = d.County.Name, DistrictName = d.Name, d.Id })
+                .ToDictionaryAsync(d => (d.CountyName, d.DistrictName), d => d.Id, ct);
+        }
     }
 }

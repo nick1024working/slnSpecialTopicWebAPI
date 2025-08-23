@@ -189,6 +189,19 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             }
         }
 
+        public async Task<Result<Dictionary<(string, string), int>>> GetCountyDistrictNameToDistrictIdAsync(CancellationToken ct = default)
+        {
+            try
+            {
+                var result = await _districtRepository.GetCountyDistrictNameToDistrictIdAsync(ct);
+                return Result<Dictionary<(string, string), int>>.Success(result);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<Dictionary<(string, string), int>>.Map(ex, _logger);
+            }
+        }
+
         /// <summary>
         /// 讀取所有 District，並轉換為 <see cref="IdNameDto"/> 物件列表。
         /// </summary>

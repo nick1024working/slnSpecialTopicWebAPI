@@ -331,7 +331,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             }
         }
 
-        // TODO: 需要分頁
         public async Task<Result<IReadOnlyList<UserBookListItemDto>>> GetUserBookListAsync(Guid userId, BookListQuery query, CancellationToken ct = default)
         {
             try
@@ -505,9 +504,9 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 // 第二列: headers
                 // 第三列: examples
                 // 第四列開始填寫
-                int maxRow = 100 + 4;
+                int maxRow = 100 + 4 - 1;
 
-                string description = "紅色*欄位為必填，第3列為範例，資料請在第4列~104列填寫。上傳後須補上圖片才能於站內正常顯示。";
+                string description = "紅色*欄位為必填，第3列為範例，資料請在第4列~103列填寫。上傳後須補上圖片才能於站內正常顯示。";
 
                 string[] headers = {
                     "所在縣市*", "所在鄉鎮市區*", "售價*", "書名*", "作者*",
@@ -731,69 +730,145 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             }
         }
 
-        public IReadOnlyList<UsedBook> ImportBooks(Stream stream)
+        public async Task<Result<IReadOnlyList<Guid>>> ImportBooks(Guid sellerId, Stream stream, CancellationToken ct = default)
         {
-            using var package = new ExcelPackage(stream);
-            var ws = package.Workbook.Worksheets["上傳資料表"];
-            if (ws == null || ws.Dimension == null)
-                return [];
-
-            var startRow = 2;
-            var endRow = ws.Dimension.End.Row;
-
-            var list = new List<UsedBook>(capacity: endRow - startRow + 1);
-
-            for (int row = startRow; row <= endRow; row++)
+            try
             {
-                // 判斷整列是否都是空白
-                bool isRowEmpty =
-                    string.IsNullOrWhiteSpace(ws.Cells[row, 1].Text) &&
-                    string.IsNullOrWhiteSpace(ws.Cells[row, 5].Text);
+                using var package = new ExcelPackage(stream);
+                var ws = package.Workbook.Worksheets["上傳資料表"];
+                if (ws == null || ws.Dimension == null)
+                    return Result<IReadOnlyList<Guid>>.Failure("資料表不能為空", ErrorCodes.General.BadRequest);
 
-                if (isRowEmpty) continue;
+                // ========== 整理 Dictionary ==========
 
-                // 轉型：盡量用 GetValue<T>()
-                
-                string name = ws.Cells[row, 2].GetValue<string>()?.Trim() ?? string.Empty;
-                bool isActive = ParseBool(ws.Cells[row, 3]);        // 支援 1/0, TRUE/FALSE, 是/否
-                int displayOrd = ws.Cells[row, 4].GetValue<int>();
-                string slug = ws.Cells[row, 5].GetValue<string>()?.Trim() ?? string.Empty;
+                var lookupResult = await _lookupService.GetAllUsedBookUILookupsList(ct);
+                if (!lookupResult.IsSuccess)
+                    throw new Exception(lookupResult.ErrorMessage);
+                var lookups = lookupResult.Value;
 
-                Guid id = Guid.NewGuid();
+                var countyDistrictNameToIdResult = await _lookupService.GetCountyDistrictNameToDistrictIdAsync(ct);
+                if (!countyDistrictNameToIdResult.IsSuccess)
+                    throw new Exception(countyDistrictNameToIdResult.ErrorMessage);
 
-                list.Add(new UsedBook
+                var countyDistrictDict = countyDistrictNameToIdResult.Value;
+                var categoryDict = lookupResult.Value.BookCategories.ToDictionary(i => i.Name, i => i.Id);
+                var conditionDict = lookupResult.Value.BookConditionRatings.ToDictionary(i => i.Name, i => i.Id);
+                var bindingDict = lookupResult.Value.BookBindings.ToDictionary(i => i.Name, i => i.Id);
+                var languageDict = lookupResult.Value.Languages.ToDictionary(i => i.Name, i => i.Id);
+                var contentRatingDict = lookupResult.Value.ContentRatings.ToDictionary(i => i.Name, i => i.Id);
+
+                // ========== 讀取 ==========
+
+                int startRow = 4;
+                int endRowCap = 100 + startRow - 1;
+
+                int endRowByDim = ws.Dimension.End.Row;
+                int endRow = Math.Min(endRowByDim, endRowCap);
+
+                var entityList = new List<UsedBook>(capacity: endRow - startRow + 1);
+
+                for (int row = startRow; row <= endRow; row++)
                 {
-                    Id = id,
-                    SellerId = default,               // Guid
+                    string countytName = ws.Cells[row, 1].GetValue<string>()?.Trim() ?? string.Empty;           // 所在縣市
+                    string districtName = ws.Cells[row, 2].GetValue<string>()?.Trim() ?? string.Empty;          // 所在鄉鎮市區
+                    int salePrice = ws.Cells[row, 3].GetValue<int>();                                           // 售價
+                    string title = ws.Cells[row, 4].GetValue<string>()?.Trim() ?? string.Empty;                 // 書名
+                    string authors = ws.Cells[row, 5].GetValue<string>()?.Trim() ?? string.Empty;               // 作者
 
-                    SellerDistrictId = default,       // int
+                    string categoryName = ws.Cells[row, 6].GetValue<string>()?.Trim() ?? string.Empty;          // 主題分類
+                    string conditionName = ws.Cells[row, 7].GetValue<string>()?.Trim() ?? string.Empty;         // 書況評等
+                    string? conditionDesc = ws.Cells[row, 8].GetValue<string?>()?.Trim() ?? string.Empty;
 
-                    SalePrice = default,              // decimal
-                    Title = null!,                    // string
-                    Authors = null!,                  // string
-                    CategoryId = default,             // int
-                    ConditionRatingId = default,      // int
-                    ConditionDescription = null,      // string?
-                    Edition = null,                   // string?
-                    Publisher = null,                 // string?
-                    PublicationDate = null,           // DateOnly?
-                    Isbn = null,                      // string?
-                    BindingId = null,                 // int?
-                    LanguageId = null,                // int?
-                    Pages = null,                     // int?
-                    ContentRatingId = default,        // int
+                    string? edition = ws.Cells[row, 9].GetValue<string?>()?.Trim();
+                    string? publisher = ws.Cells[row, 10].GetValue<string?>()?.Trim();
+                    DateTime? publishDateRaw = ws.Cells[row, 11].GetValue<DateTime?>();
+                    string? isbn = ws.Cells[row, 12].GetValue<string?>()?.Trim();
 
-                    IsOnShelf = default,              // bool
-                    IsSold = false,
-                    IsActive = true,
+                    string bindingName = ws.Cells[row, 13].GetValue<string>()?.Trim() ?? string.Empty;          // 裝訂方式
+                    string languageName = ws.Cells[row, 14].GetValue<string>()?.Trim() ?? string.Empty;         // 語言
+                    int? pages = ws.Cells[row, 15].GetValue<int?>();                                            // 頁數
+                    string contentRatingName = ws.Cells[row, 16].GetValue<string>()?.Trim() ?? string.Empty;    // 內容分級
 
-                    Slug = id.ToString(),
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow,
-                });
+                    bool isOnShelf = ParseBool(ws.Cells[row, 17]);                                              // 是否上架
+
+                    // 驗證並轉成合法輸入值
+                    Guid id = Guid.NewGuid();
+                    if (!countyDistrictDict.TryGetValue((countytName, districtName), out int sellerDistrictId))
+                        throw new Exception($"row={row} 處 countytName, districtName 無效");
+                    if (salePrice <= 0)
+                        throw new Exception($"row={row} 處 salePrice 無效");
+                    if (title == string.Empty)
+                        throw new Exception($"row={row} 處 title 無效");
+                    if (authors == string.Empty)
+                        throw new Exception($"row={row} 處 authors 無效");
+                    if (!categoryDict.TryGetValue(categoryName, out int categoryId))
+                        throw new Exception($"row={row} 處 categoryName 無效");
+                    if (!conditionDict.TryGetValue(conditionName, out int conditionRatingId))
+                        throw new Exception($"row={row} 處 conditionName 無效");
+
+                    DateOnly? publishDate = null;
+                    if (publishDateRaw.HasValue)
+                    {
+                        if (publishDateRaw.Value.Date > DateTime.Today)
+                            throw new Exception($"row={row} 處 publishDate 無效");
+                        else
+                            publishDate = DateOnly.FromDateTime(publishDateRaw.Value.Date);
+                    }
+                    if (isbn != null && isbn.Length != 10 && isbn.Length != 13)
+                        throw new Exception($"row={row} 處 isbn 無效");
+
+                    if (!bindingDict.TryGetValue(bindingName, out int bindingId))
+                        throw new Exception($"row={row} 處 bindingName 無效");
+                    if (!languageDict.TryGetValue(languageName, out int languageId))
+                        throw new Exception($"row={row} 處 languageName 無效");
+                    if (pages != null && pages <= 0)
+                        throw new Exception($"row={row} 處 pages 無效");
+                    if (!contentRatingDict.TryGetValue(contentRatingName, out int contentRatingId))
+                        throw new Exception($"row={row} 處 contentRatingName 無效");
+
+                    // 組裝實體
+                    entityList.Add(new UsedBook
+                    {
+                        Id = id,
+                        SellerId = sellerId,
+                        SellerDistrictId = sellerDistrictId,
+
+                        SalePrice = salePrice,
+                        Title = title,
+                        Authors = authors,
+                        CategoryId = categoryId,
+                        ConditionRatingId = conditionRatingId,
+                        ConditionDescription = conditionDesc,
+
+                        Edition = edition,
+                        Publisher = publisher,
+                        PublicationDate = publishDate,
+                        Isbn = isbn,
+                        BindingId = bindingId,
+                        LanguageId = languageId,
+                        Pages = pages,
+                        ContentRatingId = contentRatingId,
+
+                        IsOnShelf = isOnShelf,
+                        IsSold = false,
+                        IsActive = true,
+
+                        Slug = id.ToString(),
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                    });
+                }
+
+                _usedBookRepository.AddRange(entityList);
+                await _unitOfWork.CommitAsync(ct);
+
+                var result = entityList.Select(e => e.Id).ToList();
+                return Result<IReadOnlyList<Guid>>.Success(result);
             }
-
-            return list;
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<IReadOnlyList<Guid>>.Map(ex, _logger);
+            }
         }
 
         // ========== 私有方法 ==========
