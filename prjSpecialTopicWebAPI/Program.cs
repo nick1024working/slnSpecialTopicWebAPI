@@ -1,15 +1,16 @@
-using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using OfficeOpenXml;
 using prjSpecialTopicWebAPI.Features.Fund.Services;
+using prjSpecialTopicWebAPI.Features.Shared.Controllers;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.UnitOfWork;
 using prjSpecialTopicWebAPI.Features.Usedbook.Mapping;
 using prjSpecialTopicWebAPI.Models;
 using prjSpecialTopicWebAPI.Usedbook.Application.Services;
-using prjSpecialTopicWebAPI.Features.Shared.Controllers;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -62,13 +63,18 @@ builder.Services.AddScoped<IPlanService, PlanService>();
 
 // Usedbook
 
+// 設定 EPPlus 授權模式
+ExcelPackage.License.SetNonCommercialOrganization("MSIT-TeamA");
+
 // 註冊 Unit Of Work
 builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 
 // 註冊 AutoMapper
 builder.Services.AddAutoMapper(cfg => { cfg.AddProfile<MappingProfile>(); });
 
-// NOTE: 須同步註冊在 測試專案 UsedbookSliceTestHost 中的 DI 容器
+// 註冊 ExcelService
+builder.Services.AddScoped<ExcelService>();
+
 // 註冊 ImageService
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ImageService>(sp =>

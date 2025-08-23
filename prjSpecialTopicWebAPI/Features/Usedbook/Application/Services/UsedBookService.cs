@@ -1,5 +1,5 @@
 ﻿using AutoMapper;
-using Microsoft.AspNetCore.Http;
+using OfficeOpenXml;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Query;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
@@ -11,8 +11,6 @@ using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.UnitOfWork;
 using prjSpecialTopicWebAPI.Features.Usedbook.Utilities;
 using prjSpecialTopicWebAPI.Models;
 using System.Linq.Expressions;
-using System.Net;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 {
@@ -22,12 +20,10 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
         private readonly IMapper _mapper;
         private readonly UsedBookRepository _usedBookRepository;
         private readonly UsedBookImageService _usedBookImageService;
-        private readonly UsedBookImageRepository _usedBookImageRepository;
         private readonly ImageService _imageService;
-        private readonly BookSaleTagRepository _saleTagRepository;
         private readonly ILogger<UsedBookService> _logger;
 
-        public UsedBookService (
+        public UsedBookService(
             IUnitOfWork unitOfWork,
             IMapper mapper,
             UsedBookRepository usedBookRepository,
@@ -41,9 +37,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             _mapper = mapper;
             _usedBookRepository = usedBookRepository;
             _usedBookImageService = usedBookImageService;
-            _usedBookImageRepository = usedBookImageRepository;
             _imageService = imageService;
-            _saleTagRepository = saleTagRepository;
             _logger = logger;
         }
 
@@ -159,7 +153,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 }
 
                 await _usedBookImageService.SetCoverAsync(id, new SetBookCoverRequest { ImageId = updateRequest.IdList[0] }, ct);
-                
+
                 var currentList = await _usedBookImageService.GetByBookIdAsync(id, ct);
                 if (!currentList.IsSuccess)
                     throw new Exception(currentList.ErrorMessage);
@@ -441,6 +435,53 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             }
         }
 
+        // ========== Excel ==========
+
+        public IReadOnlyList<BookSaleTag> ImportBooks(Stream stream)
+        {
+            using var package = new ExcelPackage(stream);
+            var ws = package.Workbook.Worksheets.FirstOrDefault();
+            if (ws == null || ws.Dimension == null)
+                return Array.Empty<BookSaleTag>();
+
+            var startRow = 2; // 第1列是標題
+            var endRow = ws.Dimension.End.Row;
+
+            var list = new List<BookSaleTag>(capacity: endRow - startRow + 1);
+
+            for (int row = startRow; row <= endRow; row++)
+            {
+                // 判斷整列是否都是空白
+                bool isRowEmpty =
+                    string.IsNullOrWhiteSpace(ws.Cells[row, 1].Text) &&
+                    string.IsNullOrWhiteSpace(ws.Cells[row, 2].Text) &&
+                    string.IsNullOrWhiteSpace(ws.Cells[row, 3].Text) &&
+                    string.IsNullOrWhiteSpace(ws.Cells[row, 4].Text) &&
+                    string.IsNullOrWhiteSpace(ws.Cells[row, 5].Text);
+
+                if (isRowEmpty) continue;
+
+                // 轉型：盡量用 GetValue<T>()
+                int id = ws.Cells[row, 1].GetValue<int>();
+                string name = ws.Cells[row, 2].GetValue<string>()?.Trim() ?? string.Empty;
+                bool isActive = ParseBool(ws.Cells[row, 3]);        // 支援 1/0, TRUE/FALSE, 是/否
+                int displayOrd = ws.Cells[row, 4].GetValue<int>();
+                string slug = ws.Cells[row, 5].GetValue<string>()?.Trim() ?? string.Empty;
+
+                list.Add(new BookSaleTag
+                {
+                    Id = id,
+                    Name = name,
+                    IsActive = isActive,
+                    DisplayOrder = displayOrd,
+                    Slug = slug
+                });
+            }
+
+            return list;
+        }
+
+
         // ========== 私有方法 ==========
 
         private Expression<Func<UsedBook, bool>> BuildPredicate(BookListQuery query)
@@ -483,5 +524,19 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             };
         }
 
+        // 小工具：更彈性的布林轉換
+        private static bool ParseBool(ExcelRange cell)
+        {
+            // 先試著用 GetValue<bool>()
+            if (bool.TryParse(cell.Text, out var b)) return b;
+
+            var t = (cell.GetValue<string>() ?? string.Empty).Trim().ToLowerInvariant();
+            return t switch
+            {
+                "1" or "true" or "yes" or "y" or "是" => true,
+                "0" or "false" or "no" or "n" or "否" => false,
+                _ => cell.GetValue<bool>() // 有時 Value 就是 bool
+            };
+        }
     }
 }

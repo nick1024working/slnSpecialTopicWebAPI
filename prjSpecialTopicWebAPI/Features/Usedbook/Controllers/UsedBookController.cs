@@ -1,11 +1,12 @@
-﻿using Azure.Core;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using OfficeOpenXml;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Query;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Errors;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
+using prjSpecialTopicWebAPI.Models;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
 {
@@ -204,6 +205,38 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
                 return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
 
             return NoContent();
+        }
+
+        // ========== 子屬性 - 標籤 ==========
+        [HttpGet("export")]
+        public IActionResult ExportBooks()
+        {
+            using var package = new ExcelPackage();
+            var ws = package.Workbook.Worksheets.Add("Books");
+
+            ws.Cells["A1"].Value = "ID";
+            ws.Cells["B1"].Value = "Name";
+            ws.Cells["C1"].Value = "Price";
+
+            ws.Cells["A2"].Value = 1;
+            ws.Cells["B2"].Value = "Book A";
+            ws.Cells["C2"].Value = 200;
+
+            var bytes = package.GetAsByteArray();
+            return File(bytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "books.xlsx");
+        }
+
+        [HttpPost("import")]
+        public ActionResult<IEnumerable<BookSaleTag>> ImportBooks(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest("請上傳 Excel 檔案");
+
+            using var stream = file.OpenReadStream();
+            var result = _bookService.ImportBooks(stream);
+            return Ok(result);
         }
 
     }
