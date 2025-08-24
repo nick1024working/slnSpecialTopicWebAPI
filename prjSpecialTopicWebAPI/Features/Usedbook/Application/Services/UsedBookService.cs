@@ -318,8 +318,8 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 var dto = new PagedResult<PublicBookListItemDto>
                 {
                     Items = itemList,
-                    PageIndex = query.Paging.PageIndex,
-                    PageSize = query.Paging.PageSize,
+                    PageIndex = queryResult.PageIndex,
+                    PageSize = queryResult.PageSize,
                     TotalRows = queryResult.TotalRows
                 };
 
@@ -376,8 +376,8 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                 var dto = new PagedResult<AdminBookListItemDto>
                 {
                     Items = itemList,
-                    PageIndex = query.Paging.PageIndex,
-                    PageSize = query.Paging.PageSize,
+                    PageIndex = queryResult.PageIndex,
+                    PageSize = queryResult.PageSize,
                     TotalRows = queryResult.TotalRows
                 };
 
