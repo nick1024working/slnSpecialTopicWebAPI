@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using OfficeOpenXml;
 using prjSpecialTopicWebAPI.Features.Fund.Services;
 using prjSpecialTopicWebAPI.Features.Shared.Controllers;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.Authentication;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.UnitOfWork;
@@ -32,9 +33,11 @@ builder.Services.AddHttpClient("LinePay", client =>
     client.Timeout = TimeSpan.FromSeconds(20);
 });
 
+// 註冊 DataProtection
+builder.Services.AddDataProtection();
+
 // 註冊記憶體快取 目前用於 session
 builder.Services.AddDistributedMemoryCache();
-
 // 註冊 Session 目前用於未登錄購物車
 builder.Services.AddSession(opts =>
 {
@@ -69,14 +72,11 @@ builder.Services.AddScoped<IPlanService, PlanService>();
 // 設定 EPPlus 授權模式
 ExcelPackage.License.SetNonCommercialOrganization("MSIT-TeamA");
 
-// 註冊 Unit Of Work
+
 builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
-
-// 註冊 AutoMapper
 builder.Services.AddAutoMapper(cfg => { cfg.AddProfile<MappingProfile>(); });
-
-// 註冊 ExcelService
 builder.Services.AddScoped<ExcelService>();
+builder.Services.AddSingleton<AuthHelper>();
 
 // 註冊 ImageService
 builder.Services.AddHttpContextAccessor();
@@ -95,6 +95,9 @@ builder.Services.AddScoped<CountyRepository>();
 builder.Services.AddScoped<DistrictRepository>();
 builder.Services.AddScoped<LanguageRepository>();
 builder.Services.AddScoped<LookupService>();
+//
+builder.Services.AddScoped<ExternalDomainRepository>();
+builder.Services.AddScoped<ExternalDomainService>();
 // 註冊 分類 + 標籤 Repo & Svc
 builder.Services.AddScoped<BookCategoryRepository>();
 builder.Services.AddScoped<BookSaleTagRepository>();

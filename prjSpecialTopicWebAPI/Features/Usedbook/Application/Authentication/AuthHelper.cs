@@ -1,25 +1,35 @@
-﻿using prjSpecialTopicWebAPI.Features.Usedbook.Enums;
-using System.Security.Claims;
+﻿using Microsoft.AspNetCore.DataProtection;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Authentication
 {
-    public static class AuthHelper
+    public class AuthHelper
     {
-        public static Guid? GetUserId(ClaimsPrincipal user)
-        {
-            var userIdRaw = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (Guid.TryParse(userIdRaw, out Guid userId))
-                return userId;
+        private readonly IDataProtector _protector;
 
-            return null;
+        public AuthHelper(IDataProtectionProvider provider)
+        {
+            _protector = provider.CreateProtector("UserIdCookie");
         }
 
-        public static Role? GetRole(ClaimsPrincipal user)
+        public void SetSeller(Guid userId, HttpContext ctx)
+            => ctx.Response.Cookies.Append(".UserId", _protector.Protect(userId.ToString()));
+
+        public Guid? GetSeller(HttpContext ctx)
         {
-            var roleRaw = user.FindFirst(ClaimTypes.Role)?.Value;
-            if (Enum.TryParse<Role>(roleRaw, out var role))
-                return role;
-            return null;
+            if (!ctx.Request.Cookies.TryGetValue(".UserId", out string? raw))
+                return null;
+            try
+            {
+                var userIdStr = _protector.Unprotect(raw);
+                return Guid.TryParse(userIdStr, out var id) ? id : null;
+            }
+            catch
+            {
+                return null;
+            }
         }
+
+        public void ClearSeller(HttpContext ctx)
+            => ctx.Response.Cookies.Delete(".UserId");
     }
 }
