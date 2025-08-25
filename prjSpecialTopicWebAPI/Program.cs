@@ -35,7 +35,7 @@ builder.Services.AddHttpClient("LinePay", client =>
 // 註冊記憶體快取 目前用於 session
 builder.Services.AddDistributedMemoryCache();
 
-// Session
+// 註冊 Session 目前用於未登錄購物車
 builder.Services.AddSession(opts =>
 {
     opts.Cookie.Name = ".Session";
@@ -44,6 +44,9 @@ builder.Services.AddSession(opts =>
     opts.Cookie.SecurePolicy = CookieSecurePolicy.Always;
     opts.Cookie.SameSite = SameSiteMode.None;
 });
+
+// 註冊單例 Random
+builder.Services.AddSingleton<Random>();
 
 // ========== 各自需要的服務於以下註冊 ==========
 #region
@@ -100,10 +103,10 @@ builder.Services.AddScoped<BookSaleTagService>();
 // 註冊 書本核心 Repo & Svc
 builder.Services.AddScoped<UsedBookImageRepository>();
 builder.Services.AddScoped<UsedBookRepository>();
-//builder.Services.AddScoped<UsedBookOrderRepository>();
+builder.Services.AddScoped<UsedBookOrderRepository>();
 builder.Services.AddScoped<UsedBookImageService>();
 builder.Services.AddScoped<UsedBookService>();
-//builder.Services.AddScoped<UsedBookOrderService>();
+builder.Services.AddScoped<UsedBookOrderService>();
 
 // 註冊 LinePayController
 builder.Services.AddScoped<LinePayController>();

@@ -5,7 +5,6 @@ using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Errors;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
-using prjSpecialTopicWebAPI.Models;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
 {
@@ -48,7 +47,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
 
         [HttpPut("{bookId:Guid}")]
         [Consumes("multipart/form-data")]
-        public async Task<ActionResult> UpdateBook(
+        public async Task<IActionResult> UpdateBook(
             [FromRoute] Guid bookId, [FromForm] UpdateBookRequest request, CancellationToken ct)
         {
             var result = await _bookService.UpdateAsync(bookId, request, Request, ct);
@@ -60,7 +59,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         // ========== 更改狀態 ==========
 
         [HttpPut("{bookId:Guid}/on-shelf")]
-        public async Task<ActionResult<IEnumerable<int>>> UpdateBookOnShelfStatus(
+        public async Task<IActionResult> UpdateBookOnShelfStatus(
             [FromRoute] Guid bookId, [FromBody] UpdateStatusRequest status, CancellationToken ct)
         {
             var result = await _bookService.UpdateOnShelfStatusAsync(bookId, status, ct);
@@ -70,7 +69,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         }
 
         [HttpPut("{bookId:Guid}/active")]
-        public async Task<ActionResult<IEnumerable<int>>> UpdateBookActiveStatus(
+        public async Task<IActionResult> UpdateBookActiveStatus(
             [FromRoute] Guid bookId, [FromBody] UpdateStatusRequest status, CancellationToken ct)
         {
             var result = await _bookService.UpdateActiveStatusAsync(bookId, status, ct);
@@ -80,7 +79,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         }
 
         [HttpPut("{bookId:Guid}/sold")]
-        public async Task<ActionResult<IEnumerable<int>>> UpdateBookSoldStatus(
+        public async Task<IActionResult> UpdateBookSoldStatus(
             [FromRoute] Guid bookId, [FromBody] UpdateStatusRequest status, CancellationToken ct)
         {
             var result = await _bookService.UpdateSoldStatusAsync(bookId, status, ct);
@@ -101,6 +100,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             return Ok(result.Value);
         }
 
+        // TODO: 分頁
         [HttpGet("payload/{bookId:Guid}")]
         public async Task<ActionResult<UpdateBookPayloadDto>> GetUpdatePayload([FromRoute] Guid bookId, CancellationToken ct)
         {
@@ -135,7 +135,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         }
 
         [HttpPut("{bookId:Guid}/images/order")]
-        public async Task<ActionResult<IEnumerable<int>>> UpdateBookImagesOrder(
+        public async Task<IActionResult> UpdateBookImagesOrder(
             [FromRoute] Guid bookId, [FromBody] UpdateOrderByIdRequest request, CancellationToken ct)
         {
             var result = await _bookImageService.UpdateOrderByBookIdAsync(bookId, request, ct);
@@ -166,7 +166,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         }
 
         [HttpPatch("{bookId:Guid}/cover")]
-        public async Task<ActionResult> SetBookCover([FromRoute] Guid bookId, [FromBody] SetBookCoverRequest request, CancellationToken ct)
+        public async Task<IActionResult> SetBookCover([FromRoute] Guid bookId, [FromBody] SetBookCoverRequest request, CancellationToken ct)
         {
             var result = await _bookImageService.SetCoverAsync(bookId, request, ct);
             if (!result.IsSuccess)
