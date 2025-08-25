@@ -2,7 +2,7 @@
 {
     public class PublicUsedBookDetailDto
     {
-        public IEnumerable<BookImageDto> ImageList { get; set; } = new List<BookImageDto>();
+        public List<BookImageDto> ImageList { get; set; } = [];
 
         public Guid Id { get; set; }
         public Guid SellerId { get; set; }

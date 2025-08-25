@@ -1,6 +1,10 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.EntityFrameworkCore;
 using prjSpecialTopicWebAPI.Features.Fund.Services;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
+using prjSpecialTopicWebAPI.Features.Usedbook.Controllers;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.UnitOfWork;
 using prjSpecialTopicWebAPI.Features.Usedbook.Mapping;
@@ -17,6 +21,14 @@ builder.Services.AddDbContext<TeamAProjectContext>(options =>
 {
     options.UseSqlServer(connectionString,
         sql => sql.MigrationsAssembly(typeof(TeamAProjectContext).Assembly.FullName));
+});
+
+// 註冊 HttpClient 用於 LinePay API
+builder.Services.AddHttpClient("LinePay", client =>
+{
+    client.BaseAddress = new Uri(
+        builder.Configuration["LinePay:BaseUrl"] ?? "https://sandbox-api-pay.line.me");
+    client.Timeout = TimeSpan.FromSeconds(20);
 });
 
 // ========== 各自需要的服務於以下註冊 ==========
@@ -45,7 +57,14 @@ builder.Services.AddAutoMapper(cfg => { cfg.AddProfile<MappingProfile>(); });
 
 // NOTE: 須同步註冊在 測試專案 UsedbookSliceTestHost 中的 DI 容器
 // 註冊 ImageService
-builder.Services.AddScoped<ImageService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ImageService>(sp =>
+{
+    var env = sp.GetRequiredService<IWebHostEnvironment>();
+    var httpContext = sp.GetRequiredService<IHttpContextAccessor>().HttpContext;
+    var baseUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
+    return new ImageService(env, baseUrl);
+});
 // 註冊 Lookups Repo & Svc
 builder.Services.AddScoped<BookBindingRepository>();
 builder.Services.AddScoped<BookConditionRatingRepository>();
@@ -67,8 +86,27 @@ builder.Services.AddScoped<UsedBookImageService>();
 builder.Services.AddScoped<UsedBookService>();
 //builder.Services.AddScoped<UsedBookOrderService>();
 
-// User
+// 註冊 LinePayController
+builder.Services.AddScoped<LinePayController>();
 
+// User
+// ===== JWT 驗證設定（新增） =====
+var jwtKey = builder.Configuration["Jwt:Key"] ?? "PLEASE_REPLACE_WITH_A_LONG_RANDOM_SECRET"; //  開發用可先寫固定字串
+var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme) //  啟用 JWT
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = false,   // Demo 先關
+            ValidateAudience = false,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = signingKey
+        };
+    });
+// ===== JWT 區結束 =====
 
 
 // ========== 各自需要的服務於以上註冊 ==========
@@ -106,7 +144,7 @@ if (app.Environment.IsDevelopment())
 }
 app.UseStaticFiles();
 app.UseHttpsRedirection();
-app.UseAuthorization();
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 

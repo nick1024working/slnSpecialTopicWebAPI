@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,6 +37,19 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Infrastructure.TestHost
 
             services.AddSingleton<IWebHostEnvironment>(new FakeWebHostEnvironment());
 
+            // HttpContextAccessor 與假 HttpContext ===
+            services.AddHttpContextAccessor();
+            services.AddSingleton<IHttpContextAccessor>(sp =>
+            {
+                var accessor = new HttpContextAccessor();
+                var ctx = new DefaultHttpContext();
+                ctx.Request.Scheme = "https";
+                ctx.Request.Host = new HostString("localhost", 5001);
+                accessor.HttpContext = ctx;
+                return accessor;
+            });
+
+
             services.AddScoped(_ =>
             {
                 var options = new DbContextOptionsBuilder<TeamAProjectContext>()
@@ -58,7 +72,15 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Infrastructure.TestHost
 
             services.AddScoped<BookCategoryService>();
             services.AddScoped<BookSaleTagService>();
-            services.AddScoped<ImageService>();
+            services.AddScoped<ImageService>(sp =>
+            {
+                var env = sp.GetRequiredService<IWebHostEnvironment>();
+                var httpContext = sp.GetRequiredService<IHttpContextAccessor>().HttpContext;
+                var baseUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
+                var scheme = string.IsNullOrWhiteSpace(httpContext.Request.Scheme) ? "https" : httpContext.Request.Scheme;
+                var host = httpContext.Request.Host.HasValue ? httpContext.Request.Host.Value : "localhost:5001";
+                return new ImageService(env, baseUrl);
+            });
             services.AddScoped<UsedBookImageService>();
             services.AddScoped<UsedBookService>();
 

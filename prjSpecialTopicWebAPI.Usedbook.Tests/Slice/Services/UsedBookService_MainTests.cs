@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
 using prjSpecialTopicWebAPI.Models;
@@ -44,7 +45,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Tests.Slice.Services
             req.ContentRatingId = await _factory.CreateContentRatingAsync();
 
             // ---------- Act ----------
-            var res = await _svc.CreateAsync(sellerId, req);
+            var res = await _svc.CreateAsync(sellerId, req, (new DefaultHttpContext()).Request);
 
             // ---------- Assert  ----------
             res.IsSuccess.Should().BeTrue("Create 結果須成功");
