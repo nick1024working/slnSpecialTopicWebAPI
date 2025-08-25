@@ -2,11 +2,9 @@
 {
     public enum OrderStatus : byte
     {
-        Pending = 0,
-        Paid = 1,
-        Processing = 2,
-        Completed = 3,
-        Cancelled = 4,
-        Disputed = 5
+        Processing = 0,
+        Confirmed = 1,
+        Completed = 2,
+        Cancelled = 3,
     }
 }

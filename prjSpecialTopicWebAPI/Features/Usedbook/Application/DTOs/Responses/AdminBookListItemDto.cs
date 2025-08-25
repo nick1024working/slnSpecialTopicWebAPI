@@ -38,7 +38,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses
         [Display(Name = "建立時間")]
         public DateTime CreatedAt { get; set; }
 
-        // TODO:缺
-        //public IEnumerable<BookSaleTagDto> SaleTags { get; set; } = [];
+        [Display(Name = "促銷標籤列表")]
+        public IEnumerable<IdNameDto> SaleTagList { get; set; } = [];
     }
 }
