@@ -107,7 +107,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
         /// <summary>
         /// 更新所有主題分類順序。
         /// </summary>
-        public async Task<Result<Unit>> UpdateAllOrderAsync(IReadOnlyList<UpdateOrderByIdRequest> requestList, CancellationToken ct = default)
+        public async Task<Result<Unit>> UpdateAllOrderAsync(UpdateOrderByIdRequest request, CancellationToken ct = default)
         {
             await _unitOfWork.BeginTransactionAsync(ct);
             try
@@ -115,7 +115,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
                 var entityList = await _bookCategoryRepository.GetEntityListAsync(ct);
 
                 // 檢查數量一致
-                if (entityList.Count != requestList.Count)
+                if (entityList.Count != request.IdList.Count)
                 {
                     await _unitOfWork.RollbackAsync(ct);
                     return Result<Unit>.Failure("請求列表與實際主題分類數量不符", ErrorCodes.General.Conflict);
@@ -125,20 +125,20 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
                 var seen = new HashSet<int>();
 
                 int order = 1;
-                foreach (var request in requestList)
+                foreach (var id in request.IdList)
                 {
                     // 檢查存在
-                    if (!entityDict.TryGetValue(request.Id, out var entity))
+                    if (!entityDict.TryGetValue(id, out var entity))
                     {
                         await _unitOfWork.RollbackAsync(ct);
-                        return Result<Unit>.Failure($"有不合法的主題分類 Id: {request.Id}", ErrorCodes.General.BadRequest);
+                        return Result<Unit>.Failure($"有不合法的主題分類 Id: {id}", ErrorCodes.General.BadRequest);
                     }
 
                     // 檢查重複
-                    if (!seen.Add(request.Id))
+                    if (!seen.Add(id))
                     {
                         await _unitOfWork.RollbackAsync(ct);
-                        return Result<Unit>.Failure($"請求列表中主題分類 Id 重複: {request.Id}", ErrorCodes.General.BadRequest);
+                        return Result<Unit>.Failure($"請求列表中主題分類 Id 重複: {id}", ErrorCodes.General.BadRequest);
                     }
 
                     entity.DisplayOrder = order;

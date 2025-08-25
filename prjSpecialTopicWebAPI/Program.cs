@@ -2,7 +2,9 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.EntityFrameworkCore;
+using prjSpecialTopicWebAPI.Features.Fund.Services;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
+using prjSpecialTopicWebAPI.Features.Usedbook.Controllers;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.UnitOfWork;
 using prjSpecialTopicWebAPI.Features.Usedbook.Mapping;
@@ -21,6 +23,14 @@ builder.Services.AddDbContext<TeamAProjectContext>(options =>
         sql => sql.MigrationsAssembly(typeof(TeamAProjectContext).Assembly.FullName));
 });
 
+// 註冊 HttpClient 用於 LinePay API
+builder.Services.AddHttpClient("LinePay", client =>
+{
+    client.BaseAddress = new Uri(
+        builder.Configuration["LinePay:BaseUrl"] ?? "https://sandbox-api-pay.line.me");
+    client.Timeout = TimeSpan.FromSeconds(20);
+});
+
 // ========== 各自需要的服務於以下註冊 ==========
 #region
 
@@ -31,6 +41,10 @@ builder.Services.AddDbContext<TeamAProjectContext>(options =>
 
 
 // Fund
+builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<IfundImageService, fundImageService>();
+builder.Services.AddScoped<IPlanService, PlanService>();
 
 
 // Usedbook
@@ -43,7 +57,14 @@ builder.Services.AddAutoMapper(cfg => { cfg.AddProfile<MappingProfile>(); });
 
 // NOTE: 須同步註冊在 測試專案 UsedbookSliceTestHost 中的 DI 容器
 // 註冊 ImageService
-builder.Services.AddScoped<ImageService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ImageService>(sp =>
+{
+    var env = sp.GetRequiredService<IWebHostEnvironment>();
+    var httpContext = sp.GetRequiredService<IHttpContextAccessor>().HttpContext;
+    var baseUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
+    return new ImageService(env, baseUrl);
+});
 // 註冊 Lookups Repo & Svc
 builder.Services.AddScoped<BookBindingRepository>();
 builder.Services.AddScoped<BookConditionRatingRepository>();
@@ -64,6 +85,9 @@ builder.Services.AddScoped<UsedBookRepository>();
 builder.Services.AddScoped<UsedBookImageService>();
 builder.Services.AddScoped<UsedBookService>();
 //builder.Services.AddScoped<UsedBookOrderService>();
+
+// 註冊 LinePayController
+builder.Services.AddScoped<LinePayController>();
 
 // User
 // ===== JWT 驗證設定（新增） =====

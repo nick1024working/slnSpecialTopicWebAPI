@@ -58,6 +58,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                     Id = st.Id,
                     Name = st.Name,
                     IsActive = st.IsActive,
+                    DisplayOrder = st.DisplayOrder,
                     Slug = st.Slug,
                 })
                 .SingleOrDefaultAsync(ct);
@@ -78,6 +79,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                     Id = st.Id,
                     Name = st.Name,
                     IsActive = st.IsActive,
+                    DisplayOrder = st.DisplayOrder,
                     Slug = st.Slug,
                 })
                 .ToListAsync(ct);
@@ -95,6 +97,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                     Id = st.Id,
                     Name = st.Name,
                     IsActive = st.IsActive,
+                    DisplayOrder = st.DisplayOrder,
                     Slug = st.Slug,
                 })
                 .ToListAsync(ct);

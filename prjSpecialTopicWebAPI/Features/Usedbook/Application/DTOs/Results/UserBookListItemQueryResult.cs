@@ -4,8 +4,8 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results
 {
     public class UserBookListItemQueryResult
     {
-        public StorageProvider? CoverStorageProvider { get; set; }
-        public string? CoverObjectKey { get; set; }
+        public StorageProvider CoverStorageProvider { get; set; }
+        public string CoverObjectKey { get; set; } = string.Empty;
 
         public Guid Id { get; set; }
         public Guid SellerId { get; set; }

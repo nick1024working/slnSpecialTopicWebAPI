@@ -55,32 +55,33 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             return Ok(result.Value);
         }
 
+        [HttpGet("folders")]
+        public IActionResult GetFolderList()
+        {
+            var result = _imageService.GetFolderList();
+            if (!result.IsSuccess)
+                return BadRequest(result.ErrorMessage);
+            return Ok(result.Value);
+        }
+
         // ========== 查詢圖片 URL ==========
 
         [HttpGet("{id}/main-url")]
         public IActionResult GetMainUrlById(string id)
         {
-            var relativePath = _imageService.GetMainRelativePath(id);
-            if (string.IsNullOrEmpty(relativePath))
-                return NotFound();
-
-            var filePath = "/" + relativePath.Replace("\\", "/");
-            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
-
-            return Ok($"{baseUrl}{filePath}");
+            var result = _imageService.GetMainUrl(id);
+            if (!result.IsSuccess)
+                return BadRequest(result.ErrorMessage);
+            return Ok(result.Value);
         }
 
         [HttpGet("{id}/thumb-url")]
         public IActionResult GetThumbUrlById(string id)
         {
-            var relativePath = _imageService.GetThumbRelativePath(id);
-            if (string.IsNullOrEmpty(relativePath))
-                return NotFound();
-
-            var filePath = "/" + relativePath.Replace("\\", "/");
-            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
-
-            return Ok($"{baseUrl}{filePath}");
+            var result = _imageService.GetMainUrl(id);
+            if (!result.IsSuccess)
+                return BadRequest(result.ErrorMessage);
+            return Ok(result.Value);
         }
 
         // ========== 查詢圖片 PhysicalFile ==========

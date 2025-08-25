@@ -25,6 +25,9 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
 
         // ========== 新增、更新、刪除 ==========
 
+        public void Add(UsedBookImage entity) =>
+            _db.UsedBookImages.Add(entity);
+
         public void AddRange(IEnumerable<UsedBookImage> entities) =>
             _db.UsedBookImages.AddRange(entities);
 
