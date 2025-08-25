@@ -1,0 +1,467 @@
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Http;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Query;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.Errors;
+using prjSpecialTopicWebAPI.Features.Usedbook.Enums;
+using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories;
+using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.UnitOfWork;
+using prjSpecialTopicWebAPI.Features.Usedbook.Utilities;
+using prjSpecialTopicWebAPI.Models;
+using System.Linq.Expressions;
+
+namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
+{
+    public class UsedBookService
+    {
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
+        private readonly UsedBookRepository _usedBookRepository;
+        private readonly UsedBookImageService _usedBookImageService;
+        private readonly UsedBookImageRepository _usedBookImageRepository;
+        private readonly ImageService _imageService;
+        private readonly BookSaleTagRepository _saleTagRepository;
+        private readonly ILogger<UsedBookService> _logger;
+
+        public UsedBookService (
+            IUnitOfWork unitOfWork,
+            IMapper mapper,
+            UsedBookRepository usedBookRepository,
+            UsedBookImageService usedBookImageService,
+            UsedBookImageRepository usedBookImageRepository,
+            ImageService imageService,
+            BookSaleTagRepository saleTagRepository,
+            ILogger<UsedBookService> logger)
+        {
+            _unitOfWork = unitOfWork;
+            _mapper = mapper;
+            _usedBookRepository = usedBookRepository;
+            _usedBookImageService = usedBookImageService;
+            _usedBookImageRepository = usedBookImageRepository;
+            _imageService = imageService;
+            _saleTagRepository = saleTagRepository;
+            _logger = logger;
+        }
+
+        // ========== 新增、更新 ==========
+
+        /// <summary>
+        /// 新增完整書本資源，圖片部分交給 ImageService
+        /// </summary>
+        public async Task<Result<Guid>> CreateAsync(Guid sellerId, CreateBookRequest request, HttpRequest httpRequest, CancellationToken ct = default)
+        {
+            Guid usedBookId = Guid.NewGuid();
+            DateTime nowTime = DateTime.UtcNow;
+
+            var entity = _mapper.Map<UsedBook>(request);
+            entity.Id = usedBookId;
+            entity.SellerId = sellerId;
+            entity.IsSold = false;
+            entity.IsActive = true;
+            entity.Slug = usedBookId.ToString();
+            entity.CreatedAt = nowTime;
+            entity.UpdatedAt = nowTime;
+
+            using var tx = _unitOfWork.BeginTransactionAsync(ct);
+            try
+            {
+                _usedBookRepository.Add(entity);
+                var saveImageResult = await _imageService.SaveImagesAsync(request.ImageList, httpRequest, ct);
+                if (!saveImageResult.IsSuccess)
+                    throw new Exception(saveImageResult.ErrorMessage);
+
+                var createRequestList = saveImageResult.Value
+                    .Select((image, index) => new CreateUsedBookImageRequest
+                    {
+                        IsCover = index == 0, // 假設第一張圖片為封面
+                        StorageProvider = StorageProvider.Local,
+                        ObjectKey = image.Id,
+                    }).ToList();
+
+                // 此處呼叫 ImageService 來處理封面圖片
+                var createImageResult = await _usedBookImageService.CreateAsync(usedBookId, createRequestList, ct);
+                if (!createImageResult.IsSuccess)
+                    throw new Exception(createImageResult.ErrorMessage);
+
+                await _unitOfWork.CommitAsync(ct);
+
+                return Result<Guid>.Success(usedBookId);
+            }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackAsync(ct);
+                return ExceptionToErrorResultMapper<Guid>.Map(ex, _logger);
+            }
+        }
+
+        /// <summary>
+        /// 更新指定書本資源，圖片部分交給 ImageService
+        /// </summary>
+        public async Task<Result<Unit>> UpdateAsync(Guid id, UpdateBookRequest request, HttpRequest httpRequest, CancellationToken ct = default)
+        {
+            using var tx = _unitOfWork.BeginTransactionAsync(ct);
+            try
+            {
+                var entity = await _usedBookRepository.GetEntityByIdAsync(id, ct);
+                if (entity is null)
+                    return Result<Unit>.Failure("找不到要更新的書本", ErrorCodes.General.NotFound);
+
+                entity.SellerDistrictId = request.SellerDistrictId;
+                entity.SalePrice = request.SalePrice;
+                entity.Title = request.Title;
+                entity.Authors = request.Authors;
+                entity.CategoryId = request.CategoryId;
+                entity.ConditionRatingId = request.ConditionRatingId;
+                entity.ConditionDescription = request.ConditionDescription;
+                entity.Edition = request.Edition;
+                entity.Publisher = request.Publisher;
+                entity.PublicationDate = request.PublicationDate;
+                entity.Isbn = request.Isbn;
+                entity.BindingId = request.BindingId;
+                entity.LanguageId = request.LanguageId;
+                entity.Pages = request.Pages;
+                entity.ContentRatingId = request.ContentRatingId;
+                entity.IsOnShelf = request.IsOnShelf;
+                entity.UpdatedAt = DateTime.UtcNow;
+
+                // 更新圖片
+                var ids = new HashSet<int>();
+                var updateRequest = new UpdateOrderByIdRequest();
+                foreach (var image in request.ImageList)
+                {
+                    if (image.Id != null)
+                    {
+                        ids.Add((int)image.Id);
+                        updateRequest.IdList.Add((int)image.Id);
+                    }
+                    else if (image.Image != null)
+                    {
+                        var saveResult = await _imageService.SaveImageAsync(image.Image, httpRequest, ct);
+                        if (!saveResult.IsSuccess)
+                            throw new Exception(saveResult.ErrorMessage);
+
+                        var createRequest = new CreateUsedBookImageRequest
+                        {
+                            IsCover = false,
+                            StorageProvider = StorageProvider.Local,
+                            ObjectKey = saveResult.Value.Id,
+                        };
+                        var createResult = await _usedBookImageService.CreateAsync(id, createRequest, ct);
+                        if (!createResult.IsSuccess)
+                            throw new Exception(createResult.ErrorMessage);
+                        ids.Add(createResult.Value);
+                        updateRequest.IdList.Add(createResult.Value);
+                    }
+                }
+
+                await _usedBookImageService.SetCoverAsync(id, new SetBookCoverRequest { ImageId = updateRequest.IdList[0] }, ct);
+                
+                var currentList = await _usedBookImageService.GetByBookIdAsync(id, ct);
+                if (!currentList.IsSuccess)
+                    throw new Exception(currentList.ErrorMessage);
+                foreach (var item in currentList.Value)
+                {
+                    if (!ids.Contains(item.Id))
+                        await _usedBookImageService.DeleteByImageIdAsync(item.Id, ct);
+                }
+
+                var updateOrderResult = await _usedBookImageService.UpdateOrderByBookIdAsync(id, updateRequest, ct);
+                if (!updateOrderResult.IsSuccess)
+                    throw new Exception(updateOrderResult.ErrorMessage);
+
+                await _unitOfWork.CommitAsync(ct);
+                return Result<Unit>.Success(Unit.Value);
+            }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackAsync(ct);
+                return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
+            }
+        }
+
+        // ========== 更改狀態 ==========
+
+        public async Task<Result<Unit>> UpdateOnShelfStatusAsync(Guid id, UpdateStatusRequest request, CancellationToken ct = default)
+        {
+            try
+            {
+                bool commandResult = await _usedBookRepository.UpdateOnShelfStatusAsync(id, request.Value, ct);
+                if (commandResult)
+                    await _unitOfWork.CommitAsync(ct);
+
+                return Result<Unit>.Success(Unit.Value);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
+            }
+        }
+
+        public async Task<Result<Unit>> UpdateActiveStatusAsync(Guid id, UpdateStatusRequest request, CancellationToken ct = default)
+        {
+            try
+            {
+                bool commandResult = await _usedBookRepository.UpdateActiveStatusAsync(id, request.Value, ct);
+                if (commandResult)
+                    await _unitOfWork.CommitAsync(ct);
+
+                return Result<Unit>.Success(Unit.Value);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
+            }
+        }
+
+        public async Task<Result<Unit>> UpdateSoldStatusAsync(Guid id, UpdateStatusRequest request, CancellationToken ct = default)
+        {
+            try
+            {
+                bool commandResult = await _usedBookRepository.UpdateSoldStatusAsync(id, request.Value, ct);
+                if (commandResult)
+                    await _unitOfWork.CommitAsync(ct);
+
+                return Result<Unit>.Success(Unit.Value);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
+            }
+        }
+
+        // ========== 查詢 ==========
+
+        public async Task<Result<PublicUsedBookDetailDto>> GetPublicDetailByIdAsync(Guid id, CancellationToken ct = default)
+        {
+            try
+            {
+                var bookQueryResult = await _usedBookRepository.GetDetailByIdAsync(id, ct);
+                if (bookQueryResult == null)
+                    return Result<PublicUsedBookDetailDto>.Failure("找不到符合的資料", ErrorCodes.General.NotFound);
+
+                var imageResult = await _usedBookImageService.GetByBookIdAsync(id, ct);
+
+                var dto = _mapper.Map<PublicUsedBookDetailDto>(bookQueryResult);
+                dto.ImageList = imageResult?.Value?.ToList() ?? [];
+
+                return Result<PublicUsedBookDetailDto>.Success(dto);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<PublicUsedBookDetailDto>.Map(ex, _logger);
+            }
+        }
+
+        public async Task<Result<AdminUsedBookDetailDto>> GetAdminDetailByIdAsync(Guid id, CancellationToken ct = default)
+        {
+            try
+            {
+                var bookQueryResult = await _usedBookRepository.GetDetailByIdAsync(id, ct);
+                if (bookQueryResult == null)
+                    return Result<AdminUsedBookDetailDto>.Failure("找不到符合的資料", ErrorCodes.General.NotFound);
+
+                var imageResult = await _usedBookImageService.GetByBookIdAsync(id, ct);
+
+                var dto = _mapper.Map<AdminUsedBookDetailDto>(bookQueryResult);
+                dto.ImageList = imageResult?.Value?.ToList() ?? [];
+
+                return Result<AdminUsedBookDetailDto>.Success(dto);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<AdminUsedBookDetailDto>.Map(ex, _logger);
+            }
+        }
+
+        public async Task<Result<UpdateBookPayloadDto>> GetUpdatePayloadByIdAsync(Guid id, CancellationToken ct = default)
+        {
+            try
+            {
+                var entity = await _usedBookRepository.GetEntityByIdWithCountyIdAsync(id, ct);
+                if (entity == null)
+                    return Result<UpdateBookPayloadDto>.Failure("找不到符合的資料", ErrorCodes.General.NotFound);
+
+                var imageResult = await _usedBookImageService.GetByBookIdAsync(id, ct);
+
+                var dto = _mapper.Map<UpdateBookPayloadDto>(entity);
+                dto.ImageList = imageResult?.Value?.ToList() ?? [];
+                dto.SellerCountyId = entity.SellerDistrict.CountyId;
+
+                return Result<UpdateBookPayloadDto>.Success(dto);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<UpdateBookPayloadDto>.Map(ex, _logger);
+            }
+        }
+
+
+        // TODO: 需要分頁
+        public async Task<Result<IReadOnlyList<PublicBookListItemDto>>> GetPublicListAsync(BookListQuery query, CancellationToken ct = default)
+        {
+            try
+            {
+                // 條件 + 排序 的轉換與組裝
+                Expression<Func<UsedBook, bool>> predicate = BuildPredicate(query);
+                Func<IQueryable<UsedBook>, IOrderedQueryable<UsedBook>> orderBy = BuildOrderBy(query);
+
+                var queryResult = await _usedBookRepository.GetPublicBookListAsync(predicate, orderBy, ct);
+                var dtoList = new List<PublicBookListItemDto>();
+                foreach (var res in queryResult)
+                {
+                    var dto = _mapper.Map<PublicBookListItemDto>(res);
+                    dto.CoverImageUrl = _usedBookImageService.GetThumbUrlWithFallback(res.CoverStorageProvider, res.CoverObjectKey);
+                    dtoList.Add(dto);
+                }
+
+                return Result<IReadOnlyList<PublicBookListItemDto>>.Success(dtoList);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<IReadOnlyList<PublicBookListItemDto>>.Map(ex, _logger);
+            }
+        }
+
+        // TODO: 需要分頁
+        public async Task<Result<IReadOnlyList<UserBookListItemDto>>> GetUserBookListAsync(Guid userId, BookListQuery query, CancellationToken ct = default)
+        {
+            try
+            {
+                // 條件 + 排序 的轉換與組裝
+                Expression<Func<UsedBook, bool>> predicate = BuildPredicate(query);
+                Func<IQueryable<UsedBook>, IOrderedQueryable<UsedBook>> orderBy = BuildOrderBy(query);
+
+                var queryResult = await _usedBookRepository.GetUserBookListAsync(userId, predicate, orderBy, ct);
+                var dtoList = new List<UserBookListItemDto>();
+                foreach (var res in queryResult)
+                {
+                    var dto = _mapper.Map<UserBookListItemDto>(res);
+                    dto.CoverImageUrl = _usedBookImageService.GetThumbUrlWithFallback(res.CoverStorageProvider, res.CoverObjectKey);
+                    dtoList.Add(dto);
+                }
+
+                return Result<IReadOnlyList<UserBookListItemDto>>.Success(dtoList);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<IReadOnlyList<UserBookListItemDto>>.Map(ex, _logger);
+            }
+        }
+
+        // TODO: 需要分頁
+        public async Task<Result<IReadOnlyList<AdminBookListItemDto>>> GetAdminBookListAsync(BookListQuery query, CancellationToken ct = default)
+        {
+            try
+            {
+                // 條件 + 排序 的轉換與組裝
+                Expression<Func<UsedBook, bool>> predicate = BuildPredicate(query);
+                Func<IQueryable<UsedBook>, IOrderedQueryable<UsedBook>> orderBy = BuildOrderBy(query);
+
+                var queryResult = await _usedBookRepository.GetAdminBookListAsync(predicate, orderBy, ct);
+                var dtoList = new List<AdminBookListItemDto>();
+                foreach (var res in queryResult)
+                {
+                    var dto = _mapper.Map<AdminBookListItemDto>(res);
+                    dto.CoverImageUrl = _usedBookImageService.GetThumbUrlWithFallback(res.CoverStorageProvider, res.CoverObjectKey);
+                    dtoList.Add(dto);
+                }
+
+                return Result<IReadOnlyList<AdminBookListItemDto>>.Success(dtoList);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<IReadOnlyList<AdminBookListItemDto>>.Map(ex, _logger);
+            }
+        }
+
+        // ========== 促銷標籤相關 ==========
+
+        public async Task<Result<Unit>> AddBookSaleTagAsync(Guid bookId, int tagId, CancellationToken ct = default)
+        {
+            try
+            {
+                // 檢查書籍是否存在
+                UsedBook? bookWithTagsEntity = await _usedBookRepository.GetEntityByIdWithSaleTagsAsync(bookId, ct);
+                if (bookWithTagsEntity == null)
+                    return Result<Unit>.Failure("找不到目標書籍", ErrorCodes.General.NotFound);
+
+                // 檢查重複
+                if (bookWithTagsEntity.Tags.Any(t => t.Id == tagId))
+                    return Result<Unit>.Failure("書籍已經有此銷售標籤", ErrorCodes.General.Conflict);
+
+                // 檢查銷售標籤是否存在
+                BookSaleTag? saleTagsEntity = await _saleTagRepository.GetEntityByIdAsync(tagId, ct);
+                if (saleTagsEntity == null)
+                    return Result<Unit>.Failure("找不到目標銷售標籤", ErrorCodes.General.NotFound);
+
+                bookWithTagsEntity.Tags.Add(saleTagsEntity);
+
+                await _unitOfWork.CommitAsync(ct);
+                return Result<Unit>.Success(Unit.Value);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
+            }
+        }
+
+        public async Task<Result<Unit>> RemoveBookSaleTagAsync(Guid bookId, int tagId, CancellationToken ct = default)
+        {
+            try
+            {
+                var commandResult = await _usedBookRepository.RemoveBookSaleTagAsync(bookId, tagId, ct);
+                if (commandResult)
+                    await _unitOfWork.CommitAsync(ct);
+                return Result<Unit>.Success(Unit.Value);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
+            }
+        }
+
+        // ========== 私有方法 ==========
+
+        private Expression<Func<UsedBook, bool>> BuildPredicate(BookListQuery query)
+        {
+            // 預處理
+            var saleTagIds = query.SaleTagIds ?? Array.Empty<int>();
+            var keyword = query.Keyword?.Trim();
+            var status = query.BookStatus?.Trim().ToLowerInvariant();
+
+            return b =>
+                // 主題分類 N:1
+                (!query.CategoryId.HasValue || b.CategoryId == query.CategoryId) &&
+                // 促標標籤 N:M
+                (saleTagIds.Count == 0 || b.Tags.Any(t => saleTagIds.Contains(t.Id))) &&
+                // 狀態
+                (string.IsNullOrWhiteSpace(status) ||
+                    status == "all" ||
+                    (status == "inactive" && !b.IsActive) ||
+                    (status == "unsold" && !b.IsSold) ||
+                    (status == "onshelf" && b.IsOnShelf)) &&
+                // 關鍵字
+                (string.IsNullOrWhiteSpace(query.Keyword)
+                    || b.Title.Contains(query.Keyword)) &&
+                // 價格區間
+                (!query.MinPrice.HasValue || b.SalePrice >= query.MinPrice) &&
+                (!query.MaxPrice.HasValue || b.SalePrice <= query.MaxPrice);
+        }
+
+        private Func<IQueryable<UsedBook>, IOrderedQueryable<UsedBook>> BuildOrderBy(BookListQuery query)
+        {
+            return q => query switch
+            {
+                _ when query.SortBy == "updated" && query.SortDir == "asc" => q.OrderBy(b => b.UpdatedAt),
+                _ when query.SortBy == "updated" && query.SortDir == "desc" => q.OrderByDescending(b => b.UpdatedAt),
+                _ when query.SortBy == "created" && query.SortDir == "asc" => q.OrderBy(b => b.CreatedAt),
+                _ when query.SortBy == "created" && query.SortDir == "desc" => q.OrderByDescending(b => b.CreatedAt),
+                _ when query.SortBy == "price" && query.SortDir == "asc" => q.OrderBy(b => b.SalePrice),
+                _ when query.SortBy == "price" && query.SortDir == "desc" => q.OrderByDescending(b => b.SalePrice),
+                _ => q.OrderByDescending(b => b.UpdatedAt)
+            };
+        }
+
+    }
+}
