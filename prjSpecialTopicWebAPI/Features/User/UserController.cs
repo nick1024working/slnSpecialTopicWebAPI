@@ -135,8 +135,7 @@ public class UsersController : ControllerBase
         user.LastLoginDate = DateTime.UtcNow;
         if (upgraded)
         {
-            // 這裡也可以順手寫一筆 LoginLogs（若你有表）
-        }
+            // 這裡也可以順手寫一筆 LoginLogs
         await _db.SaveChangesAsync();
 
         var token = GenerateJwt(user);
@@ -149,7 +148,7 @@ public class UsersController : ControllerBase
     }
     private string GenerateJwt(User user)
     {
-        // 把金鑰放到 appsettings.json: "Jwt": { "Key": "超長隨機字串" }
+        // 把金鑰放到 appsettings.json: "Jwt": { "Key": "隨機字串" }
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
