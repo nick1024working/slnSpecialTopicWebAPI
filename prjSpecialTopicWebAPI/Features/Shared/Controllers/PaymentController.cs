@@ -8,14 +8,14 @@ namespace prjSpecialTopicWebAPI.Features.Shared.Controllers
 {
     [ApiController]
     [Route("api/payments/line-pay")]
-    public class LinePayController : ControllerBase
+    public class PaymentController : ControllerBase
     {
         private readonly IHttpClientFactory _factory;
         private const string _channelId = "2007934205";
         private const string _channelSecret = "d1ded1d6ff3e34383b7d3b4c9d7121ba";
-        private readonly ILogger<LinePayController> _logger;
+        private readonly ILogger<PaymentController> _logger;
 
-        public LinePayController(IHttpClientFactory factory, ILogger<LinePayController> logger)
+        public PaymentController(IHttpClientFactory factory, ILogger<PaymentController> logger)
         {
             _factory = factory;
             _logger = logger;

@@ -112,7 +112,7 @@ builder.Services.AddScoped<UsedBookService>();
 builder.Services.AddScoped<UsedBookOrderService>();
 
 // 註冊 LinePayController
-builder.Services.AddScoped<LinePayController>();
+builder.Services.AddScoped<PaymentController>();
 
 // User
 // ===== JWT 驗證設定（新增） =====
