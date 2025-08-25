@@ -554,5 +554,37 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
             // 5. 回傳成功
             return NoContent();
         }
+
+        /// <summary>
+        /// 取得所有排行榜的書籍資料
+        /// </summary>
+        [HttpGet("rankings")]
+        [AllowAnonymous] // 這個 API 是公開的，不需要登入
+        public async Task<IActionResult> GetRankingBooks()
+        {
+            var rankings = await _db.EbookRecommends
+                .AsNoTracking()
+                .Include(r => r.RecType)  // 載入關聯的 RecommendationType
+                .Include(r => r.Ebook)    // 載入關聯的 EBookMain
+                .GroupBy(r => r.RecType.TypeName) // 根據 TypeName (例如 "暢銷排行榜") 進行分組
+                .Select(group => new
+                {
+                    TypeName = group.Key,
+                    Books = group.Select(r => new RankingBookDto
+                    {
+                        Id = r.Ebook.EbookId,
+                        Title = r.Ebook.EbookName,
+                        Author = r.Ebook.Author,
+                        CoverImage = (r.Ebook.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{r.Ebook.PrimaryCoverPath}",
+                        Price = (int)(r.Ebook.ActualPrice ?? r.Ebook.FixedPrice)
+                    }).ToList()
+                })
+                .ToDictionaryAsync(k => k.TypeName, v => v.Books);
+
+            return Ok(rankings);
+        }
+
+
+
     }
 }
