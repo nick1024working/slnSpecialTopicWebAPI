@@ -35,7 +35,8 @@ public partial class ForumPost
 
     public virtual ICollection<PostComment> PostComments { get; set; } = new List<PostComment>();
 
-    public virtual PostImage? PostImage { get; set; }
+    public virtual ICollection<PostImage> PostImages { get; set; } = new List<PostImage>();
+
 
     public virtual ICollection<PostLike> PostLikes { get; set; } = new List<PostLike>();
 

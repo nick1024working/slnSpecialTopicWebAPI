@@ -163,14 +163,16 @@ app.UseCors();
 // 設定 HTTP 處理管線（Middleware）
 if (app.Environment.IsDevelopment())
 {
-    // 啟用 Swagger
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
 app.UseStaticFiles();
 app.UseHttpsRedirection();
 app.UseSession();
 app.UseAuthentication();
+
+
 app.UseAuthorization();
 app.MapControllers();
 
