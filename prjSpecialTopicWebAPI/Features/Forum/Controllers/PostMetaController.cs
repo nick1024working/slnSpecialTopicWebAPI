@@ -1,9 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using prjSpecialTopicWebAPI.Models;
-
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using prjSpecialTopicWebAPI.Models;
 
 namespace prjSpecialTopicWebAPI.Features.Forum.Controllers;
 

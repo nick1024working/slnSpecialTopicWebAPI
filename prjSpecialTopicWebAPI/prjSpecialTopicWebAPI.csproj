@@ -21,7 +21,7 @@
     <Folder Include="Features\Fund\" />
     <Folder Include="Features\User\" />
     <Folder Include="Features\Usedbook\" />
-    <Folder Include="wwwroot\" />
+    <Folder Include="wwwroot\NewFolder\" />
   </ItemGroup>
 
 </Project>
