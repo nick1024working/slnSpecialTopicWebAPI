@@ -67,6 +67,8 @@ public partial class UsedBook
 
     public virtual ICollection<UsedBookImage> UsedBookImages { get; set; } = new List<UsedBookImage>();
 
+    public virtual ICollection<UsedBookOrder> UsedBookOrders { get; set; } = new List<UsedBookOrder>();
+
     public virtual ICollection<BookConditionDetail> Conditions { get; set; } = new List<BookConditionDetail>();
 
     public virtual ICollection<BookSaleTag> Tags { get; set; } = new List<BookSaleTag>();
