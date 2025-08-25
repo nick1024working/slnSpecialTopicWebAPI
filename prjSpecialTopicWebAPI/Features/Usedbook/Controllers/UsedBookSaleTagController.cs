@@ -4,7 +4,7 @@ using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Errors;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
 
-namespace prjBookAppCoreMVC.Controllers.UsedBook
+namespace prjSpecialTopicWebAPI.Controllers.UsedBook
 {
     [ApiController]
     [Route("api/usedbooks/sale-tags")]
@@ -47,7 +47,7 @@ namespace prjBookAppCoreMVC.Controllers.UsedBook
         }
 
         [HttpPut("order")]
-        public async Task<ActionResult> UpdateAllSaleTagsOrder([FromBody] IReadOnlyList<UpdateOrderByIdRequest> request, CancellationToken ct)
+        public async Task<ActionResult> UpdateAllSaleTagsOrder([FromBody] UpdateOrderByIdRequest request, CancellationToken ct)
         {
             var result = await _bookSaleTagService.UpdateAllOrderAsync(request, ct);
             if (!result.IsSuccess)

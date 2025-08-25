@@ -1,5 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results;
 using prjSpecialTopicWebAPI.Features.Usedbook.Enums;
 using prjSpecialTopicWebAPI.Models;
@@ -23,6 +23,13 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
         /// </summary>
         public async Task<UsedBook?> GetEntityByIdWithSaleTagsAsync(Guid id, CancellationToken ct = default) =>
             await _db.UsedBooks.Include(b => b.Tags).SingleOrDefaultAsync(b => b.Id == id, ct);
+
+        /// <summary>
+        /// 直接返回書本實體 (含促銷標籤)。
+        /// </summary>
+        public async Task<UsedBook?> GetEntityByIdWithCountyIdAsync(Guid id, CancellationToken ct = default) =>
+            await _db.UsedBooks.Include(b => b.SellerDistrict).SingleOrDefaultAsync(b => b.Id == id, ct);
+
 
         /// <summary>
         /// 直接返回書本實體。
@@ -121,6 +128,8 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             // 1. 建立查詢（包含關聯載入與篩選條件）
             var query = _db.UsedBooks
                 .Where(predicate)
+                .Where(b => b.IsActive && b.IsOnShelf)
+                .Include(b => b.Category)
                 .Include(b => b.Tags)
                 .Include(b => b.ConditionRating);
 
@@ -147,13 +156,22 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                     CoverStorageProvider = (StorageProvider)coverDict[b.Id].StorageProvider,
                     CoverObjectKey = coverDict[b.Id].ObjectKey,
 
-                    SaleTagList = b.Tags.Select(t => t.Name).ToList(),
-
                     Id = b.Id,
                     Title = b.Title,
                     SalePrice = b.SalePrice,
                     Authors = b.Authors,
                     ConditionRating = b.ConditionRating?.Name ?? "",
+
+                    Category = new IdNameDto
+                    {
+                        Id = b.Category.Id,
+                        Name = b.Category.Name
+                    },
+                    SaleTagList = b.Tags.Select(t => new IdNameDto
+                    {
+                        Id = t.Id,
+                        Name = t.Name
+                    }).ToList(),
 
                     Slug = b.Slug,
                 })
@@ -175,6 +193,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             // 1. 建立查詢（包含關聯載入與篩選條件）
             var query = _db.UsedBooks
                 .Where(predicate)
+                .Where(b => b.IsActive == true)
                 //.Include(b => b.Tags)     // NOTE: 使用者書本清單不需要 Tags
                 .Include(b => b.ConditionRating);
 
@@ -311,23 +330,13 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
         /// <summary>
         /// 把指定書籍移除 SaleTag 促銷標籤
         /// </summary>
-        [Obsolete("目前 service 直接使用實體")]
         public async Task<bool> RemoveBookSaleTagAsync(Guid bookId, int tagId, CancellationToken ct = default)
         {
-            var bookWithTagsEntity = await _db.UsedBooks
-                .Include(b => b.Tags)
-                .FirstOrDefaultAsync(b => b.Id == bookId, ct);
-
-            if (bookWithTagsEntity == null)
-                return false;
-
-            var saleTagToRemove = bookWithTagsEntity.Tags
-                .SingleOrDefault(st => st.Id == tagId);
-            if (saleTagToRemove == null)
-                return false;
-
-            bookWithTagsEntity.Tags.Remove(saleTagToRemove);
-            return true;
+            var affected = await _db.Set<Dictionary<string, object>> ("UsedBookSaleTag")
+                .Where(e => (Guid)e["BookId"] == bookId
+                    && (int)e["TagId"] == tagId)
+                .ExecuteDeleteAsync(ct);
+            return affected > 0;
         }
     }
 }

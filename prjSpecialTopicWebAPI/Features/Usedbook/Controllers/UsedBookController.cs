@@ -25,7 +25,8 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         // ========== 新增、更新、刪除 ==========
 
         [HttpPost]
-        public async Task<ActionResult<Guid>> CreateBook([FromBody] CreateBookRequest request, CancellationToken ct)
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult<Guid>> CreateBook([FromForm] CreateBookRequest request, CancellationToken ct)
         {
             // HACK: 驗證政策尚未完成
             string userIdString = "22B888CB-32AB-4B07-96BF-228B60D3717A";
@@ -36,7 +37,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             //    return ErrorCodeToHttpResponseMapper.Map(ErrorCodes.Auth.Unauthorized);
 
             // 呼叫 Service Layer
-            var result = await _bookService.CreateAsync(userId, request, ct);
+            var result = await _bookService.CreateAsync(userId, request, Request, ct);
             if (!result.IsSuccess)
                 return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
 
@@ -44,10 +45,11 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         }
 
         [HttpPut("{bookId:Guid}")]
+        [Consumes("multipart/form-data")]
         public async Task<ActionResult> UpdateBook(
-            [FromRoute] Guid bookId, [FromBody] UpdateBookRequest request, CancellationToken ct)
+            [FromRoute] Guid bookId, [FromForm] UpdateBookRequest request, CancellationToken ct)
         {
-            var result = await _bookService.UpdateAsync(bookId, request, ct);
+            var result = await _bookService.UpdateAsync(bookId, request, Request, ct);
             if (!result.IsSuccess)
                 return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
             return NoContent();
@@ -97,6 +99,16 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             return Ok(result.Value);
         }
 
+        [HttpGet("payload/{bookId:Guid}")]
+        public async Task<ActionResult<UpdateBookPayloadDto>> GetUpdatePayload([FromRoute] Guid bookId, CancellationToken ct)
+        {
+            var result = await _bookService.GetUpdatePayloadByIdAsync(bookId, ct);
+            if (!result.IsSuccess)
+                return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
+
+            return Ok(result.Value);
+        }
+
         [HttpGet]
         public async Task<ActionResult<IEnumerable<PublicBookListItemDto>>> GetPublicBookList([FromQuery] BookListQuery query, CancellationToken ct)
         {
@@ -104,7 +116,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             if (!result.IsSuccess)
                 return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
 
-            return Ok(result.Value);
+            return Ok(result.Value);    
         }
 
         // ========== 子資源圖片 ==========
@@ -124,9 +136,9 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         // HACK: 更新
         [HttpPut("{bookId:Guid}/images/order")]
         public async Task<ActionResult<IEnumerable<int>>> UpdateBookImagesOrder(
-            [FromRoute] Guid bookId, [FromBody] List<UpdateOrderByIdRequest> requestList, CancellationToken ct)
+            [FromRoute] Guid bookId, [FromBody] UpdateOrderByIdRequest request, CancellationToken ct)
         {
-            var result = await _bookImageService.UpdateOrderByBookIdAsync(bookId, requestList, ct);
+            var result = await _bookImageService.UpdateOrderByBookIdAsync(bookId, request, ct);
             if (!result.IsSuccess)
                 return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
             return Ok(result.Value);

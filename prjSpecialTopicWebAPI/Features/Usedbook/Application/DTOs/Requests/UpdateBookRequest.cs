@@ -4,6 +4,12 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests
 {
     public class UpdateBookRequest
     {
+        [Display(Name = "圖片清單")]
+        [Required(ErrorMessage = "圖片清單為必填欄位")]
+        public List<UpdateUsedBookImageRequest> ImageList { get; set; } = [];
+
+        public int? SellerCountyId { get; set; }
+
         [Display(Name = "賣家所在鄉鎮市區")]
         [Required(ErrorMessage = "鄉鎮市區為必填欄位")]
         public int SellerDistrictId { get; set; }
