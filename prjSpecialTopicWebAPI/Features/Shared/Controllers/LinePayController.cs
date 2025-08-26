@@ -4,10 +4,10 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
-namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
+namespace prjSpecialTopicWebAPI.Features.Shared.Controllers
 {
     [ApiController]
-    [Route("api/linepay")]
+    [Route("api/payments/line-pay")]
     public class LinePayController : ControllerBase
     {
         private readonly IHttpClientFactory _factory;
@@ -22,7 +22,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         }
 
         [HttpPost("request")]
-        public async Task<IActionResult> RequestPaymentAsync([FromBody] PaymentRequestDto req, CancellationToken ct)
+        public async Task<IActionResult> RequestPayment([FromBody] PaymentRequestDto req, CancellationToken ct)
         {
             var client = _factory.CreateClient("LinePay");
             var bodyJson = JsonSerializer.Serialize(req,

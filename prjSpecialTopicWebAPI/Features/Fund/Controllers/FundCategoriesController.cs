@@ -18,7 +18,18 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Controllers
 
         [HttpGet("all")]
         public async Task<ActionResult<List<CategoryDto>>> GetAll()
-            => Ok(await _svc.GetAllAsync());
+        {
+            try
+            {
+                var list = await _svc.GetAllAsync();
+                return Ok(list);
+            }
+            catch (Exception ex)
+            {
+                // 避免直接關連線造成 ERR_EMPTY_RESPONSE
+                return Problem(ex.Message, statusCode: StatusCodes.Status500InternalServerError);
+            }
+        }
 
         [HttpGet("{id:int}")]
         public async Task<ActionResult<CategoryDto>> GetById(int id)
