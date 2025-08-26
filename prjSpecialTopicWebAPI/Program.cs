@@ -1,9 +1,12 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using OfficeOpenXml;
 using prjSpecialTopicWebAPI.Features.Fund.Services;
 using prjSpecialTopicWebAPI.Features.Shared.Controllers;
+using prjSpecialTopicWebAPI.Features.Shared.Options;
+using prjSpecialTopicWebAPI.Features.Shared.Service;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Authentication;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories;
@@ -25,13 +28,20 @@ builder.Services.AddDbContext<TeamAProjectContext>(options =>
         sql => sql.MigrationsAssembly(typeof(TeamAProjectContext).Assembly.FullName));
 });
 
-// 註冊 HttpClient 用於 LinePay API
-builder.Services.AddHttpClient("LinePay", client =>
+
+// 註冊 用於 LinePay API 相關
+// Options 綁定
+builder.Services.Configure<LinePayOptions>(builder.Configuration.GetSection("Payments:LinePay"));
+// HttpClient（命名客戶端）
+builder.Services.AddHttpClient("LinePay", (sp, c) =>
 {
-    client.BaseAddress = new Uri(
-        builder.Configuration["LinePay:BaseUrl"] ?? "https://sandbox-api-pay.line.me");
-    client.Timeout = TimeSpan.FromSeconds(20);
+    var opt = sp.GetRequiredService<IOptions<LinePayOptions>>().Value;
+    c.BaseAddress = new Uri(opt.BaseAddress);
+    c.Timeout = TimeSpan.FromSeconds(20);
 });
+
+// BLL Service
+builder.Services.AddScoped<PaymentService>();
 
 // 註冊 DataProtection
 builder.Services.AddDataProtection();
