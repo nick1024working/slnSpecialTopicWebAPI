@@ -509,27 +509,32 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
             return Ok(new { filePath = ebook.EBookPosition });
         }
 
+
+        // [新增] 讀取進度的 DTO
+        public class ReadingProgressDto
+        {
+            public int CurrentPage { get; set; }
+            public string? ReadingProgress { get; set; }
+        }
+
         // 檔案: EbooksController.cs
 
+        /// <summary>
+        /// 更新指定書籍的閱讀進度
+        /// </summary>
         [HttpPost("purchased/progress")]
+        [Authorize] // 這個操作必須是登入狀態才能執行
         public async Task<IActionResult> UpdateReadingProgress([FromBody] UpdateProgressDto progressDto)
         {
-            // [修改] 從 HttpContext 的使用者宣告中，動態取得登入者的 User ID
-            // ClaimTypes.NameIdentifier 通常對應到 JWT Token 中的 'sub' (Subject) 欄位，也就是使用者 ID。
-            // 這需要您的登入功能有正確設定 JWT Token。
-            var userIdString = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-
-            // 如果在 Token 中找不到使用者 ID，代表使用者未登入或 Token 無效，回傳 401 未授權
+            // 1. 從 Token 中取得當前登入者的 User ID
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdString))
             {
-                return Unauthorized("無法識別使用者身分，請先登入");
+                return Unauthorized("無法識別使用者身分");
             }
-
             var userId = Guid.Parse(userIdString);
 
-            // --- 以下的資料庫操作邏輯完全維持不變 ---
-
-            // 1. 根據 UID 和 EbookId 找到對應的購買紀錄
+            // 2. 根據 User ID 和 EbookId 找到對應的購買紀錄
             var purchaseRecord = await _db.EbookPurchaseds
                 .FirstOrDefaultAsync(p => p.Uid == userId && p.EBookId == progressDto.EbookId);
 
@@ -538,22 +543,56 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                 return NotFound("找不到對應的購買紀錄");
             }
 
-            // 2. 計算進度百分比
+            // 3. 計算進度百分比並更新
             if (progressDto.TotalPages > 0)
             {
                 double percentage = (double)progressDto.CurrentPage / progressDto.TotalPages * 100;
                 purchaseRecord.ReadingProgress = Math.Round(percentage).ToString();
+                // [修改] 儲存當前頁碼
+                purchaseRecord.CurrentPage = progressDto.CurrentPage;
             }
 
-            // 3. 更新最後閱讀時間
+            // 4. 更新最後閱讀時間
             purchaseRecord.LastReadTime = DateTime.UtcNow;
 
-            // 4. 儲存變更到資料庫
+            // 5. 儲存變更到資料庫
             await _db.SaveChangesAsync();
 
-            // 5. 回傳成功
+            // 6. 回傳成功 (NoContent 表示成功但不需要回傳任何內容)
             return NoContent();
         }
+
+        // [新增] 讀取進度方法
+        [HttpGet("purchased/{ebookId}/progress")]
+        [Authorize]
+        public async Task<IActionResult> GetReadingProgress(long ebookId)
+        {
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdString))
+            {
+                return Unauthorized("無法識別使用者身分");
+            }
+            var userId = Guid.Parse(userIdString);
+
+            var purchaseRecord = await _db.EbookPurchaseds
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Uid == userId && p.EBookId == ebookId);
+
+            if (purchaseRecord?.CurrentPage != null)
+            {
+                // 找到紀錄，回傳頁碼和進度
+                var progressDto = new ReadingProgressDto
+                {
+                    CurrentPage = purchaseRecord.CurrentPage.Value,
+                    ReadingProgress = purchaseRecord.ReadingProgress
+                };
+                return Ok(progressDto);
+            }
+
+            // 沒有紀錄或頁碼為 null，回傳 404 或預設值
+            return NotFound();
+        }
+
 
         /// <summary>
         /// 取得所有排行榜的書籍資料
@@ -583,6 +622,8 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
 
             return Ok(rankings);
         }
+
+
 
 
 

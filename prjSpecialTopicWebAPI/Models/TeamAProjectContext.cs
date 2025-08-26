@@ -6,6 +6,10 @@ namespace prjSpecialTopicWebAPI.Models;
 
 public partial class TeamAProjectContext : DbContext
 {
+    public TeamAProjectContext()
+    {
+    }
+
     public TeamAProjectContext(DbContextOptions<TeamAProjectContext> options)
         : base(options)
     {
@@ -92,6 +96,10 @@ public partial class TeamAProjectContext : DbContext
     public virtual DbSet<UsedBookOrder> UsedBookOrders { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
+        => optionsBuilder.UseSqlServer("Server=localhost;Database=TeamA_Project;Integrated Security=True;TrustServerCertificate=True");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -746,10 +754,9 @@ public partial class TeamAProjectContext : DbContext
                 .HasColumnType("image")
                 .HasColumnName("PostImage");
 
-            entity.HasOne(d => d.Post)
-                  .WithMany(p => p.PostImages)   // ✅ 一對多
-                  .HasForeignKey(d => d.PostId)
-                  .OnDelete(DeleteBehavior.Cascade)
+            entity.HasOne(d => d.Post).WithOne(p => p.PostImage)
+                .HasForeignKey<PostImage>(d => d.PostId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__PostImage__PostI__60A75C0F");
         });
 
@@ -933,7 +940,7 @@ public partial class TeamAProjectContext : DbContext
 
         modelBuilder.Entity<UsedBookOrder>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__UsedBook__3214EC07DAB63A34");
+            entity.HasKey(e => e.Id).HasName("PK__UsedBook__3214EC07A5F5FC2E");
 
             entity.HasIndex(e => e.OrderNo, "UQ_UsedBookOrders_OrderNo").IsUnique();
 

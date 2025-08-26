@@ -17,6 +17,8 @@ public partial class EbookPurchased
 
     public string? ReadingProgress { get; set; }
 
+    public int? CurrentPage { get; set; }
+
     public virtual EBookMain EBook { get; set; } = null!;
 
     public virtual User UidNavigation { get; set; } = null!;
