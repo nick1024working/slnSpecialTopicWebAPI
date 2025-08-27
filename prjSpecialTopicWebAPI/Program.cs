@@ -147,7 +147,6 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 
 // ★ 關鍵：一定要加在 MapControllers 之前
-app.UseCors(AllowAngular);
 
 app.UseAuthorization();
 app.MapControllers();
