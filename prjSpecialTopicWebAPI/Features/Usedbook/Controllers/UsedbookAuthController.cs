@@ -6,7 +6,7 @@ using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
 {
     [ApiController]
-    [Route("usedbooks")]
+    [Route("api/usedbooks")]
     public class UsedbookAuthController : ControllerBase
     {
         private readonly AuthHelper _authHelper;
@@ -18,9 +18,16 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             _externalDomainService = externalDomainService;
         }
 
-        [HttpPost("current-seller")]
-        public ActionResult<Guid> SetCurrentSeller([FromBody] Guid userId)
+        [HttpPut("current-seller")]
+        public async Task<ActionResult<Guid>> SetCurrentSeller([FromBody] Guid userId, CancellationToken ct)
         {
+            var queryResult = await _externalDomainService.GetSellerListAsync(ct);
+            if (!queryResult.IsSuccess)
+                return ErrorCodeToHttpResponseMapper.Map(queryResult.ErrorCode);
+
+            if (!queryResult.Value.Contains(userId))
+                return BadRequest();
+
             _authHelper.SetSeller(userId, HttpContext);
             return NoContent();
         }
