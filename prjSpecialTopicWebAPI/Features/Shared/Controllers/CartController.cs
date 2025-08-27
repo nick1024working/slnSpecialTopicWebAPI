@@ -11,13 +11,15 @@ namespace prjSpecialTopicWebAPI.Features.Shared.Controllers
     public class CartController : ControllerBase
     {
         private const string CartKey = "CART";
+        private const string CheckoutKey = "CHECKOUTDRAFT";
 
         public CartController() { }
+
+        // ========== 購物車 ==========
 
         [HttpGet]
         public ActionResult<AllCartsDto> GetCart()
         {
-            var sid = HttpContext.Session.Id;
             var allCarts = HttpContext.Session.GetObject<AllCartsDto>(CartKey) ?? new AllCartsDto();
 
             return Ok(allCarts);
@@ -34,20 +36,19 @@ namespace prjSpecialTopicWebAPI.Features.Shared.Controllers
             return Ok(nowCart);
         }
 
-        [HttpPut]
-        public IActionResult ReplaceCart([FromBody] AllCartsDto allCarts)
-        {
-            allCarts.UpdatedAt = DateTime.UtcNow;
-            Recalculate(allCarts);
+        //[HttpPut]
+        //public IActionResult ReplaceCart([FromBody] AllCartsDto allCarts)
+        //{
+        //    allCarts.UpdatedAt = DateTime.UtcNow;
+        //    Recalculate(allCarts);
 
-            HttpContext.Session.SetObject(CartKey, allCarts);
-            return NoContent();
-        }
+        //    HttpContext.Session.SetObject(CartKey, allCarts);
+        //    return NoContent();
+        //}
 
         [HttpPatch("items")]
         public IActionResult UpsertItem([FromBody] UpsertCartItemRequest req)
         {
-            var sid = HttpContext.Session.Id;
             var allCarts = HttpContext.Session.GetObject<AllCartsDto>(CartKey) ?? new AllCartsDto();
             allCarts.Carts.TryAdd(req.ProductProvider, new CartDto());
             var nowCart = allCarts.Carts[req.ProductProvider];
@@ -93,6 +94,27 @@ namespace prjSpecialTopicWebAPI.Features.Shared.Controllers
             return NoContent();
         }
 
+        [HttpPatch("delivery")]
+        public IActionResult UpdateDelivery([FromBody] UpdateDeliveryRequest req)
+        {
+            if (req.DeliveryFee < 0)
+                return BadRequest("運費金額錯誤");
+
+            var sid = HttpContext.Session.Id;
+            var allCarts = HttpContext.Session.GetObject<AllCartsDto>(CartKey) ?? new AllCartsDto();
+            if (!allCarts.Carts.ContainsKey(req.ProductProvider))
+                return BadRequest("該購物車並不存在");
+            var nowCart = allCarts.Carts[req.ProductProvider];
+
+            nowCart.DeliveryFee = req.DeliveryFee;
+            nowCart.UpdatedAt = DateTime.UtcNow;
+            allCarts.UpdatedAt = DateTime.UtcNow;
+            Recalculate(allCarts);
+
+            HttpContext.Session.SetObject(CartKey, allCarts);
+            return NoContent();
+        }
+
         [HttpDelete("items/{provider}/{id}")]
         public IActionResult RemoveItemFromCart([FromRoute] ProductProvider provider, [FromRoute] string id)
         {
@@ -118,6 +140,31 @@ namespace prjSpecialTopicWebAPI.Features.Shared.Controllers
             return NoContent();
         }
 
+        // ========== 結帳草稿 ==========
+
+        [HttpGet("checkout-draft")]
+        public IActionResult GetCheckoutDraft()
+        {
+            var checkoutDraft = HttpContext.Session.GetObject<CheckoutDraftDto>(CheckoutKey);
+            if (checkoutDraft == null)
+                return NotFound();
+            return Ok(checkoutDraft);
+        }
+
+        [HttpPut("checkout-draft")]
+        public IActionResult UpsertCheckoutDraft([FromBody] CheckoutDraftDto req)
+        {
+            var checkoutDraft = HttpContext.Session.GetObject<CheckoutDraftDto>(CheckoutKey) ?? new CheckoutDraftDto();
+            checkoutDraft.ProductProvider = req.ProductProvider;
+            checkoutDraft.DeliveryOption = req.DeliveryOption;
+            checkoutDraft.PaymentOption = req.PaymentOption;
+
+            HttpContext.Session.SetObject(CheckoutKey, checkoutDraft);
+            return NoContent();
+        }
+
+        // ========== 私有方法 ==========
+
         /// <summary>
         /// 重新計算 AllCartsDto 中的所有計算欄位
         /// </summary>
@@ -127,7 +174,7 @@ namespace prjSpecialTopicWebAPI.Features.Shared.Controllers
             foreach (var (_, cart) in allCarts.Carts)
             {
                 cart.Subtotal = cart.Items.Sum(i => i.UnitPrice * i.Quantity);
-                cart.GrandTotal = cart.Subtotal - cart.DiscountTotal + cart.ShippingFee;
+                cart.GrandTotal = cart.Subtotal - cart.DiscountTotal + cart.DeliveryFee;
                 allCarts.GrandTotal += cart.GrandTotal;
             }
         }
