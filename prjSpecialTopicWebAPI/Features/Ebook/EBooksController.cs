@@ -594,18 +594,51 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
         }
 
 
+        ///// <summary>
+        ///// 取得所有排行榜的書籍資料
+        ///// </summary>
+        //[HttpGet("rankings")]
+        //[AllowAnonymous] // 這個 API 是公開的，不需要登入
+        //public async Task<IActionResult> GetRankingBooks()
+        //{
+        //    var rankings = await _db.EbookRecommends
+        //        .AsNoTracking()
+        //        .Include(r => r.RecType)  // 載入關聯的 RecommendationType
+        //        .Include(r => r.Ebook)    // 載入關聯的 EBookMain
+        //        .GroupBy(r => r.RecType.TypeName) // 根據 TypeName (例如 "暢銷排行榜") 進行分組
+        //        .Select(group => new
+        //        {
+        //            TypeName = group.Key,
+        //            Books = group.Select(r => new RankingBookDto
+        //            {
+        //                Id = r.Ebook.EbookId,
+        //                Title = r.Ebook.EbookName,
+        //                Author = r.Ebook.Author,
+        //                CoverImage = (r.Ebook.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{r.Ebook.PrimaryCoverPath}",
+        //                Price = (int)(r.Ebook.ActualPrice ?? r.Ebook.FixedPrice)
+        //            }).ToList()
+        //        })
+        //        .ToDictionaryAsync(k => k.TypeName, v => v.Books);
+
+        //    return Ok(rankings);
+        //}
+
         /// <summary>
-        /// 取得所有排行榜的書籍資料
+        /// 取得所有排行榜的書籍資料 (暢銷與熱門為動態產生)
         /// </summary>
         [HttpGet("rankings")]
-        [AllowAnonymous] // 這個 API 是公開的，不需要登入
+        [AllowAnonymous]
         public async Task<IActionResult> GetRankingBooks()
         {
-            var rankings = await _db.EbookRecommends
+            // =========================================================================
+            // 1. 取得靜態的排行榜 (編輯推薦 RecTypeID=3, 新書推薦 RecTypeID=4)
+            // =========================================================================
+            var staticRankings = await _db.EbookRecommends
                 .AsNoTracking()
-                .Include(r => r.RecType)  // 載入關聯的 RecommendationType
-                .Include(r => r.Ebook)    // 載入關聯的 EBookMain
-                .GroupBy(r => r.RecType.TypeName) // 根據 TypeName (例如 "暢銷排行榜") 進行分組
+                .Where(r => r.RecTypeId == 3 || r.RecTypeId == 4) // 只選取編輯推薦和新書推薦
+                .Include(r => r.RecType)
+                .Include(r => r.Ebook)
+                .GroupBy(r => r.RecType.TypeName)
                 .Select(group => new
                 {
                     TypeName = group.Key,
@@ -615,14 +648,56 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                         Title = r.Ebook.EbookName,
                         Author = r.Ebook.Author,
                         CoverImage = (r.Ebook.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{r.Ebook.PrimaryCoverPath}",
-                        Price = (int)(r.Ebook.ActualPrice ?? r.Ebook.FixedPrice)
+                        Price = (int?)(r.Ebook.ActualPrice ?? r.Ebook.FixedPrice)
                     }).ToList()
                 })
                 .ToDictionaryAsync(k => k.TypeName, v => v.Books);
 
-            return Ok(rankings);
-        }
+            // =========================================================================
+            // 2. 動態產生暢銷排行榜 (根據 TotalSales)
+            // =========================================================================
+            var bestsellingBooks = await _db.EBookMains
+                .AsNoTracking()
+                .Where(b => b.IsAvailable)
+                .OrderByDescending(b => b.Totalsales) // 根據總銷量降冪排序
+                .Take(5) // 取前 5 名
+                .Select(b => new RankingBookDto
+                {
+                    Id = b.EbookId,
+                    Title = b.EbookName,
+                    Author = b.Author,
+                    CoverImage = (b.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{b.PrimaryCoverPath}",
+                    Price = (int?)(b.ActualPrice ?? b.FixedPrice)
+                })
+                .ToListAsync();
 
+            // =========================================================================
+            // 3. 動態產生熱門排行榜 (根據 TotalViews)
+            // =========================================================================
+            var hotBooks = await _db.EBookMains
+                .AsNoTracking()
+                .Where(b => b.IsAvailable)
+                .OrderByDescending(b => b.Totalviews) // 根據總觀看數降冪排序
+                .Take(5) // 取前 5 名
+                .Select(b => new RankingBookDto
+                {
+                    Id = b.EbookId,
+                    Title = b.EbookName,
+                    Author = b.Author,
+                    CoverImage = (b.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{b.PrimaryCoverPath}",
+                    Price = (int?)(b.ActualPrice ?? b.FixedPrice)
+                })
+                .ToListAsync();
+
+            // =========================================================================
+            // 4. 將所有結果合併到一個 Dictionary 中
+            // =========================================================================
+            var finalRankings = staticRankings; // 從靜態排行榜開始
+            finalRankings["暢銷排行榜"] = bestsellingBooks; // 加入動態暢銷榜
+            finalRankings["熱門排行榜"] = hotBooks;     // 加入動態熱門榜
+
+            return Ok(finalRankings);
+        }
 
 
 
