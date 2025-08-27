@@ -2,6 +2,9 @@
 using Microsoft.EntityFrameworkCore;
 using prjSpecialTopicWebAPI.Models;
 using prjSpecialTopicWebAPI.Features.Ebook.DTOs;
+using System.Linq;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims; // <-- [新增] 請務必加入這一行！
 
 namespace prjSpecialTopicWebAPI.Features.Ebook
 {
@@ -108,17 +111,30 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
         [HttpGet]
         public async Task<IActionResult> GetEbooksList(
             [FromQuery] string? search,
+            [FromQuery] int? categoryId, // <-- [新增] 在這裡加上 categoryId 參數
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10)
         {
             // 1. 建立基礎查詢
-            var query = _db.EBookMains.AsNoTracking().Where(b => b.IsAvailable);
+            IQueryable<EBookMain> query = _db.EBookMains.AsNoTracking()
+                .Where(b => b.IsAvailable)
+        .Include(b => b.Category) // 載入分類
+        .Include(b => b.Labels); // 載入標籤
+           
 
             // 2. 如果 search 參數有值，就加入名稱或作者的過濾條件
             if (!string.IsNullOrWhiteSpace(search))
             {
                 query = query.Where(b => b.EbookName.Contains(search) || b.Author.Contains(search));
             }
+
+            // --- [新增] 在這裡插入新的 if 區塊 ---
+            // 如果 categoryId 參數有值 (且不為0)，就加入分類的過濾條件
+            if (categoryId.HasValue && categoryId > 0)
+            {
+                query = query.Where(b => b.CategoryId == categoryId.Value);
+            }
+            // --- 新增區塊結束 ---
 
             // 3. 取得符合條件的「總筆數」，這個計算必須在分頁(Skip/Take)之前
             var totalCount = await query.CountAsync();
@@ -138,7 +154,11 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                     // 如果 EBookPosition 不是 null 也不是空字串，就代表這本書有檔案，是可閱讀的
                     IsReadable = !string.IsNullOrEmpty(b.EBookPosition),
                     // [新增] 在此處也加入 ActualPrice
-                    ActualPrice = b.ActualPrice
+                    ActualPrice = b.ActualPrice,
+
+                    // --- [新增] 將 CategoryName 和 Labels 加入到 DTO 中 ---
+                    CategoryName = b.Category.CategoryName, // 從關聯的 Category 物件取得名稱
+                    Labels = b.Labels.Select(l => l.LabelName).ToList() // 將關聯的 Labels 集合轉為字串列表
                 })
                 .Skip((pageNumber - 1) * pageSize) // 跳過前面頁數的資料
                 .Take(pageSize)                   // 抓取目前頁面的資料
@@ -248,16 +268,65 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
         // ... CreateEbook 方法開始前 ...
 
 
+        ///// <summary>(舊版)
+        ///// 取得所有已購買的電子書列表 (目前為演示用，未根據使用者篩選)
+        ///// </summary>
+        //[HttpGet("purchased")] // 這個路由會匹配 GET /api/ebooks/purchased
+        //public async Task<IActionResult> GetPurchasedBooks()
+        //{
+        //    // 根據您的資料庫結構，我們需要從 EbookPurchaseds 出發
+        //    var purchasedBooks = await _db.EbookPurchaseds
+        //        .AsNoTracking()
+        //        .Include(p => p.EBook) // 透過導覽屬性，自動 JOIN EBookMains 資料表
+        //        .Select(p => new PurchasedBookDto
+        //        {
+        //            EbookId = p.EBook.EbookId,
+        //            EbookName = p.EBook.EbookName,
+        //            Author = p.EBook.Author,
+        //            PrimaryCoverPath = (p.EBook.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{p.EBook.PrimaryCoverPath}",
+        //            ReadingProgress = p.ReadingProgress,
+        //            IsReadable = !string.IsNullOrEmpty(p.EBook.EBookPosition)
+        //        })
+        //        .ToListAsync();
+
+        //    // 移除重複的書籍 (因為同本書可能被不同使用者購買)
+        //    // 待未來實作依使用者篩選時，即可移除這段
+        //    var distinctBooks = purchasedBooks
+        //        .GroupBy(b => b.EbookId)
+        //        .Select(g => g.First())
+        //        .ToList();
+
+        //    return Ok(distinctBooks);
+        //}
+
         /// <summary>
-        /// 取得所有已購買的電子書列表 (目前為演示用，未根據使用者篩選)
+        /// 取得當前登入使用者已購買的電子書列表
         /// </summary>
-        [HttpGet("purchased")] // 這個路由會匹配 GET /api/ebooks/purchased
+        [HttpGet("purchased")]
+        [Authorize] // <-- [重點 1] 加入 Authorize 屬性，確保只有登入的使用者才能呼叫此 API
         public async Task<IActionResult> GetPurchasedBooks()
         {
-            // 根據您的資料庫結構，我們需要從 EbookPurchaseds 出發
+            // --- [重點 2] 從 HttpContext 的使用者宣告中，動態取得登入者的 User ID ---
+            // 根據您的 UserController.cs，UID 存放在 ClaimTypes.NameIdentifier (也就是 "sub")
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            // 如果在 Token 中找不到使用者 ID，代表使用者未登入或 Token 無效，回傳 401 未授權
+            if (string.IsNullOrEmpty(userIdString))
+            {
+                return Unauthorized("無法識別使用者身分，請先登入");
+            }
+
+            if (!Guid.TryParse(userIdString, out var userId))
+            {
+                return Unauthorized("無效的使用者身分識別碼");
+            }
+            // --- 使用者 ID 取得結束 ---
+
+            // --- [重點 3] 修改 LINQ 查詢，加入 Where 條件 ---
             var purchasedBooks = await _db.EbookPurchaseds
                 .AsNoTracking()
-                .Include(p => p.EBook) // 透過導覽屬性，自動 JOIN EBookMains 資料表
+                .Where(p => p.Uid == userId) // <-- 只篩選出符合當前登入者 UID 的購買紀錄
+                .Include(p => p.EBook)
                 .Select(p => new PurchasedBookDto
                 {
                     EbookId = p.EBook.EbookId,
@@ -269,14 +338,9 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                 })
                 .ToListAsync();
 
-            // 移除重複的書籍 (因為同本書可能被不同使用者購買)
-            // 待未來實作依使用者篩選時，即可移除這段
-            var distinctBooks = purchasedBooks
-                .GroupBy(b => b.EbookId)
-                .Select(g => g.First())
-                .ToList();
+            // [重點 4] 因為已經針對特定使用者查詢，不再需要 GroupBy 去除重複資料，可以直接回傳結果。
 
-            return Ok(distinctBooks);
+            return Ok(purchasedBooks);
         }
 
         /// <summary>

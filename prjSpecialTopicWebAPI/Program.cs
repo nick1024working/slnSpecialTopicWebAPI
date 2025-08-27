@@ -1,15 +1,17 @@
-using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using OfficeOpenXml;
 using prjSpecialTopicWebAPI.Features.Fund.Services;
+using prjSpecialTopicWebAPI.Features.Shared.Controllers;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.Authentication;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
-using prjSpecialTopicWebAPI.Features.Usedbook.Controllers;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.UnitOfWork;
 using prjSpecialTopicWebAPI.Features.Usedbook.Mapping;
 using prjSpecialTopicWebAPI.Models;
 using prjSpecialTopicWebAPI.Usedbook.Application.Services;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,6 +33,24 @@ builder.Services.AddHttpClient("LinePay", client =>
     client.Timeout = TimeSpan.FromSeconds(20);
 });
 
+// 註冊 DataProtection
+builder.Services.AddDataProtection();
+
+// 註冊記憶體快取 目前用於 session
+builder.Services.AddDistributedMemoryCache();
+// 註冊 Session 目前用於未登錄購物車
+builder.Services.AddSession(opts =>
+{
+    opts.Cookie.Name = ".Session";
+    opts.IdleTimeout = TimeSpan.FromMinutes(30);        // 目前設定 30 分鐘閒置過期
+    opts.Cookie.HttpOnly = true;
+    opts.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    opts.Cookie.SameSite = SameSiteMode.None;
+});
+
+// 註冊單例 Random
+builder.Services.AddSingleton<Random>();
+
 // ========== 各自需要的服務於以下註冊 ==========
 #region
 
@@ -49,13 +69,15 @@ builder.Services.AddScoped<IPlanService, PlanService>();
 
 // Usedbook
 
-// 註冊 Unit Of Work
+// 設定 EPPlus 授權模式
+ExcelPackage.License.SetNonCommercialOrganization("MSIT-TeamA");
+
+
 builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
-
-// 註冊 AutoMapper
 builder.Services.AddAutoMapper(cfg => { cfg.AddProfile<MappingProfile>(); });
+builder.Services.AddScoped<ExcelService>();
+builder.Services.AddSingleton<AuthHelper>();
 
-// NOTE: 須同步註冊在 測試專案 UsedbookSliceTestHost 中的 DI 容器
 // 註冊 ImageService
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ImageService>(sp =>
@@ -73,6 +95,9 @@ builder.Services.AddScoped<CountyRepository>();
 builder.Services.AddScoped<DistrictRepository>();
 builder.Services.AddScoped<LanguageRepository>();
 builder.Services.AddScoped<LookupService>();
+//
+builder.Services.AddScoped<ExternalDomainRepository>();
+builder.Services.AddScoped<ExternalDomainService>();
 // 註冊 分類 + 標籤 Repo & Svc
 builder.Services.AddScoped<BookCategoryRepository>();
 builder.Services.AddScoped<BookSaleTagRepository>();
@@ -81,10 +106,10 @@ builder.Services.AddScoped<BookSaleTagService>();
 // 註冊 書本核心 Repo & Svc
 builder.Services.AddScoped<UsedBookImageRepository>();
 builder.Services.AddScoped<UsedBookRepository>();
-//builder.Services.AddScoped<UsedBookOrderRepository>();
+builder.Services.AddScoped<UsedBookOrderRepository>();
 builder.Services.AddScoped<UsedBookImageService>();
 builder.Services.AddScoped<UsedBookService>();
-//builder.Services.AddScoped<UsedBookOrderService>();
+builder.Services.AddScoped<UsedBookOrderService>();
 
 // 註冊 LinePayController
 builder.Services.AddScoped<LinePayController>();
@@ -138,13 +163,16 @@ app.UseCors();
 // 設定 HTTP 處理管線（Middleware）
 if (app.Environment.IsDevelopment())
 {
-    // 啟用 Swagger
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
 app.UseStaticFiles();
 app.UseHttpsRedirection();
+app.UseSession();
 app.UseAuthentication();
+
+
 app.UseAuthorization();
 app.MapControllers();
 

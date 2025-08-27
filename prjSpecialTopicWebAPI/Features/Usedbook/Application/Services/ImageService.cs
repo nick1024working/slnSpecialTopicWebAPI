@@ -2,6 +2,7 @@
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Errors;
 using prjSpecialTopicWebAPI.Features.Usedbook.Utilities;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Processing;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
@@ -47,7 +48,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                         ? new Size(1080, 0)
                         : new Size(0, 1080)
                 }));
-            await mainImage.SaveAsync(mainPath, ct);
+            await mainImage.SaveAsync(mainPath, new JpegEncoder { Quality = 80 }, ct);
 
             using var thumbImage = sourceImage.Clone(ctx =>
                 ctx.Resize(new ResizeOptions
@@ -55,7 +56,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
                     Mode = ResizeMode.Crop,
                     Size = new Size(200, 300)
                 }));
-            await thumbImage.SaveAsync(thumbPath, ct);
+            await thumbImage.SaveAsync(thumbPath, new JpegEncoder { Quality = 80 }, ct);
 
             var baseUrl = $"{request.Scheme}://{request.Host}";
 

@@ -1,0 +1,54 @@
+﻿using Microsoft.AspNetCore.Mvc;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.Authentication;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.Errors;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
+
+namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
+{
+    [ApiController]
+    [Route("usedbooks")]
+    public class UsedbookAuthController : ControllerBase
+    {
+        private readonly AuthHelper _authHelper;
+        private readonly ExternalDomainService _externalDomainService;
+
+        public UsedbookAuthController(ExternalDomainService externalDomainService, AuthHelper authHelper)
+        {
+            _authHelper = authHelper;
+            _externalDomainService = externalDomainService;
+        }
+
+        [HttpPost("current-seller")]
+        public ActionResult<Guid> SetCurrentSeller([FromBody] Guid userId)
+        {
+            _authHelper.SetSeller(userId, HttpContext);
+            return NoContent();
+        }
+
+        [HttpGet("current-seller")]
+        public ActionResult<Guid> GetCurrentSeller()
+        {
+            var result = _authHelper.GetSeller(HttpContext);
+            if (result == null)
+                return NotFound();
+            return Ok(result);
+        }
+
+        [HttpDelete("current-seller")]
+        public IActionResult ClearCurrentSeller()
+        {
+            _authHelper.ClearSeller(HttpContext);
+            return NoContent();
+        }
+
+        [HttpGet("sellers")]
+        public async Task<ActionResult<Guid>> GetSellers(CancellationToken ct)
+        {
+            var result = await _externalDomainService.GetSellerListAsync(ct);
+            if (!result.IsSuccess)
+                return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
+            return Ok(result);
+        }
+
+    }
+}

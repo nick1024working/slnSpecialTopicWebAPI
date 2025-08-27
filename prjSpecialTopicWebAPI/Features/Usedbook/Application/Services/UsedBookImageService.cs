@@ -340,7 +340,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 
         public string GetThumbUrlWithFallback(StorageProvider storageProvider, string objectKey)
         {
-            if (storageProvider == StorageProvider.Local)
+            if (storageProvider == StorageProvider.Local || String.IsNullOrEmpty(objectKey))
             {
                 var imageUrlRes = _imageService.GetThumbUrlWithFallback(objectKey);
                 if (imageUrlRes.IsSuccess)

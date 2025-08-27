@@ -51,5 +51,9 @@ public partial class User
 
     public virtual ICollection<Subscriber> Subscribers { get; set; } = new List<Subscriber>();
 
+    public virtual ICollection<UsedBookOrder> UsedBookOrderBuyers { get; set; } = new List<UsedBookOrder>();
+
+    public virtual ICollection<UsedBookOrder> UsedBookOrderSellers { get; set; } = new List<UsedBookOrder>();
+
     public virtual ICollection<UsedBook> UsedBooks { get; set; } = new List<UsedBook>();
 }
