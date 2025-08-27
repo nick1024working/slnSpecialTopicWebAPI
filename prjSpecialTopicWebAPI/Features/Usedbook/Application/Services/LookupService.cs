@@ -2,6 +2,7 @@
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Errors;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories;
 using prjSpecialTopicWebAPI.Features.Usedbook.Utilities;
+using prjSpecialTopicWebAPI.Models;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 {
@@ -188,22 +189,35 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             }
         }
 
+        public async Task<Result<Dictionary<(string, string), int>>> GetCountyDistrictNameToDistrictIdAsync(CancellationToken ct = default)
+        {
+            try
+            {
+                var result = await _districtRepository.GetCountyDistrictNameToDistrictIdAsync(ct);
+                return Result<Dictionary<(string, string), int>>.Success(result);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<Dictionary<(string, string), int>>.Map(ex, _logger);
+            }
+        }
+
         /// <summary>
         /// 讀取所有 District，並轉換為 <see cref="IdNameDto"/> 物件列表。
         /// </summary>
         public async Task<Result<IEnumerable<IdNameDto>>> GetDistrictListByCountyIdAsync(int countyId, CancellationToken ct = default)
-    {
-        try
         {
-            var result = await _districtRepository.GetByCountyIdAsync(countyId, ct);
-            var dtoList = result.Select(x => new IdNameDto { Id = x.Id, Name = x.Name }).ToList();
-            return Result<IEnumerable<IdNameDto>>.Success(dtoList);
+            try
+            {
+                var result = await _districtRepository.GetByCountyIdAsync(countyId, ct);
+                var dtoList = result.Select(x => new IdNameDto { Id = x.Id, Name = x.Name }).ToList();
+                return Result<IEnumerable<IdNameDto>>.Success(dtoList);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<IEnumerable<IdNameDto>>.Map(ex, _logger);
+            }
         }
-        catch (Exception ex)
-        {
-            return ExceptionToErrorResultMapper<IEnumerable<IdNameDto>>.Map(ex, _logger);
-        }
-    }
 
         /// <summary>
         /// 讀取所有 Language，並轉換為 <see cref="IdNameDto"/> 物件列表。
@@ -238,6 +252,22 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             catch (Exception ex)
             {
                 return ExceptionToErrorResultMapper<BookConditionRatingDescriptionDto>.Map(ex, _logger);
+            }
+        }
+
+        public async Task<Result<Dictionary<int, List<string>>>> GetCountyDistrictDictionaryAsync(CancellationToken ct = default)
+        {
+            try
+            {
+                var result = await _districtRepository.GetCountyIdDistrictNameAsync(ct);
+                var dtoDict = result
+                    .GroupBy(d => d.Id)
+                    .ToDictionary(g => g.Key, g => g.Select(x => x.Name).ToList());
+                return Result<Dictionary<int, List<string>>>.Success(dtoDict);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<Dictionary<int, List<string>>>.Map(ex, _logger);
             }
         }
     }

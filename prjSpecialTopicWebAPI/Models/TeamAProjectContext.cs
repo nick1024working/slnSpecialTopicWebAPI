@@ -6,10 +6,6 @@ namespace prjSpecialTopicWebAPI.Models;
 
 public partial class TeamAProjectContext : DbContext
 {
-    public TeamAProjectContext()
-    {
-    }
-
     public TeamAProjectContext(DbContextOptions<TeamAProjectContext> options)
         : base(options)
     {
@@ -93,11 +89,9 @@ public partial class TeamAProjectContext : DbContext
 
     public virtual DbSet<UsedBookImage> UsedBookImages { get; set; }
 
-    public virtual DbSet<User> Users { get; set; }
+    public virtual DbSet<UsedBookOrder> UsedBookOrders { get; set; }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseSqlServer("Data Source=.;Initial Catalog=TeamA_Project;Integrated Security=True;Trust Server Certificate=True");
+    public virtual DbSet<User> Users { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -935,6 +929,35 @@ public partial class TeamAProjectContext : DbContext
             entity.HasOne(d => d.Book).WithMany(p => p.UsedBookImages)
                 .HasForeignKey(d => d.BookId)
                 .HasConstraintName("FK__UsedBookI__BookI__3BCADD1B");
+        });
+
+        modelBuilder.Entity<UsedBookOrder>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__UsedBook__3214EC07DAB63A34");
+
+            entity.HasIndex(e => e.OrderNo, "UQ_UsedBookOrders_OrderNo").IsUnique();
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
+            entity.Property(e => e.OrderNo)
+                .HasMaxLength(20)
+                .IsFixedLength();
+            entity.Property(e => e.SalePrice).HasColumnType("decimal(10, 2)");
+            entity.Property(e => e.Title).HasMaxLength(50);
+
+            entity.HasOne(d => d.Book).WithMany(p => p.UsedBookOrders)
+                .HasForeignKey(d => d.BookId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_UsedBookOrders_BookId");
+
+            entity.HasOne(d => d.Buyer).WithMany(p => p.UsedBookOrderBuyers)
+                .HasForeignKey(d => d.BuyerId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_UsedBookOrders_BuyerId");
+
+            entity.HasOne(d => d.Seller).WithMany(p => p.UsedBookOrderSellers)
+                .HasForeignKey(d => d.SellerId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_UsedBookOrders_SellerId");
         });
 
         modelBuilder.Entity<User>(entity =>

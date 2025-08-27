@@ -5,6 +5,7 @@ using prjSpecialTopicWebAPI.Features.Fund.Services;
 using prjSpecialTopicWebAPI.Models;
 using System.Security.Cryptography;
 
+
 namespace prjSpecialTopicWebAPI.Features.Fund.Controllers
 {
     [ApiController]
@@ -16,17 +17,20 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Controllers
         private readonly TeamAProjectContext _db;
         private readonly IWebHostEnvironment _env;
         private readonly IfundImageService _imageSvc;
+        private readonly ILogger<FundProjectsController> _logger;  
 
         public FundProjectsController(
-            IProjectService svc,
-            TeamAProjectContext db,
-            IWebHostEnvironment env,
-            IfundImageService imageSvc)
+        IProjectService svc,
+        TeamAProjectContext db,
+        IWebHostEnvironment env,
+        IfundImageService imageSvc,
+        ILogger<FundProjectsController> logger)                 // ✅ 注入 logger
         {
             _svc = svc;
             _db = db;
             _env = env;
             _imageSvc = imageSvc;
+            _logger = logger;                                       // ✅ 指派
         }
 
         [HttpGet]
@@ -46,11 +50,46 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<ProjectDetailDto>> Create([FromBody] ProjectCreateDto dto)
+        public async Task<ActionResult<object>> Create([FromBody] ProjectCreateDto dto)
         {
-            var created = await _svc.CreateAsync(dto);
-            return CreatedAtAction(nameof(GetById), new { id = created.DonateProjectId }, created);
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
+            try
+            {
+                // 外鍵與商規檢查
+                var userExists = await _db.Users
+                    .AsNoTracking()
+                    .AnyAsync(u => u.Uid == dto.UID);
+                if (!userExists) return BadRequest(new { message = "Invalid UID" });
+
+                var catExists = await _db.DonateCategories
+                    .AsNoTracking()
+                    .AnyAsync(c => c.DonateCategoriesId == dto.DonateCategoriesId);
+                if (!catExists) return BadRequest(new { message = "Invalid DonateCategoriesId" });
+
+                if (dto.EndDate < dto.StartDate)
+                    return BadRequest(new { message = "EndDate must be after StartDate" });
+
+                // 建立資料
+                var created = await _svc.CreateAsync(dto);
+
+                // 只回「新 id」就好，避免序列化整顆實體造成循環參照
+                var id = created.DonateProjectId;
+
+                // 兩種回應擇一：
+                // 1) 標準 201，Location 指到查詢單筆的 API
+                return CreatedAtAction(nameof(GetById), new { id }, new { donateProjectId = id });
+
+                // 2) 或者單純 200 OK 也可以
+                // return Ok(new { donateProjectId = id });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Create project failed. DTO: {@dto}", dto);
+                return Problem("Create project failed", statusCode: 500);
+            }
         }
+
 
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] ProjectUpdateDto dto)

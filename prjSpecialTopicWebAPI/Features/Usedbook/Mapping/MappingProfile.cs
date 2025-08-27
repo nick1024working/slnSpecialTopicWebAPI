@@ -30,5 +30,8 @@ public class MappingProfile : Profile
         // BookSaleTag 轉換
         CreateMap<CreateSaleTagRequest, BookSaleTag>();
         CreateMap<BookSaleTagQueryResult, BookSaleTagDto>();
+
+        // UserBookOrder 轉換
+        CreateMap<CreateOrderRequest, UsedBook>();
     }
 }
