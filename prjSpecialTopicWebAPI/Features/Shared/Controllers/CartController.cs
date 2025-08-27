@@ -17,9 +17,21 @@ namespace prjSpecialTopicWebAPI.Features.Shared.Controllers
         [HttpGet]
         public ActionResult<AllCartsDto> GetCart()
         {
+            var sid = HttpContext.Session.Id;
             var allCarts = HttpContext.Session.GetObject<AllCartsDto>(CartKey) ?? new AllCartsDto();
 
             return Ok(allCarts);
+        }
+
+        [HttpGet("items/{provider}")]
+        public ActionResult<CartDto> GetCartByProvider([FromRoute] ProductProvider provider)
+        {
+            var allCarts = HttpContext.Session.GetObject<AllCartsDto>(CartKey) ?? new AllCartsDto();
+            if (!allCarts.Carts.ContainsKey(provider))
+                return NoContent();
+            var nowCart = allCarts.Carts[provider];
+
+            return Ok(nowCart);
         }
 
         [HttpPut]
@@ -35,6 +47,7 @@ namespace prjSpecialTopicWebAPI.Features.Shared.Controllers
         [HttpPatch("items")]
         public IActionResult UpsertItem([FromBody] UpsertCartItemRequest req)
         {
+            var sid = HttpContext.Session.Id;
             var allCarts = HttpContext.Session.GetObject<AllCartsDto>(CartKey) ?? new AllCartsDto();
             allCarts.Carts.TryAdd(req.ProductProvider, new CartDto());
             var nowCart = allCarts.Carts[req.ProductProvider];

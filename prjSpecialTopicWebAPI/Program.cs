@@ -54,8 +54,8 @@ builder.Services.AddSession(opts =>
     opts.Cookie.Name = ".Session";
     opts.IdleTimeout = TimeSpan.FromMinutes(30);        // 目前設定 30 分鐘閒置過期
     opts.Cookie.HttpOnly = true;
-    opts.Cookie.SecurePolicy = CookieSecurePolicy.Always;
     opts.Cookie.SameSite = SameSiteMode.None;
+    opts.Cookie.SecurePolicy = CookieSecurePolicy.Always;
 });
 
 // 註冊單例 Random
@@ -161,7 +161,9 @@ builder.Services.AddCors(options =>
         // 允許 Angular 前端
         policy.WithOrigins("http://localhost:4200")
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
+
     });
 });
 
@@ -181,8 +183,6 @@ app.UseStaticFiles();
 app.UseHttpsRedirection();
 app.UseSession();
 app.UseAuthentication();
-
-
 app.UseAuthorization();
 app.MapControllers();
 
