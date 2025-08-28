@@ -1,6 +1,10 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using System.IdentityModel.Tokens.Jwt;
+
+
 using OfficeOpenXml;
 using prjSpecialTopicWebAPI.Features.Fund.Services;
 using prjSpecialTopicWebAPI.Features.Shared.Controllers;
@@ -116,21 +120,61 @@ builder.Services.AddScoped<LinePayController>();
 
 // User
 // ===== JWT 驗證設定（新增） =====
-var jwtKey = builder.Configuration["Jwt:Key"] ?? "PLEASE_REPLACE_WITH_A_LONG_RANDOM_SECRET"; //  開發用可先寫固定字串
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey))
+    throw new InvalidOperationException("Missing Jwt:Key in configuration.");
 var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
 
+//測試用
 builder.Services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme) //  啟用 JWT
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = false,   // Demo 先關
-            ValidateAudience = false,
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = signingKey
-        };
-    });
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+  .AddJwtBearer(options =>
+  {
+      options.MapInboundClaims = false;   //  關掉自動映射，保留 'sub'、'name' 等原名
+
+      options.TokenValidationParameters = new TokenValidationParameters
+      {
+          ValidateIssuer = false,
+          ValidateAudience = false,
+          ValidateIssuerSigningKey = true,
+          IssuerSigningKey = signingKey,
+          ValidateLifetime = true,
+          ClockSkew = TimeSpan.Zero
+      };
+
+      options.Events = new JwtBearerEvents
+      {
+          OnMessageReceived = ctx =>
+          {
+              var auth = ctx.Request.Headers.Authorization.ToString();
+              if (!string.IsNullOrWhiteSpace(auth) &&
+                  auth.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+              {
+                  var bearer = auth.Substring("Bearer ".Length).Trim();
+                  if (!string.IsNullOrEmpty(bearer)) { ctx.Token = bearer; return Task.CompletedTask; }
+              }
+              if (ctx.Request.Cookies.TryGetValue("auth_token", out var token) && !string.IsNullOrWhiteSpace(token))
+              {
+                  ctx.Token = token;
+              }
+              return Task.CompletedTask;
+          },
+          OnAuthenticationFailed = ctx =>
+          {
+              ctx.Response.Headers["x-auth-error"] = ctx.Exception.GetType().Name + ": " + ctx.Exception.Message;
+              return Task.CompletedTask;
+          },
+          OnTokenValidated = ctx =>
+          {
+              // 關映射後就能直接拿到 'sub'
+              var sub = ctx.Principal?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+              ctx.Response.Headers["x-auth-ok-sub"] = sub ?? "(null)";
+              return Task.CompletedTask;
+          }
+      };
+  });
+
+
 // ===== JWT 區結束 =====
 
 
@@ -141,24 +185,61 @@ builder.Services.AddControllers();
 
 // 註冊 Swagger 服務
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "TeamAProject API",
+        Version = "v1"
+    });
+
+    // 定義 JWT Bearer 安全性方案右上角出現 Authorize
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "貼上 JWT（不用輸入 'Bearer ' 前綴）。"
+    });
+
+    // 讓所有 API 預設套用上面的安全性需求（可依需要調整）
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 // 註冊 CORS 服務與策略
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policy =>
+    options.AddPolicy("AllowLocalAngular", policy =>
     {
-        // 允許 Angular 前端
-        policy.WithOrigins("http://localhost:4200")
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+        policy.WithOrigins(
+                "http://localhost:4200",
+                "https://localhost:4200" // 可以用 https 跑 ng serve
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();       // 允許帶 Cookie 的跨站請求
     });
 });
 
 var app = builder.Build();
 
-// 啟用 CORS
-app.UseCors();
+
+
 
 // 設定 HTTP 處理管線（Middleware）
 if (app.Environment.IsDevelopment())
@@ -169,11 +250,14 @@ if (app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 app.UseHttpsRedirection();
+// 啟用 CORS
+app.UseCors("AllowLocalAngular");
+
 app.UseSession();
+
+
 app.UseAuthentication();
-
-
 app.UseAuthorization();
-app.MapControllers();
 
+app.MapControllers();
 app.Run();
