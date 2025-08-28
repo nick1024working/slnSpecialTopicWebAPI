@@ -12,7 +12,19 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Authentication
         }
 
         public void SetSeller(Guid userId, HttpContext ctx)
-            => ctx.Response.Cookies.Append(".UserId", _protector.Protect(userId.ToString()));
+        {
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Path = "/",
+                Expires = DateTimeOffset.UtcNow.AddDays(30) 
+            };
+
+            var value = _protector.Protect(userId.ToString());
+            ctx.Response.Cookies.Append(".UserId", value, cookieOptions);
+        }
 
         public Guid? GetSeller(HttpContext ctx)
         {
@@ -30,6 +42,15 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Authentication
         }
 
         public void ClearSeller(HttpContext ctx)
-            => ctx.Response.Cookies.Delete(".UserId");
+        {
+            var cookieOptions = new CookieOptions
+            {
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Path = "/"
+            };
+
+            ctx.Response.Cookies.Delete(".UserId", cookieOptions);
+        }
     }
 }

@@ -14,6 +14,19 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             _db = db;
         }
 
+        public async Task<DistrictQueryResult?> GetAsync(int id, CancellationToken ct = default)
+        {
+            return await _db.Districts
+                .AsNoTracking()
+                .Where(x => x.Id == id)
+                .Select(x => new DistrictQueryResult
+                {
+                    Id = x.Id,
+                    Name = x.Name,
+                })
+                .FirstOrDefaultAsync(ct);
+        }
+
         public async Task<IReadOnlyList<DistrictQueryResult>> GetByCountyIdAsync(int countyId, CancellationToken ct = default)
         {
             return await _db.Districts

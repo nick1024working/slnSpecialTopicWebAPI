@@ -35,7 +35,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
         public async Task<UsedBook?> GetEntityByIdWithCountyIdAsync(Guid id, CancellationToken ct = default) =>
             await _db.UsedBooks.Include(b => b.SellerDistrict).SingleOrDefaultAsync(b => b.Id == id, ct);
 
-
         /// <summary>
         /// 直接返回書本實體。
         /// </summary>
@@ -311,6 +310,9 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
 
             return result;
         }
+
+        public async Task<Guid?> GetSellerIdByBookId(Guid bookId, CancellationToken ct = default)
+            => await _db.UsedBooks.Where(b => b.Id == bookId).Select(b => b.SellerId).FirstOrDefaultAsync(ct);
 
         // ========== 促銷標籤相關 ==========
 

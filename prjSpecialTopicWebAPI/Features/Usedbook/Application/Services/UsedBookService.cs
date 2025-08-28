@@ -184,7 +184,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 
         // ========== 更改狀態 ==========
 
-        public async Task<Result<Unit>> UpdateOnShelfStatusAsync(Guid id, UpdateStatusRequest request, CancellationToken ct = default)
+        public async Task<Result<Unit>> UpdateOnShelfStatusAsync(Guid id, UpdateBooleanStatusRequest request, CancellationToken ct = default)
         {
             try
             {
@@ -200,7 +200,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             }
         }
 
-        public async Task<Result<Unit>> UpdateActiveStatusAsync(Guid id, UpdateStatusRequest request, CancellationToken ct = default)
+        public async Task<Result<Unit>> UpdateActiveStatusAsync(Guid id, UpdateBooleanStatusRequest request, CancellationToken ct = default)
         {
             try
             {
@@ -216,7 +216,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             }
         }
 
-        public async Task<Result<Unit>> UpdateSoldStatusAsync(Guid id, UpdateStatusRequest request, CancellationToken ct = default)
+        public async Task<Result<Unit>> UpdateSoldStatusAsync(Guid id, UpdateBooleanStatusRequest request, CancellationToken ct = default)
         {
             try
             {

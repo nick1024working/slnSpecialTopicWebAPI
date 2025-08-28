@@ -52,7 +52,7 @@ builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(opts =>
 {
     opts.Cookie.Name = ".Session";
-    opts.IdleTimeout = TimeSpan.FromMinutes(30);        // 目前設定 30 分鐘閒置過期
+    opts.IdleTimeout = TimeSpan.FromMinutes(30);
     opts.Cookie.HttpOnly = true;
     opts.Cookie.SameSite = SameSiteMode.None;
     opts.Cookie.SecurePolicy = CookieSecurePolicy.Always;

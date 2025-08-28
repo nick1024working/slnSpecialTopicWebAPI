@@ -20,6 +20,7 @@ namespace prjSpecialTopicWebAPI.Features.Shared.Controllers
         [HttpGet]
         public ActionResult<AllCartsDto> GetCart()
         {
+            var sessionId = HttpContext.Session.Id;
             var allCarts = HttpContext.Session.GetObject<AllCartsDto>(CartKey) ?? new AllCartsDto();
 
             return Ok(allCarts);
@@ -49,6 +50,7 @@ namespace prjSpecialTopicWebAPI.Features.Shared.Controllers
         [HttpPatch("items")]
         public IActionResult UpsertItem([FromBody] UpsertCartItemRequest req)
         {
+            var sessionId = HttpContext.Session.Id;
             var allCarts = HttpContext.Session.GetObject<AllCartsDto>(CartKey) ?? new AllCartsDto();
             allCarts.Carts.TryAdd(req.ProductProvider, new CartDto());
             var nowCart = allCarts.Carts[req.ProductProvider];
@@ -158,6 +160,18 @@ namespace prjSpecialTopicWebAPI.Features.Shared.Controllers
             checkoutDraft.ProductProvider = req.ProductProvider;
             checkoutDraft.DeliveryOption = req.DeliveryOption;
             checkoutDraft.PaymentOption = req.PaymentOption;
+
+            checkoutDraft.BuyerName = req.BuyerName;
+            checkoutDraft.BuyerEmail = req.BuyerEmail;
+            checkoutDraft.BuyerPhone = req.BuyerPhone;
+
+            checkoutDraft.ReceiverName = req.ReceiverName;
+            checkoutDraft.ReceiverPhone = req.ReceiverPhone;
+
+            checkoutDraft.CountyId = req.CountyId;
+            checkoutDraft.DistrictId = req.DistrictId;
+            checkoutDraft.Address = req.Address;
+
 
             HttpContext.Session.SetObject(CheckoutKey, checkoutDraft);
             return NoContent();

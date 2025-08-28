@@ -27,7 +27,6 @@
     <Folder Include="Features\Forum\" />
     <Folder Include="Features\Usedbook\_tmp\" />
     <Folder Include="Features\User\" />
-    <Folder Include="Features\Usedbook\" />
     <Folder Include="wwwroot\NewFolder\" />
     <Folder Include="wwwroot\FundImages\" />
   </ItemGroup>

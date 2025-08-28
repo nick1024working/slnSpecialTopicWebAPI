@@ -1,46 +1,78 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.Authentication;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Errors;
 using prjSpecialTopicWebAPI.Usedbook.Application.Services;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
 {
     [ApiController]
-    [Route("api/usedbooks/orders")]
+    [Route("api/usedbooks")]
     public class UsedBookOrderController : ControllerBase
     {
+        private readonly AuthHelper _authHelper;
         private readonly UsedBookOrderService _orderService;
 
         public UsedBookOrderController(
+            AuthHelper authHelper,
             UsedBookOrderService orderService)
         {
+            _authHelper = authHelper;
             _orderService = orderService;
         }
 
         // ========== 新增、更新、刪除 ==========
 
-        [HttpPost]
-        public async Task<ActionResult<Guid>> CreateOrder([FromForm] CreateOrderRequest request, CancellationToken ct)
+        [HttpPost("orders")]
+        public async Task<ActionResult<string>> CreateOrder([FromBody] CreateOrderRequest request, CancellationToken ct)
         {
-            var result = await _orderService.CreateAsync(request, ct);
+            // HACK: 驗證政策尚未完成，若 Cookie 無 userId 則使用固定值
+            Guid userId = _authHelper.GetSeller(HttpContext) ?? Guid.Parse("EBB03874-054F-4FEA-9AE8-02B8D05C4BB3");
+
+            var result = await _orderService.CreateAsync(userId, request, ct);
+            if (!result.IsSuccess)
+                return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
+            return Ok(result.Value);
+        }
+
+        // ========== 更改狀態 ==========
+
+        [HttpPatch("orders/{orderNo}")]
+        public async Task<IActionResult> UpdateOrderStatus(
+            [FromRoute] string orderNo, [FromBody] UpdateOrderStatusRequest req, CancellationToken ct)
+        {
+            var result = await _orderService.UpdateOrderStatusAsync(orderNo, req, ct);
             if (!result.IsSuccess)
                 return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
             return NoContent();
         }
 
-        // ========== 更改狀態 ==========
-
-        //[HttpPut("{orderNo}")]
-        //public async Task<IActionResult> UpdateOrderStatus(
-        //    [FromRoute] string orderNo, [FromBody] UpdateStatusRequest status, CancellationToken ct)
-        //{
-        //    var result = await _bookService.UpdateOrderStatusAsync(orderNo, status, ct);
-        //    if (!result.IsSuccess)
-        //        return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
-        //    return NoContent();
-        //}
-
-
         // ========== 查詢 ==========
+
+        [HttpGet("sellers/orders")]
+        public async Task<ActionResult<IReadOnlyList<UserOrderListItemDto>>> GetSellerOrderList(CancellationToken ct)
+        {
+            // HACK: 驗證政策尚未完成，若 Cookie 無 userId 則使用固定值
+            Guid userId = _authHelper.GetSeller(HttpContext) ?? Guid.Parse("EBB03874-054F-4FEA-9AE8-02B8D05C4BB3");
+
+            var result = await _orderService.GetSellerOrderListAsync(userId, ct);
+            if (!result.IsSuccess)
+                return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
+            return Ok(result.Value);
+        }
+
+        [HttpGet("buyers/orders")]
+        public async Task<ActionResult<IReadOnlyList<UserOrderListItemDto>>> GetBuyerOrderList(CancellationToken ct)
+        {
+            // HACK: 驗證政策尚未完成，若 Cookie 無 userId 則使用固定值
+            Guid userId = _authHelper.GetSeller(HttpContext) ?? Guid.Parse("EBB03874-054F-4FEA-9AE8-02B8D05C4BB3");
+
+            var result = await _orderService.GetBuyerOrderListAsync(userId, ct);
+            if (!result.IsSuccess)
+                return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
+            return Ok(result.Value);
+        }
+
     }
 }

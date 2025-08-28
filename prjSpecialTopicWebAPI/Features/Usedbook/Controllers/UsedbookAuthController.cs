@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Authentication;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Errors;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
 
@@ -19,16 +20,16 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         }
 
         [HttpPut("current-seller")]
-        public async Task<ActionResult<Guid>> SetCurrentSeller([FromBody] Guid userId, CancellationToken ct)
+        public async Task<IActionResult> SetCurrentSeller([FromBody] SetCurrentSellerRequest req, CancellationToken ct)
         {
             var queryResult = await _externalDomainService.GetSellerListAsync(ct);
             if (!queryResult.IsSuccess)
                 return ErrorCodeToHttpResponseMapper.Map(queryResult.ErrorCode);
 
-            if (!queryResult.Value.Contains(userId))
+            if (!queryResult.Value.Contains(req.Id))
                 return BadRequest();
 
-            _authHelper.SetSeller(userId, HttpContext);
+            _authHelper.SetSeller(req.Id, HttpContext);
             return NoContent();
         }
 
@@ -54,7 +55,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             var result = await _externalDomainService.GetSellerListAsync(ct);
             if (!result.IsSuccess)
                 return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
-            return Ok(result);
+            return Ok(result.Value);
         }
 
     }
