@@ -629,6 +629,82 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
         /// <summary>
         /// 取得所有排行榜的書籍資料 (暢銷與熱門為動態產生)
         /// </summary>
+        //[HttpGet("rankings")]
+        //[AllowAnonymous]
+        //public async Task<IActionResult> GetRankingBooks()
+        //{
+        //    // =========================================================================
+        //    // 1. 取得靜態的排行榜 (編輯推薦 RecTypeID=3, 新書推薦 RecTypeID=4)
+        //    // =========================================================================
+        //    var staticRankings = await _db.EbookRecommends
+        //        .AsNoTracking()
+        //        .Where(r => r.RecTypeId == 3 || r.RecTypeId == 4) // 只選取編輯推薦和新書推薦
+        //        .Include(r => r.RecType)
+        //        .Include(r => r.Ebook)
+        //        .GroupBy(r => r.RecType.TypeName)
+        //        .Select(group => new
+        //        {
+        //            TypeName = group.Key,
+        //            Books = group.Select(r => new RankingBookDto
+        //            {
+        //                Id = r.Ebook.EbookId,
+        //                Title = r.Ebook.EbookName,
+        //                Author = r.Ebook.Author,
+        //                CoverImage = (r.Ebook.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{r.Ebook.PrimaryCoverPath}",
+        //                Price = (int?)(r.Ebook.ActualPrice ?? r.Ebook.FixedPrice)
+        //            }).ToList()
+        //        })
+        //        .ToDictionaryAsync(k => k.TypeName, v => v.Books);
+
+        //    // =========================================================================
+        //    // 2. 動態產生暢銷排行榜 (根據 TotalSales)
+        //    // =========================================================================
+        //    var bestsellingBooks = await _db.EBookMains
+        //        .AsNoTracking()
+        //        .Where(b => b.IsAvailable)
+        //        .OrderByDescending(b => b.Totalsales) // 根據總銷量降冪排序
+        //        .Take(5) // 取前 5 名
+        //        .Select(b => new RankingBookDto
+        //        {
+        //            Id = b.EbookId,
+        //            Title = b.EbookName,
+        //            Author = b.Author,
+        //            CoverImage = (b.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{b.PrimaryCoverPath}",
+        //            Price = (int?)(b.ActualPrice ?? b.FixedPrice)
+        //        })
+        //        .ToListAsync();
+
+        //    // =========================================================================
+        //    // 3. 動態產生熱門排行榜 (根據 TotalViews)
+        //    // =========================================================================
+        //    var hotBooks = await _db.EBookMains
+        //        .AsNoTracking()
+        //        .Where(b => b.IsAvailable)
+        //        .OrderByDescending(b => b.Totalviews) // 根據總觀看數降冪排序
+        //        .Take(5) // 取前 5 名
+        //        .Select(b => new RankingBookDto
+        //        {
+        //            Id = b.EbookId,
+        //            Title = b.EbookName,
+        //            Author = b.Author,
+        //            CoverImage = (b.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{b.PrimaryCoverPath}",
+        //            Price = (int?)(b.ActualPrice ?? b.FixedPrice)
+        //        })
+        //        .ToListAsync();
+
+        //    // =========================================================================
+        //    // 4. 將所有結果合併到一個 Dictionary 中
+        //    // =========================================================================
+        //    var finalRankings = staticRankings; // 從靜態排行榜開始
+        //    finalRankings["暢銷排行榜"] = bestsellingBooks; // 加入動態暢銷榜
+        //    finalRankings["熱門排行榜"] = hotBooks;     // 加入動態熱門榜
+
+        //    return Ok(finalRankings);
+        //}
+
+        /// <summary>
+        /// 取得所有排行榜的書籍資料 (暢銷與優惠為動態產生)
+        /// </summary>
         [HttpGet("rankings")]
         [AllowAnonymous]
         public async Task<IActionResult> GetRankingBooks()
@@ -638,7 +714,7 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
             // =========================================================================
             var staticRankings = await _db.EbookRecommends
                 .AsNoTracking()
-                .Where(r => r.RecTypeId == 3 || r.RecTypeId == 4) // 只選取編輯推薦和新書推薦
+                .Where(r => r.RecTypeId == 3 || r.RecTypeId == 4)
                 .Include(r => r.RecType)
                 .Include(r => r.Ebook)
                 .GroupBy(r => r.RecType.TypeName)
@@ -650,8 +726,9 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                         Id = r.Ebook.EbookId,
                         Title = r.Ebook.EbookName,
                         Author = r.Ebook.Author,
-                        CoverImage = (r.Ebook.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{r.Ebook.PrimaryCoverPath}",
-                        Price = (int?)(r.Ebook.ActualPrice ?? r.Ebook.FixedPrice)
+                        CoverImage = (r.Ebook.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{r.Ebook.PrimaryCoverPath.TrimStart('/')}",
+                        Price = (int?)(r.Ebook.ActualPrice ?? r.Ebook.FixedPrice),
+                        FixedPrice = (int?)r.Ebook.FixedPrice // <-- [修改] 這裡也要回傳 FixedPrice
                     }).ToList()
                 })
                 .ToDictionaryAsync(k => k.TypeName, v => v.Books);
@@ -662,42 +739,47 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
             var bestsellingBooks = await _db.EBookMains
                 .AsNoTracking()
                 .Where(b => b.IsAvailable)
-                .OrderByDescending(b => b.Totalsales) // 根據總銷量降冪排序
-                .Take(5) // 取前 5 名
+                .OrderByDescending(b => b.Totalsales)
+                .Take(5)
                 .Select(b => new RankingBookDto
                 {
                     Id = b.EbookId,
                     Title = b.EbookName,
                     Author = b.Author,
-                    CoverImage = (b.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{b.PrimaryCoverPath}",
-                    Price = (int?)(b.ActualPrice ?? b.FixedPrice)
+                    CoverImage = (b.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{b.PrimaryCoverPath.TrimStart('/')}",
+                    Price = (int?)(b.ActualPrice ?? b.FixedPrice),
+                    //    並不需要透過 b.Ebook.FixedPrice
+                    FixedPrice = (int?)b.FixedPrice // <-- 正確的寫法
                 })
                 .ToListAsync();
 
             // =========================================================================
-            // 3. 動態產生熱門排行榜 (根據 TotalViews)
+            // 3. [修改] 動態產生超值優惠榜 (根據折扣幅度)
             // =========================================================================
-            var hotBooks = await _db.EBookMains
+            var specialOfferBooks = await _db.EBookMains
                 .AsNoTracking()
-                .Where(b => b.IsAvailable)
-                .OrderByDescending(b => b.Totalviews) // 根據總觀看數降冪排序
-                .Take(5) // 取前 5 名
+                // 篩選條件：必須上架、有實際售價、售價小於定價、且定價大於 0 (避免除以零)
+                .Where(b => b.IsAvailable && b.ActualPrice.HasValue && b.ActualPrice < b.FixedPrice && b.FixedPrice > 0)
+                // 排序條件：折扣幅度由大到小排序。 (定價-售價)/定價 越大，代表折扣越多
+                .OrderByDescending(b => (b.FixedPrice - b.ActualPrice) / b.FixedPrice)
+                .Take(5) // 取折扣最多的前 5 名
                 .Select(b => new RankingBookDto
                 {
                     Id = b.EbookId,
                     Title = b.EbookName,
                     Author = b.Author,
-                    CoverImage = (b.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{b.PrimaryCoverPath}",
-                    Price = (int?)(b.ActualPrice ?? b.FixedPrice)
+                    CoverImage = (b.PrimaryCoverPath == null) ? null : $"{Request.Scheme}://{Request.Host}/{b.PrimaryCoverPath.TrimStart('/')}",
+                    Price = (int?)(b.ActualPrice ?? b.FixedPrice),
+                    FixedPrice = (int?)b.FixedPrice // <-- [修改] 回傳 FixedPric
                 })
                 .ToListAsync();
 
             // =========================================================================
             // 4. 將所有結果合併到一個 Dictionary 中
             // =========================================================================
-            var finalRankings = staticRankings; // 從靜態排行榜開始
-            finalRankings["暢銷排行榜"] = bestsellingBooks; // 加入動態暢銷榜
-            finalRankings["熱門排行榜"] = hotBooks;     // 加入動態熱門榜
+            var finalRankings = staticRankings;
+            finalRankings["暢銷排行榜"] = bestsellingBooks;
+            finalRankings["超值優惠榜"] = specialOfferBooks; // <-- [修改] 使用新的 Key 和資料
 
             return Ok(finalRankings);
         }
