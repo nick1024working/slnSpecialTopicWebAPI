@@ -4,7 +4,8 @@ using prjSpecialTopicWebAPI.Models;
 using prjSpecialTopicWebAPI.Features.Ebook.DTOs;
 using System.Linq;
 using Microsoft.AspNetCore.Authorization;
-using System.Security.Claims; // <-- [新增] 請務必加入這一行！
+using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt; // <-- [新增] 請務必加入這一行！
 
 namespace prjSpecialTopicWebAPI.Features.Ebook
 {
@@ -567,7 +568,9 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
         [Authorize]
         public async Task<IActionResult> GetReadingProgress(long ebookId)
         {
-            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            // var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userIdString = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+            
             if (string.IsNullOrEmpty(userIdString))
             {
                 return Unauthorized("無法識別使用者身分");
