@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using prjSpecialTopicWebAPI.Features.Ebook.DTOs;
 using prjSpecialTopicWebAPI.Models;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
 namespace prjSpecialTopicWebAPI.Features.Ebook
@@ -24,7 +25,9 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
         [HttpGet]
         public async Task<ActionResult<IEnumerable<OrderHistoryDto>>> GetMyOrders()
         {
-            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            //var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            // [修改] 改用 JwtRegisteredClaimNames.Sub
+            var userIdString = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
             if (!Guid.TryParse(userIdString, out Guid userId))
             {
                 return Unauthorized("無效的使用者 ID 格式。");
