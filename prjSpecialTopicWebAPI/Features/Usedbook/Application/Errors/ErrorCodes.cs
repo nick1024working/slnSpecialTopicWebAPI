@@ -25,6 +25,17 @@
             public const string InvalidValue = "Validation.InvalidValuie";
         }
 
+        /// <summary>z付款錯誤</summary>
+        public static class Payment
+        {
+            public const string Unexpected = "Payment.Unexpected"; 
+            public const string PaymentTimeout = "Payment.Timeout";                 // 付款逾時（第三方支付未回應）
+            public const string DuplicatePayment = "Payment.Duplicate";             // 重複付款
+            public const string Cancelled = "Payment.Cancelled";                    // 使用者或系統取消
+            public const string GatewayError = "Payment.GatewayError";              // 第三方金流服務錯誤
+            public const string FraudDetected = "Payment.FraudDetected";            // 風險偵測 / 疑似詐欺
+        }
+
         /// <summary>一般錯誤（系統邏輯、找不到資源等）</summary>
         public static class General
         {

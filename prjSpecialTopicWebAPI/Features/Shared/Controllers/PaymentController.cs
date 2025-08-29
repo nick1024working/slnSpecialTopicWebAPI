@@ -26,7 +26,7 @@ namespace prjSpecialTopicWebAPI.Features.Shared.Controllers
 
         // TODO: 轉由 BLL　呼叫　LinePay
         [HttpGet("payments/requests/{transactionId}/check")]
-        public async Task<ActionResult<LinePayRequestResponseDto>> ConfirmPayment([FromRoute] string transactionId, CancellationToken ct)
+        public async Task<ActionResult<LinePayRequestResponseDto>> CheckPayment([FromRoute] string transactionId, CancellationToken ct)
         {
             var result = await _paymentService.CheckLinePayPaymentAsync(transactionId, ct);
 

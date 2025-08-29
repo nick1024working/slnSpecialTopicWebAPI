@@ -1,4 +1,6 @@
 ﻿using AutoMapper;
+using prjSpecialTopicWebAPI.Features.Shared.DTOs;
+using prjSpecialTopicWebAPI.Features.Shared.Service;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Errors;
@@ -15,7 +17,9 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly UsedBookOrderRepository _bookOrderRepository;
         private readonly UsedBookRepository _bookRepository;
+        private readonly LinePayService _linePayService;
         private readonly Random _random;
+        private readonly IConfiguration _cfg;
         private readonly IMapper _mapper;
         private readonly ILogger<UsedBookOrderService> _logger;
 
@@ -23,13 +27,17 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
             IUnitOfWork unitOfWork,
             UsedBookOrderRepository bookOrderRepository,
             UsedBookRepository bookRepository,
+            LinePayService linePayService,
             Random random,
+            IConfiguration cfg,
             IMapper mapper,
             ILogger<UsedBookOrderService> logger)
         {
             _unitOfWork = unitOfWork;
             _bookOrderRepository = bookOrderRepository;
             _bookRepository = bookRepository;
+            _linePayService = linePayService;
+            _cfg = cfg;
             _random = random;
             _mapper = mapper;
             _logger = logger;
@@ -39,6 +47,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
 
         public async Task<Result<string>> CreateAsync(Guid buyerId, CreateOrderRequest req, CancellationToken ct = default)
         {
+
             await _unitOfWork.BeginTransactionAsync(ct);
             try
             {
@@ -78,7 +87,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
                 orderEntity.DeliveryMethod = (byte)req.DeliveryMethod;
                 orderEntity.DiscountTotal = 0m;
                 orderEntity.DeliveryFee = DeliveryMapper.ToFee[req.DeliveryMethod];
-                orderEntity.GrandTotal = Math.Min(orderEntity.Subtotal - orderEntity.DiscountTotal - orderEntity.DeliveryFee, 0m);
+                orderEntity.GrandTotal = Math.Max(orderEntity.Subtotal - orderEntity.DiscountTotal - orderEntity.DeliveryFee, 0m);
                 orderEntity.CreatedAt = nowTime;
                 orderEntity.UpdatedAt = nowTime;
 
@@ -103,9 +112,58 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
                     orderItemEntityList.Add(orderItemEntity);
                 }
                 _bookOrderRepository.AddRangeOrderItems(orderItemEntityList);
-                await _unitOfWork.CommitAsync(ct);
 
-                return Result<string>.Success(orderNo);
+
+                var baseUrl = _cfg["Usedbook:BaseUrl"];
+                var state = StateToken.Create(orderEntity.OrderNo, _cfg["Usedbook:PaymentStateSecret"]);
+
+                // 呼叫 LINEPAY
+                if (req.PaymentMethod == PaymentMethod.LINEPay)
+                {
+                    var paymentReq = new LinePayPaymentRequestDto
+                    {
+                        Amount = (int)orderEntity.GrandTotal,
+                        Currency = "TWD",
+                        OrderId = orderEntity.OrderNo,
+                        Packages = [ new PackageDto {
+                            Amount = (int)orderEntity.GrandTotal,
+                            Id = "ALL",
+                            Products = orderItemEntityList
+                                .Select(e => new ProductDto
+                                {
+                                    Id = e.BookId.ToString(),
+                                    Name = e.Title,
+                                    Price = (int)e.UnitPrice,
+                                    Quantity = e.Quantity,
+                                })
+                                .ToList(),
+                        }],
+                        RedirectUrls = new RedirectUrlsDto
+                        {
+                            ConfirmUrl = $"{baseUrl}/api/usedbooks/payments/linepay/return?state={state}",
+                            CancelUrl = $"{baseUrl}/api/usedbooks/payments/linepay/cancel?state={state}",
+                        }
+                    };
+                    _logger.LogWarning("ConfirmUrl={ConfirmUrl}", paymentReq.RedirectUrls.ConfirmUrl);
+                    var paymentRes = await _linePayService.RequestLinePayPaymentAsync(paymentReq, ct);
+                    if (paymentRes.ReturnCode != "0000")
+                    {
+                        await _unitOfWork.RollbackAsync(ct);
+                        return Result<string>.Failure(paymentRes.ReturnMessage, ErrorCodes.General.Unexpected);
+                    }
+                    orderEntity.TransactionId = paymentRes.Info?.TransactionId;
+
+                    var result = paymentRes.Info?.PaymentUrl?.Web;
+                    if (result == null)
+                    {
+                        await _unitOfWork.RollbackAsync(ct);
+                        return Result<string>.Failure("取得 PaymentUrl 失敗", ErrorCodes.General.Unexpected);
+                    }
+
+                    await _unitOfWork.CommitAsync(ct);
+                    return Result<string>.Success(result);
+                }
+                return Result<string>.Failure("無對應的結帳功能", ErrorCodes.General.Unexpected);
             }
             catch (Exception ex)
             {
@@ -125,7 +183,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
 
                 if (req.OrderStatus != null)
                 {
-                    if (req.OrderStatus == (byte)OrderStatus.Cancelled)
+                    if (req.OrderStatus == OrderStatus.Cancelled)
                     {
                         foreach (var item in entity.UsedBookOrderItems)
                         {
@@ -138,8 +196,8 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
                     }
                     entity.OrderStatus = (byte)req.OrderStatus;
                 }
-                entity.PaymentStatus = req.PaymentStatus ?? entity.PaymentStatus;
-                entity.DeliveryStatus = req.DeliveryStatus ?? entity.DeliveryStatus;
+                entity.PaymentStatus = req.PaymentStatus == null ? entity.PaymentStatus : (byte)req.PaymentStatus;
+                entity.DeliveryStatus = req.DeliveryStatus == null ? entity.DeliveryStatus : (byte)req.DeliveryStatus;
                 entity.UpdatedAt = DateTime.UtcNow;
 
                 await _unitOfWork.CommitAsync(ct);

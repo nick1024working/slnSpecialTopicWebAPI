@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System.IdentityModel.Tokens.Jwt;
 using OfficeOpenXml;
 using prjSpecialTopicWebAPI.Features.Fund.Services;
 using prjSpecialTopicWebAPI.Features.Shared.Controllers;
@@ -16,6 +15,7 @@ using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.UnitOfWork;
 using prjSpecialTopicWebAPI.Features.Usedbook.Mapping;
 using prjSpecialTopicWebAPI.Models;
 using prjSpecialTopicWebAPI.Usedbook.Application.Services;
+using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -66,6 +66,10 @@ builder.Services.AddSingleton<Random>();
 // ========== 各自需要的服務於以下註冊 ==========
 #region
 
+// Shared
+builder.Services.AddScoped<LinePayService>();
+
+
 // Ebook
 
 
@@ -83,7 +87,6 @@ builder.Services.AddScoped<IPlanService, PlanService>();
 
 // 設定 EPPlus 授權模式
 ExcelPackage.License.SetNonCommercialOrganization("MSIT-TeamA");
-
 
 builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 builder.Services.AddAutoMapper(cfg => { cfg.AddProfile<MappingProfile>(); });
@@ -121,10 +124,8 @@ builder.Services.AddScoped<UsedBookRepository>();
 builder.Services.AddScoped<UsedBookOrderRepository>();
 builder.Services.AddScoped<UsedBookImageService>();
 builder.Services.AddScoped<UsedBookService>();
+builder.Services.AddScoped<UsedBookPaymentService>();
 builder.Services.AddScoped<UsedBookOrderService>();
-
-// 註冊 LinePayController
-builder.Services.AddScoped<PaymentController>();
 
 // User
 // ===== JWT 驗證設定（新增） =====

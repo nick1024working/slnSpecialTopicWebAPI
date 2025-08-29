@@ -27,7 +27,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         [HttpPost("orders")]
         public async Task<ActionResult<string>> CreateOrder([FromBody] CreateOrderRequest request, CancellationToken ct)
         {
-            // HACK: 驗證政策尚未完成，若 Cookie 無 userId 則使用固定值
             Guid userId = _authHelper.GetSeller(HttpContext) ?? Guid.Parse("EBB03874-054F-4FEA-9AE8-02B8D05C4BB3");
 
             var result = await _orderService.CreateAsync(userId, request, ct);
@@ -53,7 +52,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         [HttpGet("sellers/orders")]
         public async Task<ActionResult<IReadOnlyList<UserOrderListItemDto>>> GetSellerOrderList(CancellationToken ct)
         {
-            // HACK: 驗證政策尚未完成，若 Cookie 無 userId 則使用固定值
             Guid userId = _authHelper.GetSeller(HttpContext) ?? Guid.Parse("EBB03874-054F-4FEA-9AE8-02B8D05C4BB3");
 
             var result = await _orderService.GetSellerOrderListAsync(userId, ct);

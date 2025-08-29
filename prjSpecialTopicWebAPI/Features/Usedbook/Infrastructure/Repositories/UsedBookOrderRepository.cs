@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results;
+using prjSpecialTopicWebAPI.Features.Usedbook.Enums;
 using prjSpecialTopicWebAPI.Models;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
@@ -39,11 +40,11 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                     BuyerId = r.BuyerId,
                     SellerId = r.SellerId,
 
-                    OrderStatus = r.OrderStatus,
-                    PaymentStatus = r.PaymentStatus,
-                    DeliveryStatus = r.DeliveryStatus,
-                    PaymentMethod = r.PaymentMethod,
-                    DeliveryMethod = r.DeliveryMethod,
+                    OrderStatus = (OrderStatus)r.OrderStatus,
+                    PaymentStatus = (PaymentStatus)r.PaymentStatus,
+                    DeliveryStatus = (DeliveryStatus)r.DeliveryStatus,
+                    PaymentMethod = (PaymentMethod)r.PaymentMethod,
+                    DeliveryMethod = (DeliveryMethod)r.DeliveryMethod,
 
                     Subtotal = r.Subtotal,
                     DiscountTotal = r.DiscountTotal,
@@ -70,11 +71,11 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                     BuyerId = r.BuyerId,
                     SellerId = r.SellerId,
 
-                    OrderStatus = r.OrderStatus,
-                    PaymentStatus = r.PaymentStatus,
-                    DeliveryStatus = r.DeliveryStatus,
-                    PaymentMethod = r.PaymentMethod,
-                    DeliveryMethod = r.DeliveryMethod,
+                    OrderStatus = (OrderStatus)r.OrderStatus,
+                    PaymentStatus = (PaymentStatus)r.PaymentStatus,
+                    DeliveryStatus = (DeliveryStatus)r.DeliveryStatus,
+                    PaymentMethod = (PaymentMethod)r.PaymentMethod,
+                    DeliveryMethod = (DeliveryMethod)r.DeliveryMethod,
 
                     Subtotal = r.Subtotal,
                     DiscountTotal = r.DiscountTotal,

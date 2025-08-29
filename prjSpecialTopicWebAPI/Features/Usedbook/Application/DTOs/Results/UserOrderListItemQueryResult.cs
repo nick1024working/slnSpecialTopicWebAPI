@@ -1,4 +1,6 @@
-﻿namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results
+﻿using prjSpecialTopicWebAPI.Features.Usedbook.Enums;
+
+namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results
 {
     public class UserOrderListItemQueryResult
     {
@@ -6,14 +8,14 @@
         public Guid BuyerId { get; set; }
         public Guid SellerId { get; set; }
 
-        public byte OrderStatus { get; set; }
-        public byte PaymentStatus { get; set; }
-        public byte DeliveryStatus { get; set; }
+        public OrderStatus OrderStatus { get; set; }
+        public PaymentStatus PaymentStatus { get; set; }
+        public DeliveryStatus DeliveryStatus { get; set; }
         public string TransactionId { get; set; } = null!;
         public string TrackingNumber { get; set; } = null!;
 
-        public byte PaymentMethod { get; set; }
-        public byte DeliveryMethod { get; set; }
+        public PaymentMethod PaymentMethod { get; set; }
+        public DeliveryMethod DeliveryMethod { get; set; }
 
         public decimal Subtotal { get; set; }
         public decimal DiscountTotal { get; set; }
