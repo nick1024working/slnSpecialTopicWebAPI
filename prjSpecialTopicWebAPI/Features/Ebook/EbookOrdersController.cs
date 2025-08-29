@@ -70,7 +70,10 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
         [HttpGet("{orderId:long}")]
         public async Task<ActionResult<OrderHistoryDto>> GetOrderById(long orderId)
         {
-            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            //var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            // [修改] 改用 JwtRegisteredClaimNames.Sub
+            var userIdString = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
             if (!Guid.TryParse(userIdString, out var userId))
             {
                 return Unauthorized("無效的使用者識別碼。");
@@ -119,7 +122,12 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                 return BadRequest("購物車項目不得為空。");
             }
 
-            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            // var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+
+            // [修改] 改用 JwtRegisteredClaimNames.Sub
+            var userIdString = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+
             if (!Guid.TryParse(userIdString, out var userId))
             {
                 return Unauthorized("無效的使用者識別碼。");
