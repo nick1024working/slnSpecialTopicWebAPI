@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using prjSpecialTopicWebAPI.Features.Users;
 using prjSpecialTopicWebAPI.Models;
+using Microsoft.AspNetCore.Http;
 
 namespace prjSpecialTopicWebAPI.Features.Users;
 
@@ -113,7 +114,7 @@ public class UsersController : ControllerBase
             }
             catch (BCrypt.Net.SaltParseException)
             {
-                // 雜湊字串可能被截斷/損毀 → 視為驗證失敗
+                // 雜湊字串可能被截斷/損毀 視為驗證失敗
                 ok = false;
             }
         }
@@ -131,21 +132,75 @@ public class UsersController : ControllerBase
 
         if (!ok) return Unauthorized("帳號或密碼錯誤");
 
-        // 統一在這裡更新最後登入時間與（若有）升級後的密碼
+        // 在這裡更新最後登入時間與升級後的密碼
         user.LastLoginDate = DateTime.UtcNow;
         if (upgraded)
         {
-            // 這裡也可以順手寫一筆 LoginLogs
+            // 這裡可以寫一筆 LoginLogs
         }
         await _db.SaveChangesAsync();
 
         var token = GenerateJwt(user);
+
+        // 寫入 Cookie
+        Response.Cookies.Append("auth_token", token, new CookieOptions
+        {
+            HttpOnly = true,                  // JS 無法讀取，防 XSS
+            Secure = true,                    // 只在 HTTPS 傳
+            SameSite = SameSiteMode.None,     // 跨站 withCredentials 必須
+            Path = "/",                       // 全站可帶
+        });
+
         var detail = new UserDetailDto(
             user.Uid, user.Phone, user.Name, user.Email, user.Gender, user.Birthday,
             user.Address, user.RegisterDate, user.LastLoginDate, user.AvatarUrl, user.Status, user.Level
         );
 
-        return Ok(new { token, user = detail });
+        return Ok(new { user = detail });
+    }
+
+    // 登出（清除 Cookie）
+    [HttpPost("logout")]
+    public IActionResult Logout()
+    {
+        Response.Cookies.Append("auth_token", "", new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.None,
+            Path = "/",
+            Expires = DateTimeOffset.UnixEpoch // 立即過期
+        });
+        return Ok();
+    }
+
+    // 目前使用者（需授權；JwtBearer 會從 Header or Cookie 取 token）
+    [Authorize]
+    [HttpGet("me")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public async Task<IActionResult> Me()
+    {
+        var uidStr =
+     User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value   //  關映射後用這個
+     ?? User.FindFirst("uid")?.Value;                     // 兼容之前的備援
+        if (string.IsNullOrEmpty(uidStr)) return Unauthorized();
+
+        if (!Guid.TryParse(uidStr, out var uid)) return Unauthorized();
+
+        var me = await _db.Users
+            .Where(x => x.Uid == uid)
+            .Select(x => new
+            {
+                x.Uid,
+                x.Name,
+                x.Email,
+                x.Phone,
+                x.Status,
+                x.Level
+            })
+            .FirstOrDefaultAsync();
+
+        return Ok(me);
     }
     private string GenerateJwt(User user)
     {
@@ -154,12 +209,12 @@ public class UsersController : ControllerBase
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new List<Claim>
-        {
-            new(JwtRegisteredClaimNames.Sub, user.Uid.ToString()),
-            new(JwtRegisteredClaimNames.UniqueName, user.Phone),
-            new("name", user.Name),
-            new("level", (user.Level ?? 0).ToString())
-        };
+            {
+                new(JwtRegisteredClaimNames.Sub, user.Uid.ToString()),
+                new(JwtRegisteredClaimNames.UniqueName, user.Phone),
+                new("name", user.Name),
+                new("level", (user.Level ?? 0).ToString())
+            };
 
         var token = new JwtSecurityToken(
             claims: claims,

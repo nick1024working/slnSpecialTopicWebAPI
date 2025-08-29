@@ -189,6 +189,52 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             }
         }
 
+        public async Task<Result<IdNameDto>> GetCountyByIdAsync(int countyId, CancellationToken ct = default)
+        {
+            try
+            {
+                var result = await _countyRepository.GetAsync(countyId, ct);
+                if (result == null)
+                    return Result<IdNameDto>.Failure("查無資源", ErrorCodes.General.NotFound);
+                var dto = new IdNameDto { Id = result.Id, Name = result.Name };
+                return Result<IdNameDto>.Success(dto);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<IdNameDto>.Map(ex, _logger);
+            }
+        }
+
+        public async Task<Result<IdNameDto>> GetDistrictByIdAsync(int districtId, CancellationToken ct = default)
+        {
+            try
+            {
+                var result = await _districtRepository.GetAsync(districtId, ct);
+                if (result == null)
+                    return Result<IdNameDto>.Failure("查無資源", ErrorCodes.General.NotFound);
+                var dto = new IdNameDto { Id = result.Id, Name = result.Name };
+                return Result<IdNameDto>.Success(dto);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<IdNameDto>.Map(ex, _logger);
+            }
+        }
+
+        public async Task<Result<IEnumerable<IdNameDto>>> GetDistrictByIdAsync(CancellationToken ct = default)
+        {
+            try
+            {
+                var result = await _countyRepository.GetAllAsync(ct);
+                var dtoList = result.Select(x => new IdNameDto { Id = x.Id, Name = x.Name }).ToList();
+                return Result<IEnumerable<IdNameDto>>.Success(dtoList);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<IEnumerable<IdNameDto>>.Map(ex, _logger);
+            }
+        }
+
         public async Task<Result<Dictionary<(string, string), int>>> GetCountyDistrictNameToDistrictIdAsync(CancellationToken ct = default)
         {
             try

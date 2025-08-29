@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.Authentication;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Query;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
@@ -12,13 +13,16 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
     [Route("api/usedbooks/books")]
     public class UsedBookController : ControllerBase
     {
+        private readonly AuthHelper _authHelper;
         private readonly UsedBookService _bookService;
         private readonly UsedBookImageService _bookImageService;
 
         public UsedBookController(
+            AuthHelper authHelper,
             UsedBookService bookService,
             UsedBookImageService bookImageService)
         {
+            _authHelper = authHelper;
             _bookService = bookService;
             _bookImageService = bookImageService;
         }
@@ -29,13 +33,8 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         [Consumes("multipart/form-data")]
         public async Task<ActionResult<Guid>> CreateBook([FromForm] CreateBookRequest request, CancellationToken ct)
         {
-            // HACK: 驗證政策尚未完成
-            string userIdString = "EBB03874-054F-4FEA-9AE8-02B8D05C4BB3";
-            Guid.TryParse(userIdString, out Guid userId);
-
-            // 嘗試取出 claims 中的 userId
-            //if (AuthHelper.GetUserId(User, _logger) is not Guid userId)
-            //    return ErrorCodeToHttpResponseMapper.Map(ErrorCodes.Auth.Unauthorized);
+            // HACK: 驗證政策尚未完成，若 Cookie 無 userId 則使用固定值
+            Guid userId = _authHelper.GetSeller(HttpContext) ?? Guid.Parse("EBB03874-054F-4FEA-9AE8-02B8D05C4BB3");
 
             // 呼叫 Service Layer
             var result = await _bookService.CreateAsync(userId, request, Request, ct);
@@ -60,7 +59,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
 
         [HttpPut("{bookId:Guid}/on-shelf")]
         public async Task<IActionResult> UpdateBookOnShelfStatus(
-            [FromRoute] Guid bookId, [FromBody] UpdateStatusRequest status, CancellationToken ct)
+            [FromRoute] Guid bookId, [FromBody] UpdateBooleanStatusRequest status, CancellationToken ct)
         {
             var result = await _bookService.UpdateOnShelfStatusAsync(bookId, status, ct);
             if (!result.IsSuccess)
@@ -70,7 +69,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
 
         [HttpPut("{bookId:Guid}/active")]
         public async Task<IActionResult> UpdateBookActiveStatus(
-            [FromRoute] Guid bookId, [FromBody] UpdateStatusRequest status, CancellationToken ct)
+            [FromRoute] Guid bookId, [FromBody] UpdateBooleanStatusRequest status, CancellationToken ct)
         {
             var result = await _bookService.UpdateActiveStatusAsync(bookId, status, ct);
             if (!result.IsSuccess)
@@ -80,7 +79,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
 
         [HttpPut("{bookId:Guid}/sold")]
         public async Task<IActionResult> UpdateBookSoldStatus(
-            [FromRoute] Guid bookId, [FromBody] UpdateStatusRequest status, CancellationToken ct)
+            [FromRoute] Guid bookId, [FromBody] UpdateBooleanStatusRequest status, CancellationToken ct)
         {
             var result = await _bookService.UpdateSoldStatusAsync(bookId, status, ct);
             if (!result.IsSuccess)

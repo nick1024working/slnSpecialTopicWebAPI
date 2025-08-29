@@ -38,6 +38,28 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             return Ok(queryResult.Value);
         }
 
+        [HttpGet("counties/{countyId}")]
+        public async Task<ActionResult<IdNameDto>> GetCountyById([FromRoute] int countyId, CancellationToken ct)
+        {
+            var queryResult = await _lookupService.GetCountyByIdAsync(countyId, ct);
+
+            if (!queryResult.IsSuccess)
+                return BadRequest(queryResult.ErrorMessage);
+
+            return Ok(queryResult.Value);
+        }
+
+        [HttpGet("districts/{districtId}")]
+        public async Task<ActionResult<IdNameDto>> GetDistrictById([FromRoute] int districtId, CancellationToken ct)
+        {
+            var queryResult = await _lookupService.GetDistrictByIdAsync(districtId, ct);
+
+            if (!queryResult.IsSuccess)
+                return BadRequest(queryResult.ErrorMessage);
+
+            return Ok(queryResult.Value);
+        }
+
         [HttpGet("languages")]
         public async Task<ActionResult<IEnumerable<IdNameDto>>> GetLanguageList(CancellationToken ct)
         {

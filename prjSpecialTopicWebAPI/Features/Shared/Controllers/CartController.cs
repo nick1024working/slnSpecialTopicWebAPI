@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using prjSpecialTopicWebAPI.Features.Shared.DTOs;
+using prjSpecialTopicWebAPI.Features.Shared.Enums;
 using prjSpecialTopicWebAPI.Features.Shared.Extensions;
 
 namespace prjSpecialTopicWebAPI.Features.Shared.Controllers
@@ -10,52 +11,127 @@ namespace prjSpecialTopicWebAPI.Features.Shared.Controllers
     public class CartController : ControllerBase
     {
         private const string CartKey = "CART";
-        private readonly ILogger<CartController> _logger;
+        private const string CheckoutKey = "CHECKOUTDRAFT";
 
-        public CartController(ILogger<CartController> logger)
-        {
-            _logger = logger;
-        }
+        public CartController() { }
+
+        // ========== 購物車 ==========
 
         [HttpGet]
-        public ActionResult<CartDto> GetCart()
+        public ActionResult<AllCartsDto> GetCart()
         {
-            var result = HttpContext.Session.GetObject<CartDto>(CartKey) ?? new CartDto();
+            var sessionId = HttpContext.Session.Id;
+            var allCarts = HttpContext.Session.GetObject<AllCartsDto>(CartKey) ?? new AllCartsDto();
 
-            Recalculate(result);
-
-            HttpContext.Session.SetObject(CartKey, result);
-            return Ok(result);
+            return Ok(allCarts);
         }
 
-        [HttpPut]
-        public IActionResult ReplaceCart([FromBody] CartDto dto)
+        [HttpGet("items/{provider}")]
+        public ActionResult<CartDto> GetCartByProvider([FromRoute] ProductProvider provider)
         {
-            dto.UpdatedAt = DateTime.UtcNow;
-            Recalculate(dto);
+            var allCarts = HttpContext.Session.GetObject<AllCartsDto>(CartKey) ?? new AllCartsDto();
+            if (!allCarts.Carts.ContainsKey(provider))
+                return NoContent();
+            var nowCart = allCarts.Carts[provider];
 
-            HttpContext.Session.SetObject(CartKey, dto);
-            return NoContent();
+            return Ok(nowCart);
         }
 
-        // TODO: 待處理
-        // NOTE: 此處未把邏輯分到 BLL
+        //[HttpPut]
+        //public IActionResult ReplaceCart([FromBody] AllCartsDto allCarts)
+        //{
+        //    allCarts.UpdatedAt = DateTime.UtcNow;
+        //    Recalculate(allCarts);
+
+        //    HttpContext.Session.SetObject(CartKey, allCarts);
+        //    return NoContent();
+        //}
+
         [HttpPatch("items")]
-        public IActionResult UpsertItem([FromBody] PatchItemRequest req)
+        public IActionResult UpsertItem([FromBody] UpsertCartItemRequest req)
         {
+            var sessionId = HttpContext.Session.Id;
+            var allCarts = HttpContext.Session.GetObject<AllCartsDto>(CartKey) ?? new AllCartsDto();
+            allCarts.Carts.TryAdd(req.ProductProvider, new CartDto());
+            var nowCart = allCarts.Carts[req.ProductProvider];
+            int index = nowCart.Items.FindIndex(i => i.Id == req.Id);
+
+            // 找不到就新增，找到就覆蓋
+            if (index == -1)
+            {
+                if (string.IsNullOrWhiteSpace(req.Name))
+                    return BadRequest("新增的商品欄位不全 (缺少 Name)");
+                if (string.IsNullOrWhiteSpace(req.ImageUrl))
+                    return BadRequest("新增的商品欄位不全 (缺少 ImageUrl)");
+                if (req.UnitPrice == null || req.UnitPrice < 0)
+                    return BadRequest("新增的商品欄位不全 (缺少 UnitPrice)");
+
+                nowCart.Items.Add(new CartItemDto
+                {
+                    Id = req.Id,
+                    Name = req.Name.Trim(),
+                    ImageUrl = req.ImageUrl.Trim(),
+                    UnitPrice = (decimal)req.UnitPrice,
+                    Quantity = req.Quantity
+                });
+            }
+            else
+            {
+                if (req.Quantity > 0)
+                {
+                    nowCart.Items[index].Name = req.Name ?? nowCart.Items[index].Name;
+                    nowCart.Items[index].ImageUrl = req.ImageUrl ?? nowCart.Items[index].ImageUrl;
+                    nowCart.Items[index].UnitPrice = req.UnitPrice ?? nowCart.Items[index].UnitPrice;
+                    nowCart.Items[index].Quantity = req.Quantity;
+                }
+                else
+                    nowCart.Items.RemoveAt(index);
+            }
+
+            nowCart.UpdatedAt = DateTime.UtcNow;
+            allCarts.UpdatedAt = DateTime.UtcNow;
+            Recalculate(allCarts);
+
+            HttpContext.Session.SetObject(CartKey, allCarts);
             return NoContent();
         }
 
-        [HttpDelete("items/{id}")]
-        public IActionResult RemoveItemFromCart([FromRoute] string id)
+        [HttpPatch("delivery")]
+        public IActionResult UpdateDelivery([FromBody] UpdateDeliveryRequest req)
         {
-            var result = HttpContext.Session.GetObject<CartDto>(CartKey) ?? new CartDto();
+            if (req.DeliveryFee < 0)
+                return BadRequest("運費金額錯誤");
 
-            result.Items.RemoveAll(i => i.Id == id);
-            result.UpdatedAt = DateTime.UtcNow;
-            Recalculate(result);
+            var sid = HttpContext.Session.Id;
+            var allCarts = HttpContext.Session.GetObject<AllCartsDto>(CartKey) ?? new AllCartsDto();
+            if (!allCarts.Carts.ContainsKey(req.ProductProvider))
+                return BadRequest("該購物車並不存在");
+            var nowCart = allCarts.Carts[req.ProductProvider];
 
-            HttpContext.Session.SetObject(CartKey, result);
+            nowCart.DeliveryFee = req.DeliveryFee;
+            nowCart.UpdatedAt = DateTime.UtcNow;
+            allCarts.UpdatedAt = DateTime.UtcNow;
+            Recalculate(allCarts);
+
+            HttpContext.Session.SetObject(CartKey, allCarts);
+            return NoContent();
+        }
+
+        [HttpDelete("items/{provider}/{id}")]
+        public IActionResult RemoveItemFromCart([FromRoute] ProductProvider provider, [FromRoute] string id)
+        {
+            var allCarts = HttpContext.Session.GetObject<AllCartsDto>(CartKey) ?? new AllCartsDto();
+            if (!allCarts.Carts.ContainsKey(provider))
+                return NoContent();
+            var nowCart = allCarts.Carts[provider];
+
+            nowCart.Items.RemoveAll(i => i.Id == id);
+
+            nowCart.UpdatedAt = DateTime.UtcNow;
+            allCarts.UpdatedAt = DateTime.UtcNow;
+            Recalculate(allCarts);
+
+            HttpContext.Session.SetObject(CartKey, allCarts);
             return NoContent();
         }
 
@@ -66,13 +142,55 @@ namespace prjSpecialTopicWebAPI.Features.Shared.Controllers
             return NoContent();
         }
 
-        /// <summary>
-        /// 重新計算 cart 的計算欄位
-        /// </summary>
-        private static void Recalculate(CartDto cart)
+        // ========== 結帳草稿 ==========
+
+        [HttpGet("checkout-draft")]
+        public IActionResult GetCheckoutDraft()
         {
-            cart.Subtotal = cart.Items.Sum(i => i.UnitPrice * i.Quantity);
-            cart.GrandTotal = cart.Subtotal - cart.DiscountTotal + cart.ShippingFee;
+            var checkoutDraft = HttpContext.Session.GetObject<CheckoutDraftDto>(CheckoutKey);
+            if (checkoutDraft == null)
+                return NotFound();
+            return Ok(checkoutDraft);
+        }
+
+        [HttpPut("checkout-draft")]
+        public IActionResult UpsertCheckoutDraft([FromBody] CheckoutDraftDto req)
+        {
+            var checkoutDraft = HttpContext.Session.GetObject<CheckoutDraftDto>(CheckoutKey) ?? new CheckoutDraftDto();
+            checkoutDraft.ProductProvider = req.ProductProvider;
+            checkoutDraft.DeliveryOption = req.DeliveryOption;
+            checkoutDraft.PaymentOption = req.PaymentOption;
+
+            checkoutDraft.BuyerName = req.BuyerName;
+            checkoutDraft.BuyerEmail = req.BuyerEmail;
+            checkoutDraft.BuyerPhone = req.BuyerPhone;
+
+            checkoutDraft.ReceiverName = req.ReceiverName;
+            checkoutDraft.ReceiverPhone = req.ReceiverPhone;
+
+            checkoutDraft.CountyId = req.CountyId;
+            checkoutDraft.DistrictId = req.DistrictId;
+            checkoutDraft.Address = req.Address;
+
+
+            HttpContext.Session.SetObject(CheckoutKey, checkoutDraft);
+            return NoContent();
+        }
+
+        // ========== 私有方法 ==========
+
+        /// <summary>
+        /// 重新計算 AllCartsDto 中的所有計算欄位
+        /// </summary>
+        private static void Recalculate(AllCartsDto allCarts)
+        {
+            allCarts.GrandTotal = 0;
+            foreach (var (_, cart) in allCarts.Carts)
+            {
+                cart.Subtotal = cart.Items.Sum(i => i.UnitPrice * i.Quantity);
+                cart.GrandTotal = cart.Subtotal - cart.DiscountTotal + cart.DeliveryFee;
+                allCarts.GrandTotal += cart.GrandTotal;
+            }
         }
     }
 }
