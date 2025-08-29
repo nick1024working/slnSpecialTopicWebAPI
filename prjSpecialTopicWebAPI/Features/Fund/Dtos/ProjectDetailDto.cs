@@ -7,9 +7,9 @@
         public ProjectDetailDto(
             int donateProjectId, string projectTitle, string? projectDescription,
             decimal targetAmount, decimal currentAmount, int backerCount,
-            DateTime startDate, DateTime endDate, string status, string? mainImagePath, bool isFavorite)
+            DateTime startDate, DateTime endDate, string status, string? mainImagePath, bool isFavorite, DateTime createdAt)
             : base(donateProjectId, projectTitle, projectDescription, targetAmount, currentAmount,
-                   backerCount, startDate, endDate, status, mainImagePath, isFavorite)
+                   backerCount, startDate, endDate, status, mainImagePath, isFavorite, createdAt)
         { }
     }
 }

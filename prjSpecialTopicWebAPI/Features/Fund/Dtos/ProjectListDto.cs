@@ -11,6 +11,7 @@
     DateTime EndDate,
     string Status,
     string? MainImagePath,   // ← 由 donateImages.donateImagePath (is_main=1) 映射
-    bool IsFavorite          // ← 由 donateProjects.projectIsFavorite 映射
+    bool IsFavorite,        // ← 由 donateProjects.projectIsFavorite 映射
+    DateTime CreatedAt
 );
 }

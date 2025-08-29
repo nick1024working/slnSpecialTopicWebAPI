@@ -43,7 +43,8 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Services
                              .Select(i => i.DonateImagePath)
                              .FirstOrDefault(),
                     // IsFavorite
-                    p.ProjectIsFavorite == true
+                    p.ProjectIsFavorite == true,
+                     p.CreatedAt
                 ))
                 .ToListAsync();
 
@@ -78,7 +79,8 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Services
                              .OrderBy(i => i.DonateImageId)
                              .Select(i => i.DonateImagePath)
                              .FirstOrDefault(),
-                    p.ProjectIsFavorite == true
+                    p.ProjectIsFavorite == true,
+                    p.CreatedAt
                 )
                 {
                     LongDescription = p.ProjectLongDescription,
