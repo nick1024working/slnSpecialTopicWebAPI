@@ -1,6 +1,6 @@
-﻿namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests
+﻿namespace prjSpecialTopicWebAPI.Features.Shared.DTOs
 {
-    public class PaymentRequestDto
+    public class LinePayPaymentRequestDto
     {
         public int Amount { get; set; }
         public string Currency { get; set; } = "TWD";
@@ -30,7 +30,7 @@
 
     public class RedirectUrlsDto
     {
-        public string ConfirmUrl { get; set; } = "https://pay-store.example.com/order/payment/authorize";
-        public string CancelUrl { get; set; } = "https://pay-store.example.com/order/payment/cancel";
+        public string ConfirmUrl { get; set; } = string.Empty;
+        public string CancelUrl { get; set; } = string.Empty;
     }
 }

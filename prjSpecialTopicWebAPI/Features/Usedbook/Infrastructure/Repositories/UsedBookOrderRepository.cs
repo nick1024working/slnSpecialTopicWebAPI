@@ -1,6 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results;
-using prjSpecialTopicWebAPI.Features.Usedbook.Enums;
 using prjSpecialTopicWebAPI.Models;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
@@ -17,13 +16,15 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
         // ========== 查詢實體 ==========
 
         public async Task<UsedBookOrder?> GetEntityByNoAsync(string orderNo, CancellationToken ct = default) =>
-            await _db.UsedBookOrders.FirstOrDefaultAsync(cg => cg.OrderNo == orderNo, ct);
-
+            await _db.UsedBookOrders.FirstOrDefaultAsync(od => od.OrderNo == orderNo, ct);
 
         // ========== 新增、更新、刪除 ==========
 
-        public void Add(UsedBookOrder entity) =>
+        public void AddOrder(UsedBookOrder entity) =>
             _db.UsedBookOrders.Add(entity);
+
+        public void AddRangeOrderItems(IReadOnlyList<UsedBookOrderItem> entityList) =>
+            _db.UsedBookOrderItems.AddRange(entityList);
 
         public async Task<IReadOnlyList<UserOrderListItemQueryResult>> GetSellerOrderListAsync(
             Guid userId, CancellationToken ct = default)
@@ -35,16 +36,20 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                 .Select(r => new UserOrderListItemQueryResult
                 {
                     OrderNo = r.OrderNo,
-                    OrderStatus = (OrderStatus)r.OrderStatus,
+                    BuyerId = r.BuyerId,
+                    SellerId = r.SellerId,
+
+                    OrderStatus = r.OrderStatus,
                     PaymentStatus = r.PaymentStatus,
                     DeliveryStatus = r.DeliveryStatus,
                     PaymentMethod = r.PaymentMethod,
                     DeliveryMethod = r.DeliveryMethod,
-                    BuyerId = r.BuyerId,
-                    SellerId = r.SellerId,
-                    BookId = r.BookId,
-                    Title = r.Title,
-                    SalePrice = r.SalePrice,
+
+                    Subtotal = r.Subtotal,
+                    DiscountTotal = r.DiscountTotal,
+                    DeliveryFee = r.DeliveryFee,
+                    GrandTotal = r.GrandTotal,
+
                     CreatedAt = r.CreatedAt,
                 })
                 .ToListAsync(ct);
@@ -62,16 +67,20 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                 .Select(r => new UserOrderListItemQueryResult
                 {
                     OrderNo = r.OrderNo,
-                    OrderStatus = (OrderStatus)r.OrderStatus,
+                    BuyerId = r.BuyerId,
+                    SellerId = r.SellerId,
+
+                    OrderStatus = r.OrderStatus,
                     PaymentStatus = r.PaymentStatus,
                     DeliveryStatus = r.DeliveryStatus,
                     PaymentMethod = r.PaymentMethod,
                     DeliveryMethod = r.DeliveryMethod,
-                    BuyerId = r.BuyerId,
-                    SellerId = r.SellerId,
-                    BookId = r.BookId,
-                    Title = r.Title,
-                    SalePrice = r.SalePrice,
+
+                    Subtotal = r.Subtotal,
+                    DiscountTotal = r.DiscountTotal,
+                    DeliveryFee = r.DeliveryFee,
+                    GrandTotal = r.GrandTotal,
+
                     CreatedAt = r.CreatedAt,
                 })
                 .ToListAsync(ct);

@@ -9,6 +9,10 @@ public partial class UsedBookOrder
 
     public string OrderNo { get; set; } = null!;
 
+    public Guid BuyerId { get; set; }
+
+    public Guid SellerId { get; set; }
+
     public byte OrderStatus { get; set; }
 
     public byte PaymentStatus { get; set; }
@@ -19,23 +23,25 @@ public partial class UsedBookOrder
 
     public byte DeliveryMethod { get; set; }
 
-    public Guid BuyerId { get; set; }
+    public string? TransactionId { get; set; }
 
-    public Guid SellerId { get; set; }
+    public string? TrackingNumber { get; set; }
 
-    public Guid BookId { get; set; }
+    public decimal Subtotal { get; set; }
 
-    public string Title { get; set; } = null!;
+    public decimal DiscountTotal { get; set; }
 
-    public decimal SalePrice { get; set; }
+    public decimal DeliveryFee { get; set; }
+
+    public decimal GrandTotal { get; set; }
 
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
 
-    public virtual UsedBook Book { get; set; } = null!;
-
     public virtual User Buyer { get; set; } = null!;
 
     public virtual User Seller { get; set; } = null!;
+
+    public virtual ICollection<UsedBookOrderItem> UsedBookOrderItems { get; set; } = new List<UsedBookOrderItem>();
 }

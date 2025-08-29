@@ -13,7 +13,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
     public class UsedBookOrderService
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly UsedBookOrderRepository _bookOrderyRepository;
+        private readonly UsedBookOrderRepository _bookOrderRepository;
         private readonly UsedBookRepository _bookRepository;
         private readonly Random _random;
         private readonly IMapper _mapper;
@@ -28,7 +28,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
             ILogger<UsedBookOrderService> logger)
         {
             _unitOfWork = unitOfWork;
-            _bookOrderyRepository = bookOrderRepository;
+            _bookOrderRepository = bookOrderRepository;
             _bookRepository = bookRepository;
             _random = random;
             _mapper = mapper;
@@ -42,30 +42,69 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
             await _unitOfWork.BeginTransactionAsync(ct);
             try
             {
-                var bookEntity = await _bookRepository.GetEntityByIdAsync(req.BookId, ct);
-                if (bookEntity == null)
-                    return Result<string>.Failure("錯誤的書本 ID", ErrorCodes.General.BadRequest);
+                // 基本驗證
+                if (req.BookIdList.Count <= 0)
+                    return Result<string>.Failure("書本清單不能為空", ErrorCodes.General.BadRequest);
+
                 var nowTime = DateTime.UtcNow;
-                var entity = _mapper.Map<UsedBookOrder>(req);
                 var orderNo = $"{nowTime.ToString("yyyyMMddHHmmssfff")}{_random.Next(0, 1000):D3}";
-                entity.OrderNo = orderNo;
-                entity.OrderStatus = (byte)OrderStatus.Processing;
-                entity.PaymentStatus = (byte)PaymentStatus.Unpaid;
-                entity.DeliveryStatus = (byte)DeliveryStatus.Preparing;
-                entity.PaymentMethod = (byte)req.PaymentMethod;
-                entity.DeliveryMethod = (byte)req.DeliveryMethod;
-                entity.BuyerId = buyerId;
-                entity.SellerId = bookEntity.SellerId;
-                entity.BookId = req.BookId;
-                entity.Title = bookEntity.Title;
-                entity.CreatedAt = nowTime;
-                entity.UpdatedAt = nowTime;
+                var orderEntity = _mapper.Map<UsedBookOrder>(req);
 
-                _bookOrderyRepository.Add(entity);
-                bookEntity.IsOnShelf = false;
-                bookEntity.IsSold = true;
+                // 去重
+                var bookIds = req.BookIdList.Distinct().ToList();
 
+                // 驗證 + 取出書本 entity (後續要改狀態)
+                var bookEntityList = new List<UsedBook>();
+                foreach (var bookId in req.BookIdList)
+                {
+                    var bookEntity = await _bookRepository.GetEntityByIdAsync(bookId, ct);
+                    if (bookEntity?.SellerId != req.SellerId)
+                        return Result<string>.Failure("書本賣家不符", ErrorCodes.General.BadRequest);
+                    if (bookEntity.IsSold || !bookEntity.IsActive || !bookEntity.IsOnShelf)
+                        return Result<string>.Failure("書本狀態不可售", ErrorCodes.General.BadRequest);
+
+                    bookEntityList.Add(bookEntity);
+                    orderEntity.Subtotal += bookEntity.SalePrice;
+                }
+
+                // 組裝訂單本體 entity
+                orderEntity.OrderNo = orderNo;
+                orderEntity.BuyerId = buyerId;
+                orderEntity.SellerId = req.SellerId;
+                orderEntity.OrderStatus = (byte)OrderStatus.Pending;
+                orderEntity.PaymentStatus = (byte)PaymentStatus.Unpaid;
+                orderEntity.DeliveryStatus = (byte)DeliveryStatus.Preparing;
+                orderEntity.PaymentMethod = (byte)req.PaymentMethod;
+                orderEntity.DeliveryMethod = (byte)req.DeliveryMethod;
+                orderEntity.DiscountTotal = 0m;
+                orderEntity.DeliveryFee = DeliveryMapper.ToFee[req.DeliveryMethod];
+                orderEntity.GrandTotal = Math.Min(orderEntity.Subtotal - orderEntity.DiscountTotal - orderEntity.DeliveryFee, 0m);
+                orderEntity.CreatedAt = nowTime;
+                orderEntity.UpdatedAt = nowTime;
+
+                _bookOrderRepository.AddOrder(orderEntity);
+
+                // 組裝訂單商品 entity
+                var orderItemEntityList = new List<UsedBookOrderItem>();
+                foreach (var bookEntity in bookEntityList)
+                {
+                    var orderItemEntity = new UsedBookOrderItem
+                    {
+                        Order = orderEntity,
+                        BookId = bookEntity.Id,
+                        Title = bookEntity.Title,
+                        UnitPrice = bookEntity.SalePrice,
+                        Quantity = 1
+                    };
+
+                    bookEntity.IsOnShelf = false;
+                    bookEntity.IsSold = true;
+
+                    orderItemEntityList.Add(orderItemEntity);
+                }
+                _bookOrderRepository.AddRangeOrderItems(orderItemEntityList);
                 await _unitOfWork.CommitAsync(ct);
+
                 return Result<string>.Success(orderNo);
             }
             catch (Exception ex)
@@ -80,18 +119,23 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
             await _unitOfWork.BeginTransactionAsync(ct);
             try
             {
-                var entity = await _bookOrderyRepository.GetEntityByNoAsync(orderNo, ct);
+                var entity = await _bookOrderRepository.GetEntityByNoAsync(orderNo, ct);
                 if (entity == null)
                     return Result<Unit>.Failure("找不到該訂單資源", ErrorCodes.General.NotFound);
-
-                var bookEntity = await _bookRepository.GetEntityByIdAsync(entity.BookId, ct);
-                if (bookEntity == null)
-                    return Result<Unit>.Failure("找不到該書本資源", ErrorCodes.General.NotFound);
 
                 if (req.OrderStatus != null)
                 {
                     if (req.OrderStatus == (byte)OrderStatus.Cancelled)
-                        bookEntity.IsSold = false;
+                    {
+                        foreach (var item in entity.UsedBookOrderItems)
+                        {
+                            var bookEntity = await _bookRepository.GetEntityByIdAsync(item.BookId, ct);
+                            if (bookEntity == null)
+                                return Result<Unit>.Failure("訂單查無書本實體", ErrorCodes.General.Conflict);
+                            bookEntity.IsSold = false;
+                            bookEntity.IsOnShelf = true;
+                        }
+                    }
                     entity.OrderStatus = (byte)req.OrderStatus;
                 }
                 entity.PaymentStatus = req.PaymentStatus ?? entity.PaymentStatus;
@@ -114,7 +158,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
         {
             try
             {
-                var queryResult = await _bookOrderyRepository.GetSellerOrderListAsync(userId, ct);
+                var queryResult = await _bookOrderRepository.GetSellerOrderListAsync(userId, ct);
                 var dtoList = _mapper.Map<IReadOnlyList<UserOrderListItemDto>>(queryResult);
                 return Result<IReadOnlyList<UserOrderListItemDto>>.Success(dtoList);
             }
@@ -128,7 +172,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
         {
             try
             {
-                var queryResult = await _bookOrderyRepository.GetBuyerOrderListAsync(userId, ct);
+                var queryResult = await _bookOrderRepository.GetBuyerOrderListAsync(userId, ct);
                 var dtoList = _mapper.Map<IReadOnlyList<UserOrderListItemDto>>(queryResult);
                 return Result<IReadOnlyList<UserOrderListItemDto>>.Success(dtoList);
             }

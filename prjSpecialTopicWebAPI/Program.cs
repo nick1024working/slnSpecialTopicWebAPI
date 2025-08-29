@@ -41,7 +41,7 @@ builder.Services.AddHttpClient("LinePay", (sp, c) =>
 });
 
 // BLL Service
-builder.Services.AddScoped<PaymentService>();
+builder.Services.AddScoped<LinePayService>();
 
 // µù¥U DataProtection
 builder.Services.AddDataProtection();
