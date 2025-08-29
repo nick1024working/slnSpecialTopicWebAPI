@@ -1,12 +1,13 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Authentication;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Errors;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
 {
     [ApiController]
-    [Route("usedbooks")]
+    [Route("api/usedbooks")]
     public class UsedbookAuthController : ControllerBase
     {
         private readonly AuthHelper _authHelper;
@@ -18,10 +19,17 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             _externalDomainService = externalDomainService;
         }
 
-        [HttpPost("current-seller")]
-        public ActionResult<Guid> SetCurrentSeller([FromBody] Guid userId)
+        [HttpPut("current-seller")]
+        public async Task<IActionResult> SetCurrentSeller([FromBody] SetCurrentSellerRequest req, CancellationToken ct)
         {
-            _authHelper.SetSeller(userId, HttpContext);
+            var queryResult = await _externalDomainService.GetSellerListAsync(ct);
+            if (!queryResult.IsSuccess)
+                return ErrorCodeToHttpResponseMapper.Map(queryResult.ErrorCode);
+
+            if (!queryResult.Value.Contains(req.Id))
+                return BadRequest();
+
+            _authHelper.SetSeller(req.Id, HttpContext);
             return NoContent();
         }
 
@@ -47,7 +55,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             var result = await _externalDomainService.GetSellerListAsync(ct);
             if (!result.IsSuccess)
                 return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
-            return Ok(result);
+            return Ok(result.Value);
         }
 
     }

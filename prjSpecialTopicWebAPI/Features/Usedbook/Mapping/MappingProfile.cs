@@ -32,6 +32,8 @@ public class MappingProfile : Profile
         CreateMap<BookSaleTagQueryResult, BookSaleTagDto>();
 
         // UserBookOrder 轉換
-        CreateMap<CreateOrderRequest, UsedBook>();
+        CreateMap<CreateOrderRequest, UsedBookOrder>();
+        CreateMap<UserOrderListItemQueryResult, UserOrderListItemDto>();
+
     }
 }

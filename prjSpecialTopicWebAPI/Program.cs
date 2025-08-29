@@ -1,9 +1,12 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using OfficeOpenXml;
 using prjSpecialTopicWebAPI.Features.Fund.Services;
 using prjSpecialTopicWebAPI.Features.Shared.Controllers;
+using prjSpecialTopicWebAPI.Features.Shared.Options;
+using prjSpecialTopicWebAPI.Features.Shared.Service;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Authentication;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
 using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories;
@@ -25,13 +28,20 @@ builder.Services.AddDbContext<TeamAProjectContext>(options =>
         sql => sql.MigrationsAssembly(typeof(TeamAProjectContext).Assembly.FullName));
 });
 
-// 註冊 HttpClient 用於 LinePay API
-builder.Services.AddHttpClient("LinePay", client =>
+
+// 註冊 用於 LinePay API 相關
+// Options 綁定
+builder.Services.Configure<LinePayOptions>(builder.Configuration.GetSection("Payments:LinePay"));
+// HttpClient（命名客戶端）
+builder.Services.AddHttpClient("LinePay", (sp, c) =>
 {
-    client.BaseAddress = new Uri(
-        builder.Configuration["LinePay:BaseUrl"] ?? "https://sandbox-api-pay.line.me");
-    client.Timeout = TimeSpan.FromSeconds(20);
+    var opt = sp.GetRequiredService<IOptions<LinePayOptions>>().Value;
+    c.BaseAddress = new Uri(opt.BaseAddress);
+    c.Timeout = TimeSpan.FromSeconds(20);
 });
+
+// BLL Service
+builder.Services.AddScoped<LinePayService>();
 
 // 註冊 DataProtection
 builder.Services.AddDataProtection();
@@ -42,10 +52,10 @@ builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(opts =>
 {
     opts.Cookie.Name = ".Session";
-    opts.IdleTimeout = TimeSpan.FromMinutes(30);        // 目前設定 30 分鐘閒置過期
+    opts.IdleTimeout = TimeSpan.FromMinutes(30);
     opts.Cookie.HttpOnly = true;
-    opts.Cookie.SecurePolicy = CookieSecurePolicy.Always;
     opts.Cookie.SameSite = SameSiteMode.None;
+    opts.Cookie.SecurePolicy = CookieSecurePolicy.Always;
 });
 
 // 註冊單例 Random
@@ -112,7 +122,7 @@ builder.Services.AddScoped<UsedBookService>();
 builder.Services.AddScoped<UsedBookOrderService>();
 
 // 註冊 LinePayController
-builder.Services.AddScoped<LinePayController>();
+builder.Services.AddScoped<PaymentController>();
 
 // User
 // ===== JWT 驗證設定（新增） =====
@@ -151,7 +161,9 @@ builder.Services.AddCors(options =>
         // 允許 Angular 前端
         policy.WithOrigins("http://localhost:4200")
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
+
     });
 });
 
@@ -171,8 +183,6 @@ app.UseStaticFiles();
 app.UseHttpsRedirection();
 app.UseSession();
 app.UseAuthentication();
-
-
 app.UseAuthorization();
 app.MapControllers();
 

@@ -1,12 +1,22 @@
-﻿namespace prjSpecialTopicWebAPI.Features.Shared.DTOs
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace prjSpecialTopicWebAPI.Features.Shared.DTOs
 {
     public class CartItemDto
     {
-        public string? ImageUrl { get; set; }
+        [Required]
         public string Id { get; set; } = string.Empty;
+
+        [Required]
         public string Name { get; set; } = string.Empty;
-        public int Quantity { get; set; }
+
+        [Required, Url]
+        public string ImageUrl { get; set; } = string.Empty;
+
+        [Required, Range(0, double.MaxValue)]
         public decimal UnitPrice { get; set; }
-        public Dictionary<string, string>? Props { get; set; }
+
+        [Required, Range(1, int.MaxValue)]
+        public int Quantity { get; set; }
     }
 }

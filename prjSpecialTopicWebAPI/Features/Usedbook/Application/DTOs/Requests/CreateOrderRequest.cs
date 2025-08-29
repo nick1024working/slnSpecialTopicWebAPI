@@ -6,6 +6,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests
     {
         public PaymentMethod PaymentMethod { get; set; }
         public DeliveryMethod DeliveryMethod { get; set; }
-        public Guid BookId { get; set; }
+        public Guid SellerId { get; set; }
+        public List<Guid> BookIdList { get; set; } = [];
     }
 }

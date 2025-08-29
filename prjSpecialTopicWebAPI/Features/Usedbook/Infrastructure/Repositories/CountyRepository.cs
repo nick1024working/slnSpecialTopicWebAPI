@@ -13,6 +13,19 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             _db = db;
         }
 
+        public async Task<CountyQueryResult?> GetAsync(int id, CancellationToken ct = default)
+        {
+            return await _db.Counties
+                .AsNoTracking()
+                .Where(x => x.Id == id)
+                .Select(x => new CountyQueryResult
+                {
+                    Id = x.Id,
+                    Name = x.Name,
+                })
+                .FirstOrDefaultAsync(ct);
+        }
+
         public async Task<IReadOnlyList<CountyQueryResult>> GetAllAsync(CancellationToken ct = default)
         {
             return await _db.Counties
@@ -24,6 +37,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                     Name = x.Name,
                 })
                 .ToListAsync(ct);
-        } 
+        }
     }
 }

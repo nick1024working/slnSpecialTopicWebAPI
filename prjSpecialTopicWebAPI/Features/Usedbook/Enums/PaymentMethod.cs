@@ -3,6 +3,8 @@
     public enum PaymentMethod : byte
     {
         FaceToFace = 0,
-        Escrow = 1,
+        LINEPay = 1,
+        TransferAndATM = 2,
+        CreditCard = 3,
     }
 }
