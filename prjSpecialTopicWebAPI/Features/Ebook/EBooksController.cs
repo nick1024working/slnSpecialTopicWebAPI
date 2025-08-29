@@ -568,8 +568,8 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
         [Authorize]
         public async Task<IActionResult> GetReadingProgress(long ebookId)
         {
-            // var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var userIdString = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+             var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+           // var userIdString = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
             
             if (string.IsNullOrEmpty(userIdString))
             {
