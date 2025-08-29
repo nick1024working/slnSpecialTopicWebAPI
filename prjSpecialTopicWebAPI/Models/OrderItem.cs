@@ -34,8 +34,7 @@ public partial class OrderItem
 
     public virtual ItemType ItemType { get; set; } = null!;
 
-    // [步驟 4] 在這個會導致循環參考的「返回導覽屬性」上，加上 [JsonIgnore]
-    [JsonIgnore]
+
     public virtual EBookOrderMain Order { get; set; } = null!;
 
     public virtual SubscriptionPlan? Plan { get; set; }
