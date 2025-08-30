@@ -27,7 +27,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         [HttpPost("orders")]
         public async Task<ActionResult<string>> CreateOrder([FromBody] CreateOrderRequest request, CancellationToken ct)
         {
-            Guid userId = _authHelper.GetSeller(HttpContext) ?? Guid.Parse("EBB03874-054F-4FEA-9AE8-02B8D05C4BB3");
+            Guid userId = _authHelper.GetUser(HttpContext) ?? Guid.Parse("EBB03874-054F-4FEA-9AE8-02B8D05C4BB3");
 
             var result = await _orderService.CreateAsync(userId, request, ct);
             if (!result.IsSuccess)
@@ -49,10 +49,19 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
 
         // ========== 查詢 ==========
 
+        [HttpGet("admin/orders")]
+        public async Task<ActionResult<IReadOnlyList<AdminOrderListItemDto>>> GetAdminOrderList(CancellationToken ct)
+        {
+            var result = await _orderService.GetAdminOrderListAsync(ct);
+            if (!result.IsSuccess)
+                return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
+            return Ok(result.Value);
+        }
+
         [HttpGet("sellers/orders")]
         public async Task<ActionResult<IReadOnlyList<UserOrderListItemDto>>> GetSellerOrderList(CancellationToken ct)
         {
-            Guid userId = _authHelper.GetSeller(HttpContext) ?? Guid.Parse("EBB03874-054F-4FEA-9AE8-02B8D05C4BB3");
+            Guid userId = _authHelper.GetUser(HttpContext) ?? Guid.Parse("EBB03874-054F-4FEA-9AE8-02B8D05C4BB3");
 
             var result = await _orderService.GetSellerOrderListAsync(userId, ct);
             if (!result.IsSuccess)
@@ -63,8 +72,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         [HttpGet("buyers/orders")]
         public async Task<ActionResult<IReadOnlyList<UserOrderListItemDto>>> GetBuyerOrderList(CancellationToken ct)
         {
-            // HACK: 驗證政策尚未完成，若 Cookie 無 userId 則使用固定值
-            Guid userId = _authHelper.GetSeller(HttpContext) ?? Guid.Parse("EBB03874-054F-4FEA-9AE8-02B8D05C4BB3");
+            Guid userId = _authHelper.GetUser(HttpContext) ?? Guid.Parse("EBB03874-054F-4FEA-9AE8-02B8D05C4BB3");
 
             var result = await _orderService.GetBuyerOrderListAsync(userId, ct);
             if (!result.IsSuccess)

@@ -2,7 +2,7 @@
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results
 {
-    public class UserOrderListItemQueryResult
+    public class AdminOrderListItemDto
     {
         public string OrderNo { get; set; } = null!;
         public Guid BuyerId { get; set; }

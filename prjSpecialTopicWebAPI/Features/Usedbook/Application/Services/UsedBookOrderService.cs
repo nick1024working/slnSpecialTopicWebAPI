@@ -63,12 +63,19 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
                 var bookIds = req.BookIdList.Distinct().ToList();
 
                 // 驗證 + 取出書本 entity (後續要改狀態)
+                Guid sellerId = Guid.Empty;
                 var bookEntityList = new List<UsedBook>();
                 foreach (var bookId in req.BookIdList)
                 {
                     var bookEntity = await _bookRepository.GetEntityByIdAsync(bookId, ct);
-                    if (bookEntity?.SellerId != req.SellerId)
+                    if (bookEntity == null)
+                        return Result<string>.Failure("書本不存在", ErrorCodes.General.BadRequest);
+
+                    if (sellerId == Guid.Empty)
+                        sellerId = bookEntity.SellerId;
+                    else if (bookEntity.SellerId != sellerId)
                         return Result<string>.Failure("書本賣家不符", ErrorCodes.General.BadRequest);
+
                     if (bookEntity.IsSold || !bookEntity.IsActive || !bookEntity.IsOnShelf)
                         return Result<string>.Failure("書本狀態不可售", ErrorCodes.General.BadRequest);
 
@@ -79,7 +86,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
                 // 組裝訂單本體 entity
                 orderEntity.OrderNo = orderNo;
                 orderEntity.BuyerId = buyerId;
-                orderEntity.SellerId = req.SellerId;
+                orderEntity.SellerId = sellerId;
                 orderEntity.OrderStatus = (byte)OrderStatus.Pending;
                 orderEntity.PaymentStatus = (byte)PaymentStatus.Unpaid;
                 orderEntity.DeliveryStatus = (byte)DeliveryStatus.Preparing;
@@ -211,6 +218,20 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
         }
 
         // ========== 查詢 ==========
+
+        public async Task<Result<IReadOnlyList<AdminOrderListItemDto>>> GetAdminOrderListAsync(CancellationToken ct = default)
+        {
+            try
+            {
+                var queryResult = await _bookOrderRepository.GetAdminOrderListAsync(ct);
+                var dtoList = _mapper.Map<IReadOnlyList<AdminOrderListItemDto>>(queryResult);
+                return Result<IReadOnlyList<AdminOrderListItemDto>>.Success(dtoList);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<IReadOnlyList<AdminOrderListItemDto>>.Map(ex, _logger);
+            }
+        }
 
         public async Task<Result<IReadOnlyList<UserOrderListItemDto>>> GetSellerOrderListAsync(Guid userId, CancellationToken ct = default)
         {

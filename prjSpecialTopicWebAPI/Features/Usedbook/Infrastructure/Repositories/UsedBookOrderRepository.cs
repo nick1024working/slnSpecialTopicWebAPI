@@ -27,6 +27,40 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
         public void AddRangeOrderItems(IReadOnlyList<UsedBookOrderItem> entityList) =>
             _db.UsedBookOrderItems.AddRange(entityList);
 
+        public async Task<IReadOnlyList<AdminOrderListItemQueryResult>> GetAdminOrderListAsync(
+            CancellationToken ct = default)
+        {
+            var result = await _db.UsedBookOrders
+                .AsNoTracking()
+                .OrderByDescending(r => r.CreatedAt)
+                .Select(r => new AdminOrderListItemQueryResult
+                {
+                    OrderNo = r.OrderNo,
+                    BuyerId = r.BuyerId,
+                    BuyerName = r.Buyer.Name,
+                    BuyerEmail = r.Buyer.Email,
+                    SellerId = r.SellerId,
+                    SellerName = r.Seller.Name,
+                    SellerEmail = r.Seller.Email,
+
+                    OrderStatus = (OrderStatus)r.OrderStatus,
+                    PaymentStatus = (PaymentStatus)r.PaymentStatus,
+                    DeliveryStatus = (DeliveryStatus)r.DeliveryStatus,
+                    PaymentMethod = (PaymentMethod)r.PaymentMethod,
+                    DeliveryMethod = (DeliveryMethod)r.DeliveryMethod,
+
+                    Subtotal = r.Subtotal,
+                    DiscountTotal = r.DiscountTotal,
+                    DeliveryFee = r.DeliveryFee,
+                    GrandTotal = r.GrandTotal,
+
+                    CreatedAt = r.CreatedAt,
+                })
+                .ToListAsync(ct);
+
+            return result;
+        }
+
         public async Task<IReadOnlyList<UserOrderListItemQueryResult>> GetSellerOrderListAsync(
             Guid userId, CancellationToken ct = default)
         {
@@ -38,7 +72,11 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                 {
                     OrderNo = r.OrderNo,
                     BuyerId = r.BuyerId,
+                    BuyerName = r.Buyer.Name,
+                    BuyerEmail = r.Buyer.Email,
                     SellerId = r.SellerId,
+                    SellerName = r.Seller.Name,
+                    SellerEmail = r.Seller.Email,
 
                     OrderStatus = (OrderStatus)r.OrderStatus,
                     PaymentStatus = (PaymentStatus)r.PaymentStatus,
@@ -69,7 +107,11 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                 {
                     OrderNo = r.OrderNo,
                     BuyerId = r.BuyerId,
+                    BuyerName = r.Buyer.Name,
+                    BuyerEmail = r.Buyer.Email,
                     SellerId = r.SellerId,
+                    SellerName = r.Seller.Name,
+                    SellerEmail = r.Seller.Email,
 
                     OrderStatus = (OrderStatus)r.OrderStatus,
                     PaymentStatus = (PaymentStatus)r.PaymentStatus,
