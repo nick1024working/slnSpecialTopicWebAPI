@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Authentication;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Errors;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Services;
 
@@ -26,17 +27,17 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             if (!queryResult.IsSuccess)
                 return ErrorCodeToHttpResponseMapper.Map(queryResult.ErrorCode);
 
-            if (!queryResult.Value.Contains(req.Id))
+            if (!queryResult.Value.Any(res => res.Id == req.Id))
                 return BadRequest();
 
-            _authHelper.SetSeller(req.Id, HttpContext);
+            _authHelper.SetUser(req.Id, HttpContext);
             return NoContent();
         }
 
         [HttpGet("current-seller")]
         public ActionResult<Guid> GetCurrentSeller()
         {
-            var result = _authHelper.GetSeller(HttpContext);
+            var result = _authHelper.GetUser(HttpContext);
             if (result == null)
                 return NotFound();
             return Ok(result);
@@ -45,12 +46,12 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         [HttpDelete("current-seller")]
         public IActionResult ClearCurrentSeller()
         {
-            _authHelper.ClearSeller(HttpContext);
+            _authHelper.ClearUser(HttpContext);
             return NoContent();
         }
 
         [HttpGet("sellers")]
-        public async Task<ActionResult<Guid>> GetSellers(CancellationToken ct)
+        public async Task<ActionResult<CurrentSellerDto>> GetSellers(CancellationToken ct)
         {
             var result = await _externalDomainService.GetSellerListAsync(ct);
             if (!result.IsSuccess)

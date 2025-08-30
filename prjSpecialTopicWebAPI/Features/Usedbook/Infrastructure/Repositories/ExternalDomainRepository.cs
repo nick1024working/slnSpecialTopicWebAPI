@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
 using prjSpecialTopicWebAPI.Models;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
@@ -12,13 +13,24 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             _db = db;
         }
 
-        public async Task<IReadOnlyList<Guid>> GetSellerListAsync(CancellationToken ct = default)
+        public async Task<IReadOnlyList<CurrentSellerDto>> GetSellerListAsync(CancellationToken ct = default)
         {
-            var result = await _db.UsedBooks
+            var result = await _db.Users
                 .AsNoTracking()
-                .GroupBy(b => b.SellerId)
-                .OrderByDescending(g => g.Count())
-                .Select(g => g.Key)
+                .Select(u => new
+                {
+                    u.Uid,
+                    u.Name,
+                    u.Email,
+                    BookCount = u.UsedBooks.Count()
+                })
+                .Where(x => x.BookCount > 0)
+                .Select(x => new CurrentSellerDto
+                {
+                    Id = x.Uid,
+                    Name = x.Name,
+                    Email = x.Email,
+                })
                 .ToListAsync(ct);
             return result;
         }
