@@ -6,6 +6,7 @@
         public string Currency { get; set; } = "TWD";
         public string OrderId { get; set; } = string.Empty;
         public IEnumerable<PackageDto> Packages { get; set; } = [];
+        public int? UserFee { get; set; }
         public RedirectUrlsDto RedirectUrls { get; set; } = new RedirectUrlsDto();
     }
 
