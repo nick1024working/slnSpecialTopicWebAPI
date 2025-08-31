@@ -26,5 +26,7 @@ namespace prjSpecialTopicWebAPI.Features.Ebook.DTOs
         public string? EBookDataType { get; set; }
 
         public long TotalSales { get; set; } // [新增] 加入總銷量欄位
+
+        public byte MaturityRating { get; set; } // [新增] 加入分級欄位
     }
 }

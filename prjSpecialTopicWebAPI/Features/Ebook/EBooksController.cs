@@ -224,6 +224,7 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                 Translator = ebookEntity.Translator,
                 EBookDataType = ebookEntity.EBookDataType,
                 TotalSales = ebookEntity.Totalsales, // [新增] 從 Entity 映射總銷量到 DTO
+                MaturityRating = ebookEntity.MaturityRating, // [新增] 從 Entity 映射分級到 DTO
             };
 
             return Ok(ebookDetail);
