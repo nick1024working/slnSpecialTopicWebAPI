@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text.Json.Serialization;
 
 namespace prjSpecialTopicWebAPI.Models;
 
@@ -33,7 +32,6 @@ public partial class OrderItem
     public virtual EBookMain? EBook { get; set; }
 
     public virtual ItemType ItemType { get; set; } = null!;
-
 
     public virtual EBookOrderMain Order { get; set; } = null!;
 
