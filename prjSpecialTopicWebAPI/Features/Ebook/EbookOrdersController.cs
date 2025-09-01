@@ -136,7 +136,7 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
             await using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                var ebookIds = cartItems.Select(item => item.EbookId).ToList();
+                var ebookIds = cartItems.Select(item => item.EbookId).Distinct().ToList();
                 var ebooksInDb = await _context.EBookMains
                     .Where(e => ebookIds.Contains(e.EbookId) && e.IsAvailable)
                     .ToDictionaryAsync(e => e.EbookId);
