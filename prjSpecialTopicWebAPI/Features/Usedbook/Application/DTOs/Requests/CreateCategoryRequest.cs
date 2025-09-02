@@ -2,7 +2,7 @@
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests
 {
-    public record CreateBookCategoryRequest
+    public record CreateCategoryRequest
     {
         [Display(Name = "主題類別名稱")]
         [Required(ErrorMessage = "主題類別名稱為必填欄位")]

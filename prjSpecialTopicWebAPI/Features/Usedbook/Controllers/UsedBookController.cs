@@ -205,6 +205,20 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
             return NoContent();
         }
 
+
+        // ========== 子屬性 - 標籤 ==========
+
+        [HttpPut("categories/batch")]
+        public async Task<IActionResult> UpdateBookCategoryBatch([FromBody] UpdateBookCategoryRequest request, CancellationToken ct)
+        {
+            var result = await _bookService.UpdateBookCategoryBatchAsync(request, ct);
+            if (!result.IsSuccess)
+                return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
+
+            return NoContent();
+        }
+
+
         // ========== Excel ==========
         [HttpGet("export/example")]
         public async Task<IActionResult> ExportUploadExample(CancellationToken ct)

@@ -20,7 +20,7 @@ namespace prjBookAppCoreMVC.Controllers.UsedBook
         // ========== 新增、更新、刪除 ==========
 
         [HttpPost]
-        public async Task<ActionResult<int>> CreateBookCategory([FromBody] CreateBookCategoryRequest request, CancellationToken ct)
+        public async Task<ActionResult<int>> CreateBookCategory([FromBody] CreateCategoryRequest request, CancellationToken ct)
         {
             var result = await _bookCategoryService.CreateAsync(request, ct);
             if (!result.IsSuccess)
@@ -38,7 +38,7 @@ namespace prjBookAppCoreMVC.Controllers.UsedBook
         }
 
         [HttpPatch("{id:int}")]
-        public async Task<ActionResult> UpdateBookCategory([FromRoute] int id, [FromBody] UpdatePartialBookCategoryRequest request, CancellationToken ct)
+        public async Task<ActionResult> UpdateBookCategory([FromRoute] int id, [FromBody] UpdatePartialCategoryRequest request, CancellationToken ct)
         {
             var result = await _bookCategoryService.UpdateByIdAsync(id, request, ct);
             if (!result.IsSuccess)
@@ -46,7 +46,7 @@ namespace prjBookAppCoreMVC.Controllers.UsedBook
             return NoContent();
         }
 
-        [HttpPut("{id:int}/order")]
+        [HttpPut("order")]
         public async Task<ActionResult> UpdateBookCategoryListOrder([FromBody] UpdateOrderByIdRequest request, CancellationToken ct)
         {
             var result = await _bookCategoryService.UpdateAllOrderAsync(request, ct);

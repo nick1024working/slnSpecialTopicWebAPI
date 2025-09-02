@@ -439,6 +439,25 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             }
         }
 
+        // ========== 主題分類相關 ==========
+
+        public async Task<Result<Unit>> UpdateBookCategoryBatchAsync(UpdateBookCategoryRequest request, CancellationToken ct = default)
+        {
+            try
+            {
+                var commandResult = await _usedBookRepository.UpdateCategoryBatchAsync(request.BookIdList, request.CategoryId, ct);
+                if (commandResult)
+                    await _unitOfWork.CommitAsync(ct);
+                await _unitOfWork.CommitAsync(ct);
+                return Result<Unit>.Success(Unit.Value);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionToErrorResultMapper<Unit>.Map(ex, _logger);
+            }
+        }
+
+
         // ========== Excel ==========
 
         public async Task<Result<byte[]>> ExportUploadExampleAsync(CancellationToken ct = default)

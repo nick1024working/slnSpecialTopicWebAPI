@@ -2,7 +2,7 @@
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests
 {
-    public record UpdatePartialBookCategoryRequest
+    public record UpdatePartialCategoryRequest
     {
         [Display(Name = "主題類別名稱")]
         [StringLength(50, ErrorMessage = "不可超過 50 字")]

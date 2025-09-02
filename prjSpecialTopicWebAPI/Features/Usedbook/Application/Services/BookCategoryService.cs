@@ -33,7 +33,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
         /// <summary>
         /// 新增一筆主題分類資料。
         /// </summary>
-        public async Task<Result<int>> CreateAsync(CreateBookCategoryRequest request, CancellationToken ct = default)
+        public async Task<Result<int>> CreateAsync(CreateCategoryRequest request, CancellationToken ct = default)
         {
             await _unitOfWork.BeginTransactionAsync(ct);
             try
@@ -83,7 +83,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
         /// 依照 ID 更新主題分類資料，不能更新排序。
         /// </summary>
         // HACK: 需考慮 Name, Slug 可能會重複的情況
-        public async Task<Result<Unit>> UpdateByIdAsync(int id, UpdatePartialBookCategoryRequest request, CancellationToken ct = default)
+        public async Task<Result<Unit>> UpdateByIdAsync(int id, UpdatePartialCategoryRequest request, CancellationToken ct = default)
         {
             try
             {

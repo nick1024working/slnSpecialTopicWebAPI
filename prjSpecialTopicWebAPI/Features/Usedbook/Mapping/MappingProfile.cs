@@ -24,7 +24,7 @@ public class MappingProfile : Profile
 
 
         // BookCategory 轉換
-        CreateMap<CreateBookCategoryRequest, BookCategory>();
+        CreateMap<CreateCategoryRequest, BookCategory>();
         CreateMap<BookCategoryQueryResult, BookCategoryDto>();
 
         // BookSaleTag 轉換
