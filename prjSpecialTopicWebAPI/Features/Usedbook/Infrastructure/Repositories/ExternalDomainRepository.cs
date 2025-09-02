@@ -24,6 +24,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
                     u.Email,
                     BookCount = u.UsedBooks.Count()
                 })
+                .OrderByDescending(x => x.BookCount)
                 .Where(x => x.BookCount > 0)
                 .Select(x => new CurrentSellerDto
                 {

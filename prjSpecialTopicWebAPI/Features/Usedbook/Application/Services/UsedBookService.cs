@@ -159,14 +159,15 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
 
                 await _usedBookImageService.SetCoverAsync(id, new SetBookCoverRequest { ImageId = updateRequest.IdList[0] }, ct);
 
-                var currentList = await _usedBookImageService.GetByBookIdAsync(id, ct);
-                if (!currentList.IsSuccess)
-                    throw new Exception(currentList.ErrorMessage);
-                foreach (var item in currentList.Value)
-                {
-                    if (!ids.Contains(item.Id))
-                        await _usedBookImageService.DeleteByImageIdAsync(item.Id, ct);
-                }
+                // BUG: 刪除圖片邏輯錯誤，DeleteByImageIdAsync()的參數要是 objectKey，但GetByBookIdAsync()的結果是包裝好的url
+                //var currentList = await _usedBookImageService.GetByBookIdAsync(id, ct);
+                //if (!currentList.IsSuccess)
+                //    throw new Exception(currentList.ErrorMessage);
+                //foreach (var item in currentList.Value)
+                //{
+                //    if (!ids.Contains(item.Id))
+                //        await _usedBookImageService.DeleteByImageIdAsync(item.Id, ct);
+                //}
 
                 var updateOrderResult = await _usedBookImageService.UpdateOrderByBookIdAsync(id, updateRequest, ct);
                 if (!updateOrderResult.IsSuccess)
