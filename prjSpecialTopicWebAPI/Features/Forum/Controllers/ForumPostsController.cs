@@ -43,7 +43,9 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
             [property: JsonPropertyName("viewCount")] int? ViewCount,
             [property: JsonPropertyName("likeCount")] int? LikeCount,
             [property: JsonPropertyName("contentHtml")] string ContentHtml,
-            [property: JsonPropertyName("images")] IReadOnlyList<string> Images
+            [property: JsonPropertyName("images")] IReadOnlyList<string> Images,
+            [property: JsonPropertyName("boardId")] int BoardId,          // ★ 新增
+            [property: JsonPropertyName("boardName")] string BoardName    // ★ 新增
         );
 
         public record CommentDto(
@@ -71,7 +73,7 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetPost(int id)
         {
-            // 1) 在資料庫內原子性把 ViewCount + 1
+            // 1) 原子性把 ViewCount + 1
             var rows = await _db.ForumPosts
                 .Where(p => p.PostId == id && p.IsDeleted != true)
                 .ExecuteUpdateAsync(up => up.SetProperty(
@@ -81,10 +83,11 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
 
             if (rows == 0) return NotFound();
 
-            // 2) 再用 AsNoTracking 讀一次最新資料
+            // 2) 再讀一次最新資料（含分類、作者）
             var post = await _db.ForumPosts
                 .AsNoTracking()
                 .Include(p => p.UidNavigation)
+                .Include(p => p.PostCategory) // ★ 加入分類
                 .FirstOrDefaultAsync(p => p.PostId == id);
 
             var images = await _db.PostImages
@@ -100,10 +103,12 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
                 Title: post.Title,
                 AuthorName: post.UidNavigation != null ? post.UidNavigation.Name : "匿名",
                 CreatedAt: post.CreatedAt,
-                ViewCount: post.ViewCount,              // 這裡會是已 +1 後的值
+                ViewCount: post.ViewCount,              // 已 +1
                 LikeCount: post.LikeCount,
                 ContentHtml: post.Content ?? string.Empty,
-                Images: images
+                Images: images,
+                BoardId: post.PostCategoryId,
+                BoardName: post.PostCategory?.PostCategoryName ?? string.Empty
             );
 
             return Ok(dto);
@@ -128,8 +133,53 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
             return Ok(comments);
         }
 
-        // ========== 清單 ==========
-        // GET: api/forum/posts?orderBy=hot&boardId=1&page=1&pageSize=20
+        // ★ 新增：建立留言
+        public record CreateCommentRequest(string? Content);
+
+        [HttpPost("{id:int}/comments")]
+        public async Task<IActionResult> CreateComment(int id, [FromBody] CreateCommentRequest req)
+        {
+            if (string.IsNullOrWhiteSpace(req.Content)) return BadRequest("留言內容不可為空");
+            var post = await _db.ForumPosts.FirstOrDefaultAsync(p => p.PostId == id && p.IsDeleted != true);
+            if (post == null) return NotFound("找不到文章");
+
+            // 取得使用者 UID（claims → fallback 首位使用者）
+            Guid uid;
+            var uidStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+            if (!string.IsNullOrWhiteSpace(uidStr) && Guid.TryParse(uidStr, out var claimUid))
+                uid = claimUid;
+            else
+            {
+                var firstUser = await _db.Users.AsNoTracking().Select(u => u.Uid).FirstOrDefaultAsync();
+                if (firstUser == Guid.Empty) return Unauthorized("尚未登入，且系統內沒有可用的預設使用者。");
+                uid = firstUser;
+            }
+
+            var c = new PostComment
+            {
+                PostId = id,
+                Uid = uid,
+                Content = req.Content!.Trim(),
+                CreatedAt = DateTime.Now,
+                IsDeleted = false
+            };
+            _db.PostComments.Add(c);
+            await _db.SaveChangesAsync();
+
+            // 回傳建立好的留言（給前端覆蓋暫存留言）
+            var authorName = await _db.Users.AsNoTracking()
+                .Where(u => u.Uid == uid).Select(u => u.Name).FirstOrDefaultAsync() ?? "匿名";
+
+            var dto = new CommentDto(
+                CommentId: c.CommentId,
+                AuthorName: authorName,
+                CreatedAt: c.CreatedAt,
+                Content: c.Content
+            );
+            return CreatedAtAction(nameof(GetComments), new { id }, dto);
+        }
+
+        // ========== 清單（略，同你原本） ==========
         [HttpGet]
         public async Task<IActionResult> GetPosts(
             [FromQuery] int page = 1,
@@ -146,7 +196,6 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
             if (boardId.HasValue)
                 baseQ = baseQ.Where(p => p.PostCategoryId == boardId.Value);
 
-            // 先投影（確保全可轉 SQL）
             var q = baseQ.Select(p => new
             {
                 p.PostId,
@@ -162,7 +211,6 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
                 HotScore = p.ViewCount + p.PostLikes.Count() * 3
             });
 
-            // 排序
             string key = (orderBy ?? "new").Trim().ToLowerInvariant();
             switch (key)
             {
@@ -170,7 +218,6 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
                 case "熱門":
                     q = q.OrderByDescending(p => p.HotScore).ThenByDescending(p => p.CreatedAt);
                     break;
-
                 case "view":
                 case "views":
                 case "瀏覽":
@@ -191,19 +238,16 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
                             HotScore = p.ViewCount + p.PostLikes.Count() * 3
                         });
                     break;
-
                 case "like":
                 case "likes":
                 case "喜歡":
                     q = q.OrderByDescending(p => p.LikeCount).ThenByDescending(p => p.CreatedAt);
                     break;
-
                 case "reply":
                 case "replies":
                 case "回覆":
                     q = q.OrderByDescending(p => p.ReplyCount).ThenByDescending(p => p.CreatedAt);
                     break;
-
                 case "new":
                 case "最新":
                 default:
@@ -239,21 +283,7 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
             ));
         }
 
-        // ========== 指定分類清單 ==========
-        // GET: api/forum/posts/by-category/5?page=1&pageSize=20&orderBy=new
-        [HttpGet("by-category/{categoryId:int}")]
-        public async Task<IActionResult> GetPostsByCategory(
-            int categoryId,
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 20,
-            [FromQuery] string? orderBy = "new")
-        {
-            if (categoryId <= 0)
-                return BadRequest("Category ID must be a positive integer.");
-
-            return await GetPosts(page: page, pageSize: pageSize, boardId: categoryId, orderBy: orderBy ?? "new");
-        }
-        // 1) 更新文章
+        // ========== 文章更新/刪除/建立（沿用你原本） ==========
         public record UpdatePostRequest(string? Title, string? ContentHtml, int? PostCategoryID);
 
         [HttpPut("{id:int}")]
@@ -263,7 +293,7 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
             if (post == null) return NotFound();
 
             if (!string.IsNullOrWhiteSpace(req.Title)) post.Title = req.Title!.Trim();
-            if (req.ContentHtml is not null) post.Content = req.ContentHtml;           // 允許空字串
+            if (req.ContentHtml is not null) post.Content = req.ContentHtml;
             if (req.PostCategoryID.HasValue && req.PostCategoryID.Value > 0)
             {
                 var ok = await _db.PostCategories.AnyAsync(c => c.PostCategoryId == req.PostCategoryID.Value);
@@ -275,7 +305,6 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
             return NoContent();
         }
 
-        // 2) 軟刪除
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> DeletePost(int id)
         {
@@ -287,63 +316,50 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
             return NoContent();
         }
 
-        // ========== 建立 ==========
-        // POST: api/forum/posts  (multipart/form-data)
-        // ========== 建立 ==========
-        // POST: api/forum/posts  (multipart/form-data)
         [HttpPost]
         [Consumes("multipart/form-data")]
-        [RequestSizeLimit(50_000_000)] // 50MB
+        [RequestSizeLimit(50_000_000)]
         public async Task<IActionResult> CreatePost()
         {
             try
             {
-                // 讀取表單欄位
                 var title = Request.Form["title"].ToString()?.Trim();
                 var contentHtml = Request.Form["contentHtml"].ToString();
                 var postCategoryIDStr = Request.Form["postCategoryID"].ToString();
                 var mainIndexStr = Request.Form["mainIndex"].ToString();
 
-                // 基本驗證
                 if (string.IsNullOrWhiteSpace(title))
                     return BadRequest("標題為必填。");
                 if (!int.TryParse(postCategoryIDStr, out var postCategoryId) || postCategoryId <= 0)
                     return BadRequest("postCategoryID 無效。");
 
-                // 分類是否存在
                 var categoryExists = await _db.PostCategories
                     .AsNoTracking()
                     .AnyAsync(c => c.PostCategoryId == postCategoryId);
                 if (!categoryExists)
                     return BadRequest($"找不到 PostCategoryId={postCategoryId}。");
 
-                // 解析主圖索引
                 int? mainIndex = null;
                 if (int.TryParse(mainIndexStr, out var mix) && mix >= 0)
                     mainIndex = mix;
 
-                // 取得使用者 Guid（先 Claims → 再 fallback）
                 Guid uid;
                 var uidStr = User.FindFirstValue(ClaimTypes.NameIdentifier)
                              ?? User.FindFirstValue("sub");
                 if (!string.IsNullOrWhiteSpace(uidStr) && Guid.TryParse(uidStr, out var claimUid))
-                {
                     uid = claimUid;
-                }
                 else
                 {
-                    // Fallback：抓第一位使用者的 Guid；若無使用者，回 401 比較友善
                     var firstUser = await _db.Users
                         .AsNoTracking()
-                        .Select(u => u.Uid)    // ← 若你的欄位不是 Uid，這裡請改成正確屬性
+                        .Select(u => u.Uid)
                         .FirstOrDefaultAsync();
 
                     if (firstUser == Guid.Empty)
                         return Unauthorized("尚未登入，且系統內沒有可用的預設使用者。");
                     uid = firstUser;
                 }
-                // 先找一個可用的預設 Filter Id（若無資料，視為後端設定錯誤）
-                // 先找一個可用的預設 Filter（用追蹤模式查，等會直接掛到導覽屬性）
+
                 var defaultFilter = await _db.PostFilters
                     .OrderBy(f => f.PostFilterId)
                     .FirstOrDefaultAsync();
@@ -353,7 +369,6 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
                                    detail: "系統尚未建立任何 PostFilter，請先建立至少一筆。",
                                    statusCode: 500);
 
-                // 建立主文（★ 關鍵：用導覽屬性指定預設的 Filter）
                 var post = new ForumPost
                 {
                     Title = title!,
@@ -364,16 +379,12 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
                     IsDeleted = false,
                     ViewCount = 0,
                     LikeCount = 0,
-
-                    // 如果你的導覽屬性叫 PostFilter，改成 PostFilter = defaultFilter
                     Filter = defaultFilter
                 };
 
                 _db.ForumPosts.Add(post);
-                await _db.SaveChangesAsync();   // 先拿 PostId
+                await _db.SaveChangesAsync();
 
-
-                // 上傳圖片（可為 0 張）
                 var files = Request.Form.Files;
                 if (files != null && files.Count > 0)
                 {
@@ -395,7 +406,6 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
                     }
                     await _db.SaveChangesAsync();
 
-                    // 若 mainIndex 超出範圍，確保沒有主圖
                     if (mainIndex.HasValue && mainIndex.Value >= files.Count)
                     {
                         var imgs = await _db.PostImages.Where(x => x.PostId == post.PostId).ToListAsync();
@@ -408,7 +418,6 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
             }
             catch (DbUpdateException ex)
             {
-                // 典型：FK 失敗（分類不存在 / 使用者不存在）等
                 return Problem(title: "資料庫寫入失敗", detail: ex.InnerException?.Message ?? ex.Message, statusCode: 500);
             }
             catch (Exception ex)
@@ -416,6 +425,5 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
                 return Problem(title: "建立文章發生未預期錯誤", detail: ex.Message, statusCode: 500);
             }
         }
-
     }
 }
