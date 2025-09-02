@@ -247,28 +247,29 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // 設定 HTTP 處理管線（Middleware）
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment())        // 開發環境才啟動 Swagger 中介軟體
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+app.UseHttpsRedirection();                  // 自動把 HTTP 轉到 HTTPS
 app.UseStaticFiles(new StaticFileOptions
 {
     OnPrepareResponse = ctx =>
     {
+        // 回應靜態檔案時，加上 CORS header
         ctx.Context.Response.Headers.Append("Access-Control-Allow-Origin", "http://localhost:4200");
         ctx.Context.Response.Headers.Append("Access-Control-Allow-Credentials", "true");
     }
 });
-app.UseRouting();
+app.UseRouting();                           // 建立路由表，之後會依照路由分派
 
-app.UseCors("AllowLocalAngular");
-app.UseSession();
+app.UseCors("AllowLocalAngular");           // 套用 CORS 策略（要放在 UseRouting 之後、UseAuthorization 之前）
+app.UseSession();                           // 啟用 Session，中途可讀寫 Cookie + 狀態
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapControllers();
+app.MapControllers();                       // 把 Controller 的 Endpoint 加進路由表 (把路由綁定到實際控制器)
 app.Run();
