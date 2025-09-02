@@ -86,7 +86,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             return queryResult;
         }
 
-        // TODO: 需確認需求的 IsActive
         public async Task<IReadOnlyList<BookSaleTagQueryResult>> GetAllAsync(CancellationToken ct = default)
         {
             var queryResult = await _db.BookSaleTags
@@ -104,5 +103,22 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             return queryResult;
         }
 
+        public async Task<IReadOnlyList<BookSaleTagQueryResult>> GetAllActiveAsync(CancellationToken ct = default)
+        {
+            var queryResult = await _db.BookSaleTags
+                .AsNoTracking()
+                .Where(st => st.IsActive)
+                .OrderBy(st => st.DisplayOrder)
+                .Select(st => new BookSaleTagQueryResult
+                {
+                    Id = st.Id,
+                    Name = st.Name,
+                    IsActive = st.IsActive,
+                    DisplayOrder = st.DisplayOrder,
+                    Slug = st.Slug,
+                })
+                .ToListAsync(ct);
+            return queryResult;
+        }
     }
 }

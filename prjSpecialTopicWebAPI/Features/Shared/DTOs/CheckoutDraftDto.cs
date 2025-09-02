@@ -6,6 +6,7 @@
         public string DeliveryOption { get; set; } = string.Empty;
         public string PaymentOption { get; set; } = string.Empty;
 
+        public Guid? BuyerId { get; set; }
         public string BuyerName { get; set; } = string.Empty;
         public string BuyerEmail { get; set; } = string.Empty;
         public string BuyerPhone { get; set; } = string.Empty;

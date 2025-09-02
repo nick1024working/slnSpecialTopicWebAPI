@@ -1,9 +1,11 @@
-﻿namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests
+﻿using prjSpecialTopicWebAPI.Features.Usedbook.Enums;
+
+namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Requests
 {
     public class UpdateOrderStatusRequest
     {
-        public byte? OrderStatus { get; set; }
-        public byte? PaymentStatus { get; set; }
-        public byte? DeliveryStatus { get; set; }
+        public OrderStatus? OrderStatus { get; set; }
+        public PaymentStatus? PaymentStatus { get; set; }
+        public DeliveryStatus? DeliveryStatus { get; set; }
     }
 }

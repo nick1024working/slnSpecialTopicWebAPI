@@ -6,13 +6,14 @@
         public string Currency { get; set; } = "TWD";
         public string OrderId { get; set; } = string.Empty;
         public IEnumerable<PackageDto> Packages { get; set; } = [];
+        public int? UserFee { get; set; }
         public RedirectUrlsDto RedirectUrls { get; set; } = new RedirectUrlsDto();
     }
 
     public class PackageDto
     {
         public int Amount { get; set; }
-        public string? Id { get; set; }
+        public string Id { get; set; }
         public string? Name { get; set; }
         public IEnumerable<ProductDto> Products { get; set; } = [];
         public int? UserFee { get; set; }

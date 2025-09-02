@@ -3,10 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System.IdentityModel.Tokens.Jwt;
 using OfficeOpenXml;
 using prjSpecialTopicWebAPI.Features.Fund.Services;
-using prjSpecialTopicWebAPI.Features.Shared.Controllers;
 using prjSpecialTopicWebAPI.Features.Shared.Options;
 using prjSpecialTopicWebAPI.Features.Shared.Service;
 using prjSpecialTopicWebAPI.Features.Usedbook.Application.Authentication;
@@ -16,6 +14,7 @@ using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.UnitOfWork;
 using prjSpecialTopicWebAPI.Features.Usedbook.Mapping;
 using prjSpecialTopicWebAPI.Models;
 using prjSpecialTopicWebAPI.Usedbook.Application.Services;
+using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -66,6 +65,10 @@ builder.Services.AddSingleton<Random>();
 // ========== 各自需要的服務於以下註冊 ==========
 #region
 
+// Shared
+builder.Services.AddScoped<LinePayService>();
+
+
 // Ebook
 
 
@@ -83,7 +86,6 @@ builder.Services.AddScoped<IPlanService, PlanService>();
 
 // 設定 EPPlus 授權模式
 ExcelPackage.License.SetNonCommercialOrganization("MSIT-TeamA");
-
 
 builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 builder.Services.AddAutoMapper(cfg => { cfg.AddProfile<MappingProfile>(); });
@@ -121,10 +123,8 @@ builder.Services.AddScoped<UsedBookRepository>();
 builder.Services.AddScoped<UsedBookOrderRepository>();
 builder.Services.AddScoped<UsedBookImageService>();
 builder.Services.AddScoped<UsedBookService>();
+builder.Services.AddScoped<UsedBookPaymentService>();
 builder.Services.AddScoped<UsedBookOrderService>();
-
-// 註冊 LinePayController
-builder.Services.AddScoped<PaymentController>();
 
 // User
 // ===== JWT 驗證設定（新增） =====
@@ -247,21 +247,29 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // 設定 HTTP 處理管線（Middleware）
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment())        // 開發環境才啟動 Swagger 中介軟體
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
-app.UseStaticFiles();
-app.UseRouting();
+app.UseHttpsRedirection();                  // 自動把 HTTP 轉到 HTTPS
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        // 回應靜態檔案時，加上 CORS header
+        ctx.Context.Response.Headers.Append("Access-Control-Allow-Origin", "http://localhost:4200");
+        ctx.Context.Response.Headers.Append("Access-Control-Allow-Credentials", "true");
+    }
+});
+app.UseRouting();                           // 建立路由表，之後會依照路由分派
 
-app.UseCors("AllowLocalAngular");
-app.UseSession();
+app.UseCors("AllowLocalAngular");           // 套用 CORS 策略（要放在 UseRouting 之後、UseAuthorization 之前）
+app.UseSession();                           // 啟用 Session，中途可讀寫 Cookie + 狀態
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapControllers();
+app.MapControllers();                       // 把 Controller 的 Endpoint 加進路由表 (把路由綁定到實際控制器)
 app.Run();

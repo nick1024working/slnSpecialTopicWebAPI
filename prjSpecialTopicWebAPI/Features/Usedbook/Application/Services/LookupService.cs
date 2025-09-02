@@ -114,7 +114,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
         {
             try
             {
-                var result = await _bookCategoryRepository.GetAllAsync(ct);
+                var result = await _bookCategoryRepository.GetAllActiveAsync(ct);
                 var dtoList = result.Select(x => new IdNameDto { Id = x.Id, Name = x.Name }).ToList();
                 return Result<IEnumerable<IdNameDto>>.Success(dtoList);
             }
@@ -128,7 +128,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
         {
             try
             {
-                var result = await _bookSaleTagRepository.GetAllAsync(ct);
+                var result = await _bookSaleTagRepository.GetAllActiveAsync(ct);
                 var dtoList = result.Select(x => new IdNameDto { Id = x.Id, Name = x.Name }).ToList();
                 return Result<IEnumerable<IdNameDto>>.Success(dtoList);
             }

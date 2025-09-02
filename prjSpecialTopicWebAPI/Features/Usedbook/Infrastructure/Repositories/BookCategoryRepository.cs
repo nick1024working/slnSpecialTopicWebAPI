@@ -80,5 +80,21 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             return queryResult;
         }
 
+        public async Task<IReadOnlyList<BookCategoryQueryResult>> GetAllActiveAsync(CancellationToken ct = default)
+        {
+            var queryResult = await _db.BookCategories
+                .AsNoTracking()
+                .Where(c => c.IsActive)
+                .OrderBy(c => c.DisplayOrder)
+                .Select(c => new BookCategoryQueryResult
+                {
+                    Id = c.Id,
+                    Name = c.Name,
+                    IsActive = c.IsActive,
+                    Slug = c.Slug,
+                })
+                .ToListAsync(ct);
+            return queryResult;
+        }
     }
 }
