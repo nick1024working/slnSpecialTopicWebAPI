@@ -230,5 +230,39 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                 return StatusCode(500, "建立訂單時發生內部錯誤。");
             }
         }
+
+
+        // --- [新增] 取消訂單的 API 端點 ---
+        [HttpPatch("{orderId}/cancel")] // 使用 PATCH 來更新訂單狀態
+        public async Task<IActionResult> CancelOrder(long orderId)
+        {
+            var userIdString = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+            if (!Guid.TryParse(userIdString, out var userId))
+            {
+                return Unauthorized("無效的使用者識別碼。");
+            }
+
+            var order = await _context.EBookOrderMains
+                .FirstOrDefaultAsync(o => o.OrderId == orderId && o.Uid == userId);
+
+            if (order == null)
+            {
+                return NotFound("找不到您的訂單，或您無權操作此訂單。");
+            }
+
+            // 只有在「待付款」(ID=1) 狀態下才允許取消
+            if (order.OrderStatusId != 1)
+            {
+                return BadRequest("只有待付款的訂單才能被取消。");
+            }
+
+            // 將訂單狀態更新為「已取消」(ID=3)
+            order.OrderStatusId = 3;
+            order.LastModifiedDate = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "訂單已成功取消。" });
+        }
     }
 }
