@@ -184,35 +184,44 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                 // 第一次儲存，目的是為了讓 EF Core 產生 OrderId
                 await _context.SaveChangesAsync();
 
-                var existingPurchases = await _context.EbookPurchaseds
-                    .Where(p => p.Uid == userId && ebookIds.Contains(p.EBookId))
-                    .Select(p => p.EBookId)
-                    .ToListAsync();
+                // --- [核心修改] ---
+                // 移除在這裡新增 EbookPurchaseds 的所有程式碼，
+                // 因為付款尚未完成，不能給予書籍。
 
-                foreach (var item in newOrder.OrderItems)
-                {
-                    if (item.EBookId.HasValue && !existingPurchases.Contains(item.EBookId.Value))
-                    {
-                        var purchaseRecord = new EbookPurchased
-                        {
-                            Uid = userId,
-                            EBookId = item.EBookId.Value,
+                //var existingPurchases = await _context.EbookPurchaseds
+                //    .Where(p => p.Uid == userId && ebookIds.Contains(p.EBookId))
+                //    .Select(p => p.EBookId)
+                //    .ToListAsync();
 
-                            // [修正 2] 根據 EbookPurchased.cs 模型，移除不存在的 OrderId 屬性
-                            // OrderId = newOrder.OrderId, 
+                //foreach (var item in newOrder.OrderItems)
+                //{
+                //    if (item.EBookId.HasValue && !existingPurchases.Contains(item.EBookId.Value))
+                //    {
+                //        var purchaseRecord = new EbookPurchased
+                //        {
+                //            Uid = userId,
+                //            EBookId = item.EBookId.Value,
 
-                            PurchaseDateTime = DateTime.UtcNow,
-                            LastReadTime = DateTime.UtcNow,
-                        };
-                        _context.EbookPurchaseds.Add(purchaseRecord);
-                    }
-                }
+                //            // [修正 2] 根據 EbookPurchased.cs 模型，移除不存在的 OrderId 屬性
+                //            // OrderId = newOrder.OrderId, 
 
-                // 第二次儲存，將 EbookPurchased 的記錄寫入資料庫
-                await _context.SaveChangesAsync();
+                //            PurchaseDateTime = DateTime.UtcNow,
+                //            LastReadTime = DateTime.UtcNow,
+                //        };
+                //        _context.EbookPurchaseds.Add(purchaseRecord);
+                //    }
+                //}
+
+                //// 第二次儲存，將 EbookPurchased 的記錄寫入資料庫
+                //await _context.SaveChangesAsync();
+
+                // --- [修改結束] ---
 
                 await transaction.CommitAsync();
 
+                //return Ok(new { orderId = newOrder.OrderId });
+
+                // [核心修改] 只回傳新建立的訂單 ID
                 return Ok(new { orderId = newOrder.OrderId });
             }
             catch (Exception) // 建議可以加上 Log
