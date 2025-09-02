@@ -96,7 +96,6 @@ public partial class TeamAProjectContext : DbContext
     public virtual DbSet<UsedBookOrder> UsedBookOrders { get; set; }
 
     public virtual DbSet<UsedBookOrderItem> UsedBookOrderItems { get; set; }
-
     public virtual DbSet<User> Users { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -233,6 +232,8 @@ public partial class TeamAProjectContext : DbContext
             entity.ToTable("donateOrders");
 
             entity.Property(e => e.DonateOrderId).HasColumnName("donateOrder_id");
+            entity.Property(e => e.DonatePlanId).HasColumnName("donatePlan_id");
+            entity.Property(e => e.DonateProjectId).HasColumnName("donateProject_id");
             entity.Property(e => e.OrderCreatedAt)
                 .HasColumnType("datetime")
                 .HasColumnName("orderCreated_at");
@@ -472,41 +473,33 @@ public partial class TeamAProjectContext : DbContext
 
         modelBuilder.Entity<EBookOrderMain>(entity =>
         {
-            entity.HasKey(e => e.OrderId);
+            entity.HasKey(e => e.OrderId).HasName("PK__eBook_Or__C3905BAFA915011C");
 
             entity.ToTable("eBook_Order_Main");
 
-            entity.Property(e => e.OrderId)
-                .ValueGeneratedNever()
-                .HasColumnName("OrderID");
-            entity.Property(e => e.BillingAddressId).HasColumnName("BillingAddressID");
-            entity.Property(e => e.CurrencyCode)
-                .HasMaxLength(3)
-                .IsUnicode(false)
-                .IsFixedLength();
+            entity.Property(e => e.OrderId).HasColumnName("OrderID");
+            entity.Property(e => e.CurrencyCode).HasMaxLength(10);
             entity.Property(e => e.Ipaddress)
                 .HasMaxLength(45)
-                .IsUnicode(false)
-                .HasColumnName("IPAddress");
+                .IsUnicode(false);
+            entity.Property(e => e.LastModifiedDate).HasColumnType("datetime");
+            entity.Property(e => e.OrderDateTime).HasColumnType("datetime");
             entity.Property(e => e.OrderStatusId).HasColumnName("OrderStatusID");
-            entity.Property(e => e.PaymentGatewayTransactionId)
-                .HasMaxLength(255)
-                .HasColumnName("PaymentGatewayTransactionID");
-            entity.Property(e => e.PaymentMethodId).HasColumnName("PaymentMethodID");
+            entity.Property(e => e.PaymentGatewayTransactionId).HasMaxLength(255);
             entity.Property(e => e.TotalAmount).HasColumnType("decimal(18, 4)");
             entity.Property(e => e.TotalDiscountAmount).HasColumnType("decimal(18, 4)");
             entity.Property(e => e.Uid).HasColumnName("UID");
-            entity.Property(e => e.UserAgent).HasMaxLength(512);
+            entity.Property(e => e.UserAgent).HasMaxLength(500);
 
             entity.HasOne(d => d.OrderStatus).WithMany(p => p.EBookOrderMains)
                 .HasForeignKey(d => d.OrderStatusId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_eBook_Order_Main_OrderStatusID");
+                .HasConstraintName("FK_eBook_Order_Main_eBook_Order_Status");
 
             entity.HasOne(d => d.UidNavigation).WithMany(p => p.EBookOrderMains)
                 .HasForeignKey(d => d.Uid)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_eBook_Order_Main_UID");
+                .HasConstraintName("FK_eBook_Order_Main_Users");
         });
 
         modelBuilder.Entity<EBookOrderStatus>(entity =>
@@ -633,21 +626,18 @@ public partial class TeamAProjectContext : DbContext
 
         modelBuilder.Entity<OrderItem>(entity =>
         {
+            entity.HasKey(e => e.OrderItemId).HasName("PK__Order_It__57ED06A13DA244AA");
+
             entity.ToTable("Order_Items");
 
-            entity.Property(e => e.OrderItemId)
-                .ValueGeneratedNever()
-                .HasColumnName("OrderItemID");
-            entity.Property(e => e.ChapterId).HasColumnName("ChapterID");
+            entity.Property(e => e.OrderItemId).HasColumnName("OrderItemID");
             entity.Property(e => e.DiscountAmount).HasColumnType("decimal(18, 4)");
             entity.Property(e => e.EBookId).HasColumnName("eBookID");
-            entity.Property(e => e.ItemNameSnapshot).HasMaxLength(512);
+            entity.Property(e => e.ItemNameSnapshot).HasMaxLength(200);
             entity.Property(e => e.ItemTypeId).HasColumnName("ItemTypeID");
             entity.Property(e => e.LineItemTotal).HasColumnType("decimal(18, 4)");
             entity.Property(e => e.OrderId).HasColumnName("OrderID");
-            entity.Property(e => e.PlanId).HasColumnName("PlanID");
             entity.Property(e => e.UnitPriceAtPurchase).HasColumnType("decimal(18, 4)");
-            entity.Property(e => e.WorkId).HasColumnName("WorkID");
 
             entity.HasOne(d => d.EBook).WithMany(p => p.OrderItems)
                 .HasForeignKey(d => d.EBookId)

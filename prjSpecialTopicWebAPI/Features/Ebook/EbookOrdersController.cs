@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using prjSpecialTopicWebAPI.Features.Ebook.DTOs;
 using prjSpecialTopicWebAPI.Models;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
 namespace prjSpecialTopicWebAPI.Features.Ebook
@@ -24,7 +25,9 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
         [HttpGet]
         public async Task<ActionResult<IEnumerable<OrderHistoryDto>>> GetMyOrders()
         {
-            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            //var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            // [修改] 改用 JwtRegisteredClaimNames.Sub
+            var userIdString = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
             if (!Guid.TryParse(userIdString, out Guid userId))
             {
                 return Unauthorized("無效的使用者 ID 格式。");
@@ -67,7 +70,10 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
         [HttpGet("{orderId:long}")]
         public async Task<ActionResult<OrderHistoryDto>> GetOrderById(long orderId)
         {
-            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            //var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            // [修改] 改用 JwtRegisteredClaimNames.Sub
+            var userIdString = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
             if (!Guid.TryParse(userIdString, out var userId))
             {
                 return Unauthorized("無效的使用者識別碼。");
@@ -116,7 +122,12 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                 return BadRequest("購物車項目不得為空。");
             }
 
-            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            // var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+
+            // [修改] 改用 JwtRegisteredClaimNames.Sub
+            var userIdString = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+
             if (!Guid.TryParse(userIdString, out var userId))
             {
                 return Unauthorized("無效的使用者識別碼。");
@@ -125,7 +136,7 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
             await using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                var ebookIds = cartItems.Select(item => item.EbookId).ToList();
+                var ebookIds = cartItems.Select(item => item.EbookId).Distinct().ToList();
                 var ebooksInDb = await _context.EBookMains
                     .Where(e => ebookIds.Contains(e.EbookId) && e.IsAvailable)
                     .ToDictionaryAsync(e => e.EbookId);
@@ -173,35 +184,44 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                 // 第一次儲存，目的是為了讓 EF Core 產生 OrderId
                 await _context.SaveChangesAsync();
 
-                var existingPurchases = await _context.EbookPurchaseds
-                    .Where(p => p.Uid == userId && ebookIds.Contains(p.EBookId))
-                    .Select(p => p.EBookId)
-                    .ToListAsync();
+                // --- [核心修改] ---
+                // 移除在這裡新增 EbookPurchaseds 的所有程式碼，
+                // 因為付款尚未完成，不能給予書籍。
 
-                foreach (var item in newOrder.OrderItems)
-                {
-                    if (item.EBookId.HasValue && !existingPurchases.Contains(item.EBookId.Value))
-                    {
-                        var purchaseRecord = new EbookPurchased
-                        {
-                            Uid = userId,
-                            EBookId = item.EBookId.Value,
+                //var existingPurchases = await _context.EbookPurchaseds
+                //    .Where(p => p.Uid == userId && ebookIds.Contains(p.EBookId))
+                //    .Select(p => p.EBookId)
+                //    .ToListAsync();
 
-                            // [修正 2] 根據 EbookPurchased.cs 模型，移除不存在的 OrderId 屬性
-                            // OrderId = newOrder.OrderId, 
+                //foreach (var item in newOrder.OrderItems)
+                //{
+                //    if (item.EBookId.HasValue && !existingPurchases.Contains(item.EBookId.Value))
+                //    {
+                //        var purchaseRecord = new EbookPurchased
+                //        {
+                //            Uid = userId,
+                //            EBookId = item.EBookId.Value,
 
-                            PurchaseDateTime = DateTime.UtcNow,
-                            LastReadTime = DateTime.UtcNow,
-                        };
-                        _context.EbookPurchaseds.Add(purchaseRecord);
-                    }
-                }
+                //            // [修正 2] 根據 EbookPurchased.cs 模型，移除不存在的 OrderId 屬性
+                //            // OrderId = newOrder.OrderId, 
 
-                // 第二次儲存，將 EbookPurchased 的記錄寫入資料庫
-                await _context.SaveChangesAsync();
+                //            PurchaseDateTime = DateTime.UtcNow,
+                //            LastReadTime = DateTime.UtcNow,
+                //        };
+                //        _context.EbookPurchaseds.Add(purchaseRecord);
+                //    }
+                //}
+
+                //// 第二次儲存，將 EbookPurchased 的記錄寫入資料庫
+                //await _context.SaveChangesAsync();
+
+                // --- [修改結束] ---
 
                 await transaction.CommitAsync();
 
+                //return Ok(new { orderId = newOrder.OrderId });
+
+                // [核心修改] 只回傳新建立的訂單 ID
                 return Ok(new { orderId = newOrder.OrderId });
             }
             catch (Exception) // 建議可以加上 Log

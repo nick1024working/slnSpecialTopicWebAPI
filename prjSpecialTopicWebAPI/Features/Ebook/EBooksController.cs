@@ -223,6 +223,8 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                 Language = ebookEntity.Language,
                 Translator = ebookEntity.Translator,
                 EBookDataType = ebookEntity.EBookDataType,
+                TotalSales = ebookEntity.Totalsales, // [新增] 從 Entity 映射總銷量到 DTO
+                MaturityRating = ebookEntity.MaturityRating, // [新增] 從 Entity 映射分級到 DTO
             };
 
             return Ok(ebookDetail);
@@ -309,7 +311,11 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
         {
             // --- [重點 2] 從 HttpContext 的使用者宣告中，動態取得登入者的 User ID ---
             // 根據您的 UserController.cs，UID 存放在 ClaimTypes.NameIdentifier (也就是 "sub")
-            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            //  var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            // [修改] 改用 JwtRegisteredClaimNames.Sub 來匹配新的 Token 格式
+            var userIdString = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+
 
             // 如果在 Token 中找不到使用者 ID，代表使用者未登入或 Token 無效，回傳 401 未授權
             if (string.IsNullOrEmpty(userIdString))
@@ -528,7 +534,11 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
         public async Task<IActionResult> UpdateReadingProgress([FromBody] UpdateProgressDto progressDto)
         {
             // 1. 從 Token 中取得當前登入者的 User ID
-            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            // var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            // [修改] 改用 JwtRegisteredClaimNames.Sub 來匹配新的 Token 格式
+            var userIdString = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+
             if (string.IsNullOrEmpty(userIdString))
             {
                 return Unauthorized("無法識別使用者身分");
@@ -568,9 +578,12 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
         [Authorize]
         public async Task<IActionResult> GetReadingProgress(long ebookId)
         {
-            // var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+             //var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+           // var userIdString = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+
+            // [修改] 改用 JwtRegisteredClaimNames.Sub
             var userIdString = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-            
+
             if (string.IsNullOrEmpty(userIdString))
             {
                 return Unauthorized("無法識別使用者身分");
