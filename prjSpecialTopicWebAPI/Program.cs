@@ -40,9 +40,15 @@ builder.Services.AddHttpClient("LinePay", (sp, c) =>
     c.BaseAddress = new Uri(opt.BaseAddress);
     c.Timeout = TimeSpan.FromSeconds(20);
 });
-
 // BLL Service
 builder.Services.AddScoped<LinePayService>();
+
+// 註冊 用於 Email 相關
+// Options 綁定
+builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
+// BLL Service
+builder.Services.AddScoped<EmailService>();
+
 
 // 註冊 DataProtection
 builder.Services.AddDataProtection();
