@@ -233,6 +233,8 @@ public partial class TeamAProjectContext : DbContext
             entity.ToTable("donateOrders");
 
             entity.Property(e => e.DonateOrderId).HasColumnName("donateOrder_id");
+            entity.Property(e => e.DonatePlanId).HasColumnName("donatePlan_id");
+            entity.Property(e => e.DonateProjectId).HasColumnName("donateProject_id");
             entity.Property(e => e.OrderCreatedAt)
                 .HasColumnType("datetime")
                 .HasColumnName("orderCreated_at");
