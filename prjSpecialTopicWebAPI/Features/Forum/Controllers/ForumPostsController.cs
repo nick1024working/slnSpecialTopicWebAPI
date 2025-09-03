@@ -36,16 +36,10 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
         );
 
         public record PostDetailDto(
-            [property: JsonPropertyName("postId")] int PostId,
-            [property: JsonPropertyName("title")] string? Title,
-            [property: JsonPropertyName("authorName")] string AuthorName,
-            [property: JsonPropertyName("createdAt")] DateTime? CreatedAt,
-            [property: JsonPropertyName("viewCount")] int? ViewCount,
-            [property: JsonPropertyName("likeCount")] int? LikeCount,
-            [property: JsonPropertyName("contentHtml")] string ContentHtml,
-            [property: JsonPropertyName("images")] IReadOnlyList<string> Images,
-            [property: JsonPropertyName("boardId")] int BoardId,          // ★ 新增
-            [property: JsonPropertyName("boardName")] string BoardName    // ★ 新增
+            int PostId, string? Title, string AuthorName, DateTime? CreatedAt,
+            int? ViewCount, int? LikeCount, string ContentHtml, IReadOnlyList<string> Images,
+            int BoardId, string BoardName,
+            bool LikedByMe // ★ 新增
         );
 
         public record CommentDto(
@@ -97,18 +91,30 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
                 .ThenBy(i => i.ImageId)
                 .Select(i => ToDataUrl(i.PostImage1))
                 .ToListAsync();
+            Guid uid;
+            var uidStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+            if (!string.IsNullOrWhiteSpace(uidStr) && Guid.TryParse(uidStr, out var claimUid))
+                uid = claimUid;
+            else
+                uid = await _db.Users.AsNoTracking().Select(u => u.Uid).FirstOrDefaultAsync();
+
+            // 用 PostLikes 計數 + 判斷是否已按過
+            var likeCount = await _db.PostLikes.CountAsync(x => x.PostId == id);
+            var likedByMe = uid != Guid.Empty &&
+                            await _db.PostLikes.AnyAsync(x => x.PostId == id && x.Uid == uid);
 
             var dto = new PostDetailDto(
                 PostId: post!.PostId,
                 Title: post.Title,
                 AuthorName: post.UidNavigation != null ? post.UidNavigation.Name : "匿名",
                 CreatedAt: post.CreatedAt,
-                ViewCount: post.ViewCount,              // 已 +1
-                LikeCount: post.LikeCount,
+                ViewCount: post.ViewCount,
+                LikeCount: likeCount,
                 ContentHtml: post.Content ?? string.Empty,
                 Images: images,
                 BoardId: post.PostCategoryId,
-                BoardName: post.PostCategory?.PostCategoryName ?? string.Empty
+                BoardName: post.PostCategory?.PostCategoryName ?? string.Empty,
+                LikedByMe: likedByMe
             );
 
             return Ok(dto);
@@ -315,7 +321,33 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
             await _db.SaveChangesAsync();
             return NoContent();
         }
+        // using 加上：using Microsoft.AspNetCore.Mvc; using Microsoft.EntityFrameworkCore;
+        [HttpPost("{id:int}/like")]
+        public async Task<IActionResult> LikePost(int id)
+        {
+            var postExists = await _db.ForumPosts.AnyAsync(p => p.PostId == id && !p.IsDeleted);
+            if (!postExists) return NotFound(new { message = "Post not found." });
 
+            // 取得使用者
+            Guid uid;
+            var uidStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+            if (!string.IsNullOrWhiteSpace(uidStr) && Guid.TryParse(uidStr, out var claimUid))
+                uid = claimUid;
+            else
+                uid = await _db.Users.AsNoTracking().Select(u => u.Uid).FirstOrDefaultAsync();
+            if (uid == Guid.Empty) return Unauthorized("尚未登入。");
+
+            // 已按讚就不要重覆
+            var exists = await _db.PostLikes.AnyAsync(x => x.PostId == id && x.Uid == uid);
+            if (!exists)
+            {
+                _db.PostLikes.Add(new PostLike { PostId = id, Uid = uid, });
+                await _db.SaveChangesAsync();
+            }
+
+            var likeCount = await _db.PostLikes.CountAsync(x => x.PostId == id);
+            return Ok(new { liked = true, likeCount });
+        }
         [HttpPost]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(50_000_000)]
