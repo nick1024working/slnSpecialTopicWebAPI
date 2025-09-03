@@ -1,4 +1,5 @@
-﻿using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories;
+﻿using prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses;
+using prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories;
 using prjSpecialTopicWebAPI.Features.Usedbook.Utilities;
 
 namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
@@ -14,16 +15,16 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Services
             _logger = logger;
         }
 
-        public async Task<Result<IReadOnlyList<Guid>>> GetSellerListAsync(CancellationToken ct = default)
+        public async Task<Result<IReadOnlyList<CurrentSellerDto>>> GetSellerListAsync(CancellationToken ct = default)
         {
             try
             {
                 var result = await _externalDomainRepository.GetSellerListAsync(ct);
-                return Result<IReadOnlyList<Guid>>.Success(result);
+                return Result<IReadOnlyList<CurrentSellerDto>>.Success(result);
             }
             catch (Exception ex)
             {
-                return ExceptionToErrorResultMapper<IReadOnlyList<Guid>>.Map(ex, _logger);
+                return ExceptionToErrorResultMapper<IReadOnlyList<CurrentSellerDto>>.Map(ex, _logger);
             }
         }
 

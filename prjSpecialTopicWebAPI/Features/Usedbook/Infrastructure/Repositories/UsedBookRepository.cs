@@ -347,7 +347,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
             return true;
         }
 
-
         public async Task<bool> AddSaleTagBatchAsync(IReadOnlyList<Guid> bookIds, int tagId, CancellationToken ct = default)
         {
             if (bookIds is null || bookIds.Count == 0)
@@ -394,5 +393,22 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Infrastructure.Repositories
 
             return true;
         }
+
+        // ========== 主題分類相關 ==========
+
+        public async Task<bool> UpdateCategoryBatchAsync(IReadOnlyList<Guid> bookIds, int category, CancellationToken ct = default)
+        {
+            if (bookIds is null || bookIds.Count == 0)
+                return true;
+
+            await _db.UsedBooks
+                .Where(b => bookIds.Contains(b.Id))
+                .ExecuteUpdateAsync(b => b
+                    .SetProperty(b => b.CategoryId, category)
+                    .SetProperty(b => b.UpdatedAt, DateTime.UtcNow), ct);
+
+            return true;
+        }
+
     }
 }

@@ -17,5 +17,9 @@ public partial class DonateOrder
 
     public DateTime OrderCreatedAt { get; set; }
 
+    public int? DonateProjectId { get; set; }
+
+    public int? DonatePlanId { get; set; }
+
     public virtual ICollection<DonateOrderItem> DonateOrderItems { get; set; } = new List<DonateOrderItem>();
 }

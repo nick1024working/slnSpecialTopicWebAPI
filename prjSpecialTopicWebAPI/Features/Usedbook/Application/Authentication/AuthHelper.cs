@@ -11,7 +11,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Authentication
             _protector = provider.CreateProtector("UserIdCookie");
         }
 
-        public void SetSeller(Guid userId, HttpContext ctx)
+        public void SetUser(Guid userId, HttpContext ctx)
         {
             var cookieOptions = new CookieOptions
             {
@@ -26,7 +26,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Authentication
             ctx.Response.Cookies.Append(".UserId", value, cookieOptions);
         }
 
-        public Guid? GetSeller(HttpContext ctx)
+        public Guid? GetUser(HttpContext ctx)
         {
             if (!ctx.Request.Cookies.TryGetValue(".UserId", out string? raw))
                 return null;
@@ -41,7 +41,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.Authentication
             }
         }
 
-        public void ClearSeller(HttpContext ctx)
+        public void ClearUser(HttpContext ctx)
         {
             var cookieOptions = new CookieOptions
             {

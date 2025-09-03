@@ -10,8 +10,6 @@ namespace prjSpecialTopicWebAPI.Features.Shared.DTOs
 
         public decimal DiscountTotal { get; set; } = 0;
 
-        //public DeliveryOption DeliveryOption { get; set; }
-
         public decimal DeliveryFee { get; set; } = 0;
 
         public decimal GrandTotal { get; set; } = 0;

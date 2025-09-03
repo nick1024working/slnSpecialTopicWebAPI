@@ -34,7 +34,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         public async Task<ActionResult<Guid>> CreateBook([FromForm] CreateBookRequest request, CancellationToken ct)
         {
             // HACK: 驗證政策尚未完成，若 Cookie 無 userId 則使用固定值
-            Guid userId = _authHelper.GetSeller(HttpContext) ?? Guid.Parse("EBB03874-054F-4FEA-9AE8-02B8D05C4BB3");
+            Guid userId = _authHelper.GetUser(HttpContext) ?? Guid.Parse("EBB03874-054F-4FEA-9AE8-02B8D05C4BB3");
 
             // 呼叫 Service Layer
             var result = await _bookService.CreateAsync(userId, request, Request, ct);
@@ -204,6 +204,20 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
 
             return NoContent();
         }
+
+
+        // ========== 子屬性 - 標籤 ==========
+
+        [HttpPut("categories/batch")]
+        public async Task<IActionResult> UpdateBookCategoryBatch([FromBody] UpdateBookCategoryRequest request, CancellationToken ct)
+        {
+            var result = await _bookService.UpdateBookCategoryBatchAsync(request, ct);
+            if (!result.IsSuccess)
+                return ErrorCodeToHttpResponseMapper.Map(result.ErrorCode);
+
+            return NoContent();
+        }
+
 
         // ========== Excel ==========
         [HttpGet("export/example")]

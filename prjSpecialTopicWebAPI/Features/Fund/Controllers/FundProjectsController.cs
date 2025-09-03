@@ -1,8 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using prjSpecialTopicWebAPI.Features.Fund.Dtos;
 using prjSpecialTopicWebAPI.Features.Fund.Services;
 using prjSpecialTopicWebAPI.Models;
+using System.Security.Claims;
 using System.Security.Cryptography;
 
 
@@ -32,7 +34,15 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Controllers
             _imageSvc = imageSvc;
             _logger = logger;                                       // ✅ 指派
         }
+        private bool TryGetUid(out Guid uid)
+        {
+            uid = Guid.Empty;
+            var uidStr = User.FindFirst("uid")?.Value
+                      ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            return !string.IsNullOrEmpty(uidStr) && Guid.TryParse(uidStr, out uid);
+        }
 
+    
         [HttpGet]
         public async Task<ActionResult<PagedResult<ProjectListDto>>> GetList(
             [FromQuery] string? status,
@@ -42,6 +52,7 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Controllers
             [FromQuery] int pageSize = 12)
             => Ok(await _svc.GetListAsync(status, categoryId, keyword, page, pageSize));
 
+        [Authorize]
         [HttpGet("{id:int}")]
         public async Task<ActionResult<ProjectDetailDto>> GetById(int id)
         {
@@ -49,19 +60,26 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Controllers
             return dto is null ? NotFound() : Ok(dto);
         }
 
+        [Authorize]
         [HttpPost]
         public async Task<ActionResult<object>> Create([FromBody] ProjectCreateDto dto)
         {
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
+            // 從 JWT Claims 取 uid
+            var uidStr = User.FindFirst("uid")?.Value
+                      ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!Guid.TryParse(uidStr, out var uid)) return Unauthorized();
+
             try
             {
-                // 外鍵與商規檢查
+                // 檢查：登入者必須存在於 Users
                 var userExists = await _db.Users
                     .AsNoTracking()
-                    .AnyAsync(u => u.Uid == dto.UID);
-                if (!userExists) return BadRequest(new { message = "Invalid UID" });
+                    .AnyAsync(u => u.Uid == uid);
+                if (!userExists) return BadRequest(new { message = "Invalid User" });
 
+                // 檢查：分類存在
                 var catExists = await _db.DonateCategories
                     .AsNoTracking()
                     .AnyAsync(c => c.DonateCategoriesId == dto.DonateCategoriesId);
@@ -70,18 +88,11 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Controllers
                 if (dto.EndDate < dto.StartDate)
                     return BadRequest(new { message = "EndDate must be after StartDate" });
 
-                // 建立資料
-                var created = await _svc.CreateAsync(dto);
+                // ✅ 傳 uid 給 Service
+                var created = await _svc.CreateAsync(dto, uid);
 
-                // 只回「新 id」就好，避免序列化整顆實體造成循環參照
                 var id = created.DonateProjectId;
-
-                // 兩種回應擇一：
-                // 1) 標準 201，Location 指到查詢單筆的 API
                 return CreatedAtAction(nameof(GetById), new { id }, new { donateProjectId = id });
-
-                // 2) 或者單純 200 OK 也可以
-                // return Ok(new { donateProjectId = id });
             }
             catch (Exception ex)
             {
@@ -90,7 +101,7 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Controllers
             }
         }
 
-
+        [Authorize]
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] ProjectUpdateDto dto)
         {
@@ -98,6 +109,7 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Controllers
             return ok ? NoContent() : NotFound();
         }
 
+        [Authorize]
         [HttpPatch("{id:int}/status")]
         public async Task<IActionResult> ChangeStatus(int id, [FromBody] ChangeStatusDto dto)
         {
@@ -105,6 +117,7 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Controllers
             return ok ? NoContent() : NotFound();
         }
 
+        [Authorize]
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> SoftDelete(int id)
         {
@@ -113,6 +126,7 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Controllers
         }
 
         // 提供另一條上傳路徑（與 FundImagesController 同邏輯、同儲存路徑）
+        [Authorize]
         [HttpPost("{projectId:int}/images")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> UploadProjectImage(int projectId, IFormFile file, [FromQuery] bool? isMain)

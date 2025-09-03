@@ -26,7 +26,7 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Controllers
         public async Task<ActionResult<IEnumerable<UserBookListItemDto>>> GetSellerBookList([FromQuery] BookListQuery query, CancellationToken ct)
         {
             // HACK: 驗證政策尚未完成，若 Cookie 無 userId 則使用固定值
-            Guid userId = _authHelper.GetSeller(HttpContext) ?? Guid.Parse("EBB03874-054F-4FEA-9AE8-02B8D05C4BB3");
+            Guid userId = _authHelper.GetUser(HttpContext) ?? Guid.Parse("EBB03874-054F-4FEA-9AE8-02B8D05C4BB3");
 
             // 呼叫 Service Layer
             var result = await _usedBookService.GetUserBookListAsync(userId, query, ct);
