@@ -30,6 +30,6 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Results
         public decimal DeliveryFee { get; set; }
         public decimal GrandTotal { get; set; }
 
-        public DateTime CreatedAt { get; set; }
+        public DateTimeOffset CreatedAt { get; set; }
     }
 }
