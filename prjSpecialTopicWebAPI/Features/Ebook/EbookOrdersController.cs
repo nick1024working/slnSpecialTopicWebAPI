@@ -6,7 +6,6 @@ using prjSpecialTopicWebAPI.Features.Ebook.DTOs;
 using prjSpecialTopicWebAPI.Models;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using FluentEcpay;
 using ECPay.Payment.Integration; // 假設使用官方 ECPay SDK，根據實際情況調整
 using System.Net;
 using System.Collections;
@@ -127,7 +126,7 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                 }
             }
         }
-        // --- 接收 ECPay 回呼的 API ---
+        // --- [核心修改] 接收 ECPay 所有回呼的 API ---
         [AllowAnonymous]
         [HttpPost("ecpay-callback")]
         public async Task<IActionResult> EcpayCallback([FromForm] IFormCollection form)
@@ -135,105 +134,98 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
             var ecpaySettings = _configuration.GetSection("Payments:Ecpay");
             var hashKey = ecpaySettings["HashKey"];
             var hashIV = ecpaySettings["HashIV"];
-
             var htFeedback = new Hashtable();
-            foreach (string key in form.Keys)
-            {
-                htFeedback[key] = form[key].ToString();
-            }
-
+            foreach (string key in form.Keys) { htFeedback[key] = form[key].ToString(); }
             var sortedFeedback = new SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (DictionaryEntry entry in htFeedback)
-            {
-                sortedFeedback.Add((string)entry.Key, (string)entry.Value);
-            }
+            foreach (DictionaryEntry entry in htFeedback) { sortedFeedback.Add((string)entry.Key, (string)entry.Value); }
 
             using (var oPayment = new AllInOne())
             {
-                oPayment.HashKey = hashKey;
-                oPayment.HashIV = hashIV;
-                try
-                {
-                    // [最終修正] CheckOutFeedback 不回傳 bool，而是回傳錯誤訊息的集合。
-                    // 我們需要用 .Any() 檢查集合是否為空。若不為空 (true)，代表驗證失敗。
-                    var errors = oPayment.CheckOutFeedback(sortedFeedback, ref htFeedback);
-                    if (errors.Any())
-                    {
-                        // 可以將 errors 記錄到 Log 中方便除錯
-                        // string errorMsg = string.Join(", ", errors);
-                        return BadRequest("CheckMacValue 驗證失敗");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    return StatusCode(500, $"回呼驗證失敗: {ex.Message}");
-                }
+                oPayment.HashKey = hashKey; oPayment.HashIV = hashIV;
+                var errors = oPayment.CheckOutFeedback(sortedFeedback, ref htFeedback);
+                if (errors.Any()) { return BadRequest("CheckMacValue 驗證失敗"); }
             }
 
-            // --- 後續訂單處理邏輯 (不變) ---
             string merchantTradeNo = form["MerchantTradeNo"].ToString();
-            if (string.IsNullOrEmpty(merchantTradeNo))
+            string rtnCode = form["RtnCode"].ToString(); // 交易狀態碼 (1=成功)
+            string paymentType = form["PaymentType"].ToString();
+
+            if (!long.TryParse(new string(merchantTradeNo.Substring(3).Where(char.IsDigit).ToArray()), out long orderId))
             {
-                return BadRequest("無效的 MerchantTradeNo");
+                return BadRequest("無法從 MerchantTradeNo 解析訂單 ID");
             }
 
-            var orderIdString = new string(merchantTradeNo.Substring(3).Where(char.IsDigit).ToArray());
+            var order = await _context.EBookOrderMains.Include(o => o.OrderItems).FirstOrDefaultAsync(o => o.OrderId == orderId);
+            if (order == null) return NotFound("找不到對應訂單");
 
-            if (long.TryParse(orderIdString, out long orderId))
+            // 如果訂單不是待付款狀態，直接回傳 OK，避免重複處理
+            if (order.OrderStatusId != 1) return Content("1|OK");
+
+            // [修改] 將訂單完成的邏輯抽成一個獨立方法
+            if (rtnCode == "1") // 交易成功 (適用於信用卡一次付清 & ATM 付款完成)
             {
-                var order = await _context.EBookOrderMains.Include(o => o.OrderItems).FirstOrDefaultAsync(o => o.OrderId == orderId);
-                if (order != null)
+                await CompleteOrder(order);
+            }
+            else if (rtnCode == "2" && paymentType.StartsWith("ATM_")) // ATM 取號成功
+            {
+                var details = new BankTransferDetails
                 {
-                    if (order.OrderStatusId != 1)
-                    {
-                        return Content("1|OK");
-                    }
-
-                    string rtnCode = form["RtnCode"].ToString();
-
-                    if (rtnCode == "1" && form["PaymentType"].ToString().StartsWith("Credit_"))
-                    {
-                        order.OrderStatusId = 2;
-                        order.LastModifiedDate = DateTime.UtcNow;
-
-                        var ebookIds = order.OrderItems.Select(oi => oi.EBookId.Value).ToList();
-                        var existingPurchases = await _context.EbookPurchaseds
-                            .Where(p => p.Uid == order.Uid && ebookIds.Contains(p.EBookId))
-                            .Select(p => p.EBookId)
-                            .ToListAsync();
-
-                        foreach (var item in order.OrderItems)
-                        {
-                            if (item.EBookId.HasValue && !existingPurchases.Contains(item.EBookId.Value))
-                            {
-                                _context.EbookPurchaseds.Add(new EbookPurchased
-                                {
-                                    Uid = order.Uid,
-                                    EBookId = item.EBookId.Value,
-                                    PurchaseDateTime = DateTime.UtcNow,
-                                    LastReadTime = DateTime.UtcNow,
-                                });
-                            }
-                        }
-                        await _context.SaveChangesAsync();
-                    }
-                    else if (rtnCode == "2" && form["PaymentType"].ToString().StartsWith("ATM_"))
-                    {
-                        var details = new BankTransferDetails
-                        {
-                            OrderId = orderId.ToString(),
-                            BankName = "中國信託商業銀行",
-                            BankCode = form["BankCode"].ToString(),
-                            AccountNumber = form["vAccount"].ToString(),
-                            Amount = (int)Math.Round(order.TotalAmount, 0),
-                            PaymentDeadline = form["ExpireDate"].ToString()
-                        };
-                        _atmAccountCache[orderId] = details;
-                    }
-                }
+                    OrderId = orderId.ToString(),
+                    BankName = "中國信託商業銀行", // ECPay 合作銀行
+                    BankCode = form["BankCode"].ToString(),
+                    AccountNumber = form["vAccount"].ToString(),
+                    Amount = (int)Math.Round(order.TotalAmount, 0),
+                    PaymentDeadline = form["ExpireDate"].ToString()
+                };
+                _atmAccountCache[orderId] = details; // 暫存起來供前端查詢
             }
+
             return Content("1|OK");
         }
+
+        /// <summary>
+        /// [新增] 將訂單設為完成、書籍加入書櫃的共用方法
+        /// </summary>
+        private async Task CompleteOrder(EBookOrderMain order)
+        {
+            order.OrderStatusId = 2; // 狀態改為「已付款」
+            order.LastModifiedDate = DateTime.UtcNow;
+
+            foreach (var item in order.OrderItems)
+            {
+                if (item.EBookId.HasValue)
+                {
+                    var exists = await _context.EbookPurchaseds.AnyAsync(p => p.Uid == order.Uid && p.EBookId == item.EBookId.Value);
+                    if (!exists)
+                    {
+                        _context.EbookPurchaseds.Add(new EbookPurchased
+                        {
+                            Uid = order.Uid,
+                            EBookId = item.EBookId.Value,
+                            PurchaseDateTime = DateTime.UtcNow,
+                            LastReadTime = DateTime.UtcNow,
+                        });
+                    }
+                }
+            }
+            await _context.SaveChangesAsync();
+        }
+
+        //// [新增] 提供給前端查詢 ATM 轉帳資訊的 API
+        //[HttpGet("{orderId}/bank-details")]
+
+        // --- [核心修正] 修改路由，使其更獨特，避免與 GetOrderById 衝突 ---
+        [HttpGet("atm-details/{orderId}")]
+        public IActionResult GetBankTransferDetails(long orderId)
+        {
+            if (_atmAccountCache.TryGetValue(orderId, out var details))
+            {
+                return Ok(details);
+            }
+            return NotFound("找不到該訂單的轉帳資訊，可能已過期或不存在。");
+        }
+
+
 
         // --- 取得登入會員的所有歷史訂單 ---
         // 這個方法已經包含了處理圖片路徑的邏輯
