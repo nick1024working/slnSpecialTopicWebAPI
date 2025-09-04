@@ -1,4 +1,4 @@
-﻿namespace prjSpecialTopicWebAPI.Features.Shared.DTOs
+﻿namespace prjSpecialTopicWebAPI.Features.Ebook.DTOs
 {
     public class BankTransferDetails
     {

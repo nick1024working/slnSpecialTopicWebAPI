@@ -2,9 +2,15 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using prjSpecialTopicWebAPI.Features.Ebook.DTOs;
+
 using prjSpecialTopicWebAPI.Models;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using FluentEcpay;
+using ECPay.Payment.Integration; // 假設使用官方 ECPay SDK，根據實際情況調整
+using System.Net;
+using System.Collections;
+using System.Text;
 
 namespace prjSpecialTopicWebAPI.Features.Ebook
 {
@@ -15,9 +21,218 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
     {
         private readonly TeamAProjectContext _context;
 
-        public EbookOrdersController(TeamAProjectContext context)
+        private readonly IConfiguration _configuration;
+
+
+        // 為了暫存非同步回傳的虛擬帳號，我們使用靜態字典。真實專案應使用 Redis 或資料庫。
+        private static readonly Dictionary<long, BankTransferDetails> _atmAccountCache = new Dictionary<long, BankTransferDetails>();
+
+        public EbookOrdersController(TeamAProjectContext context, IConfiguration configuration)
         {
             _context = context;
+            _configuration = configuration;
+        }
+
+
+
+        // --- 信用卡付款 API ---
+        [HttpPost("create-ecpay-payment")]
+        public async Task<ActionResult<string>> CreateEcpayPayment([FromBody] CreatePaymentRequestDto requestDto)
+        {
+            var order = await _context.EBookOrderMains.FindAsync(requestDto.OrderId);
+            if (order == null) return NotFound("找不到訂單");
+
+            var ecpaySettings = _configuration.GetSection("Payments:Ecpay");
+            string tradeNo = $"PBC{requestDto.OrderId}{DateTime.Now:mmssfff}";
+            string htmlContent = string.Empty; // 用於接收輸出的 HTML
+
+            // 建立參數字典
+            var parameters = new Dictionary<string, string>
+    {
+        { "MerchantID", ecpaySettings["MerchantID"] },
+        { "MerchantTradeNo", tradeNo },
+        { "MerchantTradeDate", DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") },
+        { "TotalAmount", order.TotalAmount.ToString("F0") },
+        { "TradeDesc", "ProBookLand 電子書城" },
+        { "ItemName", "電子書一批" },
+        { "ChoosePayment", "Credit" },
+        { "EncryptType", "1" },
+        { "ClientBackURL", $"http://localhost:4200/checkout/result?orderId={requestDto.OrderId}" },
+        { "ReturnURL", $"https://{Request.Host}/api/EbookOrders/ecpay-callback" }
+    };
+
+            // [最終修正] 將參數字典手動序列化成 URL Query String 格式
+            string parameterString = string.Join("&", parameters.Select(p => $"{p.Key}={p.Value}"));
+
+            using (var oPayment = new ECPay.Payment.Integration.AllInOne())
+            {
+                oPayment.HashKey = ecpaySettings["HashKey"];
+                oPayment.HashIV = ecpaySettings["HashIV"];
+                try
+                {
+                    // [最終修正] 遵從 (string, ref string) 簽章進行呼叫
+                    oPayment.CheckOutString(parameterString, ref htmlContent);
+                    return Ok(htmlContent);
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, $"支付表單生成失敗: {ex.Message}");
+                }
+            }
+        }
+
+        // --- ATM 付款 API ---
+        [HttpPost("create-atm-payment")]
+        public async Task<ActionResult<string>> CreateAtmPayment([FromBody] CreatePaymentRequestDto requestDto)
+        {
+            var order = await _context.EBookOrderMains.FindAsync(requestDto.OrderId);
+            if (order == null) return NotFound("找不到訂單");
+
+            var ecpaySettings = _configuration.GetSection("Payments:Ecpay");
+            string tradeNo = $"PBN{requestDto.OrderId}{DateTime.Now:mmssfff}";
+            string htmlContent = string.Empty; // 用於接收輸出的 HTML
+
+            // 建立參數字典
+            var parameters = new Dictionary<string, string>
+    {
+        { "MerchantID", ecpaySettings["MerchantID"] },
+        { "MerchantTradeNo", tradeNo },
+        { "MerchantTradeDate", DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") },
+        { "TotalAmount", order.TotalAmount.ToString("F0") },
+        { "TradeDesc", "ProBookLand 電子書城" },
+        { "ItemName", "電子書一批" },
+        { "ChoosePayment", "ATM" },
+        { "EncryptType", "1" },
+        { "ExpireDate", "3" },
+        { "PaymentInfoURL", $"https://{Request.Host}/api/EbookOrders/ecpay-callback" },
+        { "ClientBackURL", $"http://localhost:4200/checkout/result?orderId={requestDto.OrderId}" }
+    };
+
+            // [最終修正] 將參數字典手動序列化成 URL Query String 格式
+            string parameterString = string.Join("&", parameters.Select(p => $"{p.Key}={p.Value}"));
+
+            using (var oPayment = new ECPay.Payment.Integration.AllInOne())
+            {
+                oPayment.HashKey = ecpaySettings["HashKey"];
+                oPayment.HashIV = ecpaySettings["HashIV"];
+                try
+                {
+                    // [最終修正] 遵從 (string, ref string) 簽章進行呼叫
+                    oPayment.CheckOutString(parameterString, ref htmlContent);
+                    return Ok(htmlContent);
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, $"支付表單生成失敗: {ex.Message}");
+                }
+            }
+        }
+        // --- 接收 ECPay 回呼的 API ---
+        [AllowAnonymous]
+        [HttpPost("ecpay-callback")]
+        public async Task<IActionResult> EcpayCallback([FromForm] IFormCollection form)
+        {
+            var ecpaySettings = _configuration.GetSection("Payments:Ecpay");
+            var hashKey = ecpaySettings["HashKey"];
+            var hashIV = ecpaySettings["HashIV"];
+
+            var htFeedback = new Hashtable();
+            foreach (string key in form.Keys)
+            {
+                htFeedback[key] = form[key].ToString();
+            }
+
+            var sortedFeedback = new SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (DictionaryEntry entry in htFeedback)
+            {
+                sortedFeedback.Add((string)entry.Key, (string)entry.Value);
+            }
+
+            using (var oPayment = new AllInOne())
+            {
+                oPayment.HashKey = hashKey;
+                oPayment.HashIV = hashIV;
+                try
+                {
+                    // [最終修正] CheckOutFeedback 不回傳 bool，而是回傳錯誤訊息的集合。
+                    // 我們需要用 .Any() 檢查集合是否為空。若不為空 (true)，代表驗證失敗。
+                    var errors = oPayment.CheckOutFeedback(sortedFeedback, ref htFeedback);
+                    if (errors.Any())
+                    {
+                        // 可以將 errors 記錄到 Log 中方便除錯
+                        // string errorMsg = string.Join(", ", errors);
+                        return BadRequest("CheckMacValue 驗證失敗");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, $"回呼驗證失敗: {ex.Message}");
+                }
+            }
+
+            // --- 後續訂單處理邏輯 (不變) ---
+            string merchantTradeNo = form["MerchantTradeNo"].ToString();
+            if (string.IsNullOrEmpty(merchantTradeNo))
+            {
+                return BadRequest("無效的 MerchantTradeNo");
+            }
+
+            var orderIdString = new string(merchantTradeNo.Substring(3).Where(char.IsDigit).ToArray());
+
+            if (long.TryParse(orderIdString, out long orderId))
+            {
+                var order = await _context.EBookOrderMains.Include(o => o.OrderItems).FirstOrDefaultAsync(o => o.OrderId == orderId);
+                if (order != null)
+                {
+                    if (order.OrderStatusId != 1)
+                    {
+                        return Content("1|OK");
+                    }
+
+                    string rtnCode = form["RtnCode"].ToString();
+
+                    if (rtnCode == "1" && form["PaymentType"].ToString().StartsWith("Credit_"))
+                    {
+                        order.OrderStatusId = 2;
+                        order.LastModifiedDate = DateTime.UtcNow;
+
+                        var ebookIds = order.OrderItems.Select(oi => oi.EBookId.Value).ToList();
+                        var existingPurchases = await _context.EbookPurchaseds
+                            .Where(p => p.Uid == order.Uid && ebookIds.Contains(p.EBookId))
+                            .Select(p => p.EBookId)
+                            .ToListAsync();
+
+                        foreach (var item in order.OrderItems)
+                        {
+                            if (item.EBookId.HasValue && !existingPurchases.Contains(item.EBookId.Value))
+                            {
+                                _context.EbookPurchaseds.Add(new EbookPurchased
+                                {
+                                    Uid = order.Uid,
+                                    EBookId = item.EBookId.Value,
+                                    PurchaseDateTime = DateTime.UtcNow,
+                                    LastReadTime = DateTime.UtcNow,
+                                });
+                            }
+                        }
+                        await _context.SaveChangesAsync();
+                    }
+                    else if (rtnCode == "2" && form["PaymentType"].ToString().StartsWith("ATM_"))
+                    {
+                        var details = new BankTransferDetails
+                        {
+                            OrderId = orderId.ToString(),
+                            BankName = "中國信託商業銀行",
+                            BankCode = form["BankCode"].ToString(),
+                            AccountNumber = form["vAccount"].ToString(),
+                            Amount = (int)Math.Round(order.TotalAmount, 0),
+                            PaymentDeadline = form["ExpireDate"].ToString()
+                        };
+                        _atmAccountCache[orderId] = details;
+                    }
+                }
+            }
+            return Content("1|OK");
         }
 
         // --- 取得登入會員的所有歷史訂單 ---
