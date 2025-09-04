@@ -5,7 +5,7 @@
         public int Amount { get; set; }
         public string Currency { get; set; } = "TWD";
         public string OrderId { get; set; } = string.Empty;
-        public IEnumerable<PackageDto> Packages { get; set; } = [];
+        public List<PackageDto> Packages { get; set; } = [];
         public int? UserFee { get; set; }
         public RedirectUrlsDto RedirectUrls { get; set; } = new RedirectUrlsDto();
     }
@@ -15,7 +15,7 @@
         public int Amount { get; set; }
         public string Id { get; set; }
         public string? Name { get; set; }
-        public IEnumerable<ProductDto> Products { get; set; } = [];
+        public List<ProductDto> Products { get; set; } = [];
         public int? UserFee { get; set; }
     }
 
