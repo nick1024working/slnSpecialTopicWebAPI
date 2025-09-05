@@ -14,6 +14,11 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
         public ForumPostsController(TeamAProjectContext db) => _db = db;
 
         // ========== 共用 DTO ==========
+        public record ImageDto(
+    [property: JsonPropertyName("imageId")] int ImageId,
+    [property: JsonPropertyName("src")] string Src,
+    [property: JsonPropertyName("isMainPic")] bool IsMainPic
+);
         public record PagedResult<T>(
             [property: JsonPropertyName("items")] IReadOnlyList<T> Items,
             [property: JsonPropertyName("page")] int Page,
@@ -37,9 +42,8 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
 
         public record PostDetailDto(
             int PostId, string? Title, string AuthorName, DateTime? CreatedAt,
-            int? ViewCount, int? LikeCount, string ContentHtml, IReadOnlyList<string> Images,
-            int BoardId, string BoardName,
-            bool LikedByMe // ★ 新增
+            int? ViewCount, int? LikeCount, string ContentHtml, IReadOnlyList<ImageDto> Images,
+            int BoardId, string BoardName, bool LikedByMe
         );
 
         public record CommentDto(
@@ -89,7 +93,11 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
                 .Where(i => i.PostId == id)
                 .OrderByDescending(i => i.IsMainPic)
                 .ThenBy(i => i.ImageId)
-                .Select(i => ToDataUrl(i.PostImage1))
+                .Select(i => new ImageDto(
+                    i.ImageId,
+                    ToDataUrl(i.PostImage1),
+                    i.IsMainPic            // ← 這裡原本是 i.IsMainPic ?? false
+                ))
                 .ToListAsync();
             Guid uid;
             var uidStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
@@ -479,6 +487,19 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
                 return Problem("建立文章發生未預期錯誤", ex.Message, 500);
             }
         }
+        [HttpDelete("{postId:int}/images/{imageId:int}")]
+        public async Task<IActionResult> DeleteImage(int postId, int imageId)
+        {
+            var img = await _db.PostImages.FirstOrDefaultAsync(
+                i => i.PostId == postId && i.ImageId == imageId);
+            if (img == null) return NotFound();
+
+            _db.PostImages.Remove(img);
+            await _db.SaveChangesAsync();
+
+            return NoContent();
+        }
+
         [HttpPost("{id:int}/images")]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(50_000_000)]
