@@ -31,13 +31,20 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Services
                     //_db.DonateOrders
                     //.Where(o => o.DonateProjectId == p.DonateProjectId /* && o.PaymentDate != null */)
                     //.Sum(o => (decimal?)o.TotalAmount) ?? 0M,
-                    p.CurrentAmount,
-                    p.BackerCount ?? 0,
-                    //_db.DonateOrders
-                    //.Where(o => o.DonateProjectId == p.DonateProjectId /* && o.PaymentDate != null */)
-                    //.Select(o => o.Uid)
-                    //.Distinct()
-                    //.Count(),
+                    _db.DonateOrders.Any(o => o.DonateProjectId == p.DonateProjectId && o.PaymentDate != null)
+            ? (_db.DonateOrders
+                .Where(o => o.DonateProjectId == p.DonateProjectId && o.PaymentDate != null)
+                .Sum(o => (decimal?)o.TotalAmount) ?? 0M)
+            :p.CurrentAmount,
+                    //p.CurrentAmount,
+                    //p.BackerCount ?? 0,
+                    _db.DonateOrders.Any(o => o.DonateProjectId == p.DonateProjectId && o.PaymentDate != null)
+            ? _db.DonateOrders
+                .Where(o => o.DonateProjectId == p.DonateProjectId && o.PaymentDate != null)
+                .Select(o => o.Uid)
+                .Distinct()
+                .Count()
+            : (p.BackerCount ?? 0),
                     new DateTime(p.StartDate.Year, p.StartDate.Month, p.StartDate.Day),
                     new DateTime(p.EndDate.Year, p.EndDate.Month, p.EndDate.Day),
                     p.Status,
@@ -74,16 +81,20 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Services
                     p.ProjectTitle,
                     p.ProjectDescription,
                     p.TargetAmount,
-                    p.CurrentAmount,
-                    p.BackerCount ?? 0,
-                    //_db.DonateOrders
-                    //.Where(o => o.DonateProjectId == p.DonateProjectId /* && o.PaymentDate != null */)
-                    //.Sum(o => (decimal?)o.TotalAmount) ?? 0M,
-                    //_db.DonateOrders
-                    //.Where(o => o.DonateProjectId == p.DonateProjectId /* && o.PaymentDate != null */)
-                    //.Select(o => o.Uid)
-                    //.Distinct()
-                    //.Count(),
+                     //p.CurrentAmount,
+                     //p.BackerCount ?? 0,
+                     _db.DonateOrders.Any(o => o.DonateProjectId == p.DonateProjectId && o.PaymentDate != null)
+            ? (_db.DonateOrders
+                .Where(o => o.DonateProjectId == p.DonateProjectId && o.PaymentDate != null)
+                .Sum(o => (decimal?)o.TotalAmount) ?? 0M)
+            : p.CurrentAmount,
+                    _db.DonateOrders.Any(o => o.DonateProjectId == p.DonateProjectId && o.PaymentDate != null)
+            ? _db.DonateOrders
+                .Where(o => o.DonateProjectId == p.DonateProjectId && o.PaymentDate != null)
+                .Select(o => o.Uid)
+                .Distinct()
+                .Count()
+            : (p.BackerCount ?? 0),
                     new DateTime(p.StartDate.Year, p.StartDate.Month, p.StartDate.Day),
                     new DateTime(p.EndDate.Year, p.EndDate.Month, p.EndDate.Day),
                     p.Status,
