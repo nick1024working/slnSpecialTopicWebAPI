@@ -8,6 +8,10 @@ public class FundOrderService : IFundOrderService
 {
     private readonly TeamAProjectContext _db;
     public FundOrderService(TeamAProjectContext db) => _db = db;
+    private static DateTime AsUtc(DateTime dt) =>
+    DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+    private static DateTime? AsUtc(DateTime? dt) =>
+        dt.HasValue ? DateTime.SpecifyKind(dt.Value, DateTimeKind.Utc) : (DateTime?)null;
 
     public async Task<OrderDto> CreateAsync(Guid uid, CreateOrderDto dto)
     {
@@ -46,25 +50,47 @@ public class FundOrderService : IFundOrderService
             entity.DonateOrderId,
             entity.TotalAmount,
             entity.PaymentMethod,
-            entity.PaymentDate,
-            entity.OrderCreatedAt
+            AsUtc(entity.PaymentDate),
+            AsUtc(entity.OrderCreatedAt),
+            entity.DonateProjectId,
+            entity.DonatePlanId
         );
     }
 
     public async Task<OrderDto?> GetByIdAsync(Guid uid, int id) =>
-        await _db.DonateOrders.AsNoTracking()
-            .Where(o => o.DonateOrderId == id && o.Uid == uid)
-            .Select(o => new OrderDto(
-                o.DonateOrderId, o.TotalAmount, o.PaymentMethod, o.PaymentDate, o.OrderCreatedAt))
-            .FirstOrDefaultAsync();
+    await (from o in _db.DonateOrders.AsNoTracking()
+           where o.DonateOrderId == id && o.Uid == uid
+           join pl in _db.DonatePlans.AsNoTracking()
+                on o.DonatePlanId equals pl.DonatePlanId into _pl
+           from pl in _pl.DefaultIfEmpty()
+           join pj in _db.DonateProjects.AsNoTracking()
+                on o.DonateProjectId equals pj.DonateProjectId into _pj
+           from pj in _pj.DefaultIfEmpty()
+           select new OrderDto(
+               o.DonateOrderId, o.TotalAmount, o.PaymentMethod, AsUtc(o.PaymentDate), AsUtc(o.OrderCreatedAt),
+               o.DonateProjectId, o.DonatePlanId,
+               // ★ 新增欄位
+               pj != null ? pj.ProjectTitle : null,
+               pl != null ? pl.PlanTitle : null
+           )).FirstOrDefaultAsync();
 
     public async Task<IEnumerable<OrderDto>> GetMineAsync(Guid uid) =>
-        await _db.DonateOrders.AsNoTracking()
-            .Where(o => o.Uid == uid)
-            .OrderByDescending(o => o.OrderCreatedAt)
-            .Select(o => new OrderDto(
-                o.DonateOrderId, o.TotalAmount, o.PaymentMethod, o.PaymentDate, o.OrderCreatedAt))
-            .ToListAsync();
+    await (from o in _db.DonateOrders.AsNoTracking()
+           where o.Uid == uid
+           orderby o.OrderCreatedAt descending
+           join pl in _db.DonatePlans.AsNoTracking()
+                on o.DonatePlanId equals pl.DonatePlanId into _pl
+           from pl in _pl.DefaultIfEmpty()
+           join pj in _db.DonateProjects.AsNoTracking()
+                on o.DonateProjectId equals pj.DonateProjectId into _pj
+           from pj in _pj.DefaultIfEmpty()
+           select new OrderDto(
+               o.DonateOrderId, o.TotalAmount, o.PaymentMethod, AsUtc(o.PaymentDate), AsUtc(o.OrderCreatedAt),
+               o.DonateProjectId, o.DonatePlanId,
+               // ★ 新增欄位
+               pj != null ? pj.ProjectTitle : null,
+               pl != null ? pl.PlanTitle : null
+           )).ToListAsync();
 
     public async Task<bool> MarkPaidAsync(Guid uid, int id, string method)
     {

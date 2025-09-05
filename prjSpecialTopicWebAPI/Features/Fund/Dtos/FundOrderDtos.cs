@@ -13,7 +13,11 @@ public record OrderDto(
     decimal TotalAmount,
     string? PaymentMethod,
     DateTime? PaymentDate,
-    DateTime OrderCreatedAt
+    DateTime OrderCreatedAt,
+    int? DonateProjectId,
+    int? DonatePlanId,
+    string? ProjectTitle = null,
+    string? PlanTitle = null
 );
 
 public record PayDto(

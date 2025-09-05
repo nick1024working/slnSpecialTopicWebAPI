@@ -28,9 +28,6 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Services
                     p.ProjectTitle,
                     p.ProjectDescription,
                     p.TargetAmount,
-                    //_db.DonateOrders
-                    //.Where(o => o.DonateProjectId == p.DonateProjectId /* && o.PaymentDate != null */)
-                    //.Sum(o => (decimal?)o.TotalAmount) ?? 0M,
                     _db.DonateOrders.Any(o => o.DonateProjectId == p.DonateProjectId && o.PaymentDate != null)
             ? (_db.DonateOrders
                 .Where(o => o.DonateProjectId == p.DonateProjectId && o.PaymentDate != null)
