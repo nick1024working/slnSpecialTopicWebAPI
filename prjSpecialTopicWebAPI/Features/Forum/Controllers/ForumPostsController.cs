@@ -230,7 +230,8 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
                     q = baseQ
                         .OrderByDescending(p => p.ViewCount)
                         .ThenByDescending(p => p.CreatedAt)
-                        .Select(p => new {
+                        .Select(p => new
+                        {
                             p.PostId,
                             p.Title,
                             p.PostCategoryId,
@@ -348,64 +349,69 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
             var likeCount = await _db.PostLikes.CountAsync(x => x.PostId == id);
             return Ok(new { liked = true, likeCount });
         }
+
+        public class CreatePostForm
+        {
+            [FromForm(Name = "title")]
+            public string? Title { get; set; }
+
+            [FromForm(Name = "contentHtml")]
+            public string? ContentHtml { get; set; }
+
+            [FromForm(Name = "postCategoryID")]
+            public int? PostCategoryID { get; set; }
+
+            [FromForm(Name = "mainIndex")]
+            public int? MainIndex { get; set; }
+
+            // 對應前端 fd.append('files', file, file.name)
+            [FromForm(Name = "files")]
+            public List<IFormFile>? Files { get; set; }
+        }
+
         [HttpPost]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(50_000_000)]
-        public async Task<IActionResult> CreatePost()
+        [RequestFormLimits(MultipartBodyLengthLimit = 50_000_000)]
+        public async Task<IActionResult> CreatePost([FromForm] CreatePostForm form)
         {
             try
             {
-                var title = Request.Form["title"].ToString()?.Trim();
-                var contentHtml = Request.Form["contentHtml"].ToString();
-                var postCategoryIDStr = Request.Form["postCategoryID"].ToString();
-                var mainIndexStr = Request.Form["mainIndex"].ToString();
+                Console.WriteLine("=== [CreatePost] Incoming form ===");
+                Console.WriteLine($"Title={form.Title}");
+                Console.WriteLine($"ContentHtml length={form.ContentHtml?.Length ?? 0}");
+                Console.WriteLine($"PostCategoryID={form.PostCategoryID}");
+                Console.WriteLine($"MainIndex={form.MainIndex}");
+                Console.WriteLine($"form.Files?.Count={form.Files?.Count ?? 0}");
+                Console.WriteLine($"Request.Form.Files.Count={Request.Form.Files?.Count ?? 0}");
+                foreach (var k in Request.Form.Keys) Console.WriteLine($"FormKey: {k}");
 
-                if (string.IsNullOrWhiteSpace(title))
-                    return BadRequest("標題為必填。");
-                if (!int.TryParse(postCategoryIDStr, out var postCategoryId) || postCategoryId <= 0)
-                    return BadRequest("postCategoryID 無效。");
+                // 驗證
+                if (string.IsNullOrWhiteSpace(form.Title)) return BadRequest("標題為必填。");
+                if (!form.PostCategoryID.HasValue || form.PostCategoryID <= 0) return BadRequest("postCategoryID 無效。");
+                var catExists = await _db.PostCategories.AsNoTracking()
+                    .AnyAsync(c => c.PostCategoryId == form.PostCategoryID.Value);
+                if (!catExists) return BadRequest($"找不到 PostCategoryId={form.PostCategoryID}。");
 
-                var categoryExists = await _db.PostCategories
-                    .AsNoTracking()
-                    .AnyAsync(c => c.PostCategoryId == postCategoryId);
-                if (!categoryExists)
-                    return BadRequest($"找不到 PostCategoryId={postCategoryId}。");
-
-                int? mainIndex = null;
-                if (int.TryParse(mainIndexStr, out var mix) && mix >= 0)
-                    mainIndex = mix;
-
+                // 取 UID（略同你原本）
                 Guid uid;
-                var uidStr = User.FindFirstValue(ClaimTypes.NameIdentifier)
-                             ?? User.FindFirstValue("sub");
-                if (!string.IsNullOrWhiteSpace(uidStr) && Guid.TryParse(uidStr, out var claimUid))
-                    uid = claimUid;
+                var uidStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+                if (!string.IsNullOrWhiteSpace(uidStr) && Guid.TryParse(uidStr, out var claimUid)) uid = claimUid;
                 else
                 {
-                    var firstUser = await _db.Users
-                        .AsNoTracking()
-                        .Select(u => u.Uid)
-                        .FirstOrDefaultAsync();
-
-                    if (firstUser == Guid.Empty)
-                        return Unauthorized("尚未登入，且系統內沒有可用的預設使用者。");
-                    uid = firstUser;
+                    uid = await _db.Users.AsNoTracking().Select(u => u.Uid).FirstOrDefaultAsync();
+                    if (uid == Guid.Empty) return Unauthorized("尚未登入，且系統內沒有可用的預設使用者。");
                 }
 
-                var defaultFilter = await _db.PostFilters
-                    .OrderBy(f => f.PostFilterId)
-                    .FirstOrDefaultAsync();
+                var defaultFilter = await _db.PostFilters.OrderBy(f => f.PostFilterId).FirstOrDefaultAsync();
+                if (defaultFilter == null) return Problem("建立文章失敗", "系統尚未建立任何 PostFilter", 500);
 
-                if (defaultFilter == null)
-                    return Problem(title: "建立文章失敗",
-                                   detail: "系統尚未建立任何 PostFilter，請先建立至少一筆。",
-                                   statusCode: 500);
-
+                // 新增文章
                 var post = new ForumPost
                 {
-                    Title = title!,
-                    Content = contentHtml,
-                    PostCategoryId = postCategoryId,
+                    Title = form.Title!.Trim(),
+                    Content = form.ContentHtml,
+                    PostCategoryId = form.PostCategoryID.Value,
                     Uid = uid,
                     CreatedAt = DateTime.Now,
                     IsDeleted = false,
@@ -413,16 +419,22 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
                     LikeCount = 0,
                     Filter = defaultFilter
                 };
-
                 _db.ForumPosts.Add(post);
                 await _db.SaveChangesAsync();
+                Console.WriteLine($"[CreatePost] New PostId = {post.PostId}");
 
-                var files = Request.Form.Files;
-                if (files != null && files.Count > 0)
+                // 取得檔案：優先用模型繫結的 form.Files，否則回退 Request.Form.Files
+                var files = (form.Files != null && form.Files.Count > 0)
+                    ? form.Files
+                    : Request.Form.Files?.ToList() ?? new List<IFormFile>();
+
+                var saved = 0;
+                if (files.Count > 0)
                 {
                     for (int i = 0; i < files.Count; i++)
                     {
                         var f = files[i];
+                        Console.WriteLine($"[CreatePost] file[{i}] name={f.FileName}, length={f.Length}");
                         if (f.Length <= 0) continue;
 
                         using var ms = new MemoryStream();
@@ -432,30 +444,90 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
                         _db.PostImages.Add(new PostImage
                         {
                             PostId = post.PostId,
+                            // 你的實體若叫 PostImage1 就用 PostImage1；若叫 PostImage 就用 PostImage
                             PostImage1 = bytes,
-                            IsMainPic = (mainIndex.HasValue && mainIndex.Value == i),
+                            IsMainPic = (form.MainIndex.HasValue && form.MainIndex.Value == i),
                         });
+                        saved++;
                     }
                     await _db.SaveChangesAsync();
 
-                    if (mainIndex.HasValue && mainIndex.Value >= files.Count)
+                    if (form.MainIndex.HasValue && form.MainIndex.Value >= files.Count)
                     {
                         var imgs = await _db.PostImages.Where(x => x.PostId == post.PostId).ToListAsync();
                         foreach (var im in imgs) im.IsMainPic = false;
                         await _db.SaveChangesAsync();
                     }
                 }
+                else
+                {
+                    Console.WriteLine("[CreatePost] No files received after fallback.");
+                }
 
-                return CreatedAtAction(nameof(GetPost), new { id = post.PostId }, new { postId = post.PostId });
+                Console.WriteLine($"[CreatePost] Images saved = {saved}");
+                return CreatedAtAction(nameof(GetPost), new { id = post.PostId },
+                    new { postId = post.PostId, imagesUploaded = files.Count, imagesSaved = saved });
             }
             catch (DbUpdateException ex)
             {
-                return Problem(title: "資料庫寫入失敗", detail: ex.InnerException?.Message ?? ex.Message, statusCode: 500);
+                Console.WriteLine("[CreatePost][DbUpdateException] " + (ex.InnerException?.Message ?? ex.Message));
+                return Problem("資料庫寫入失敗", ex.InnerException?.Message ?? ex.Message, 500);
             }
             catch (Exception ex)
             {
-                return Problem(title: "建立文章發生未預期錯誤", detail: ex.Message, statusCode: 500);
+                Console.WriteLine("[CreatePost][Exception] " + ex.Message);
+                return Problem("建立文章發生未預期錯誤", ex.Message, 500);
             }
+        }
+        [HttpPost("{id:int}/images")]
+        [Consumes("multipart/form-data")]
+        [RequestSizeLimit(50_000_000)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 50_000_000)]
+        public async Task<IActionResult> UploadImages(
+            int id,
+            [FromForm(Name = "files")] List<IFormFile>? files // 明確指定欄位名 = files
+        )
+        {
+            // 先確認文章存在
+            var post = await _db.ForumPosts.FirstOrDefaultAsync(p => p.PostId == id && p.IsDeleted != true);
+            if (post == null) return NotFound(new { message = $"Post {id} not found." });
+
+            // --- 偵錯輸出：請看伺服器 Console ---
+            Console.WriteLine("=== [UploadImages] ===");
+            Console.WriteLine($"PostId={id}");
+            Console.WriteLine($"form.Files?.Count={files?.Count ?? 0}");
+            Console.WriteLine($"Request.Form.Files.Count={Request?.Form?.Files?.Count ?? 0}");
+            foreach (var k in Request.Form.Keys) Console.WriteLine($"FormKey: {k}");
+
+            // 模型繫結抓不到就回退到 Request.Form.Files（不看欄位名也抓得到）
+            if ((files == null || files.Count == 0) && Request?.Form?.Files?.Count > 0)
+                files = Request.Form.Files.ToList();
+
+            if (files == null || files.Count == 0)
+                return BadRequest(new { message = "no files received" });
+
+            var saved = 0;
+            foreach (var f in files)
+            {
+                Console.WriteLine($"[UploadImages] name={f.FileName}, length={f.Length}");
+                if (f.Length <= 0) continue;
+
+                using var ms = new MemoryStream();
+                await f.CopyToAsync(ms);
+                var bytes = ms.ToArray();
+
+                _db.PostImages.Add(new PostImage
+                {
+                    PostId = id,
+                    // 你的欄位是 varbinary：實體屬性在專案中叫 PostImage1
+                    PostImage1 = bytes,
+                    IsMainPic = false
+                });
+                saved++;
+            }
+
+            await _db.SaveChangesAsync();
+            return Ok(new { uploaded = files.Count, saved });
         }
     }
 }
