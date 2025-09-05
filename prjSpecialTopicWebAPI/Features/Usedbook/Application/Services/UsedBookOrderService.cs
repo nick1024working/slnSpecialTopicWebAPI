@@ -21,6 +21,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
         private readonly UsedBookRepository _bookRepository;
         private readonly UsedBookImageService _usedBookImageService;
         private readonly LinePayService _linePayService;
+        private readonly EmailService _emailService;
         private readonly Random _random;
         private readonly IConfiguration _cfg;
         private readonly IMapper _mapper;
@@ -32,6 +33,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
             UsedBookRepository bookRepository,
             UsedBookImageService usedBookImageService,
             LinePayService linePayService,
+            EmailService emailService,
             Random random,
             IConfiguration cfg,
             IMapper mapper,
@@ -42,6 +44,7 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
             _bookRepository = bookRepository;
             _usedBookImageService = usedBookImageService;
             _linePayService = linePayService;
+            _emailService = emailService;
             _cfg = cfg;
             _random = random;
             _mapper = mapper;
@@ -162,13 +165,23 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
                                 })
                                 .ToList(),
                         }],
-                    UserFee = (int)orderEntity.DeliveryFee - (int)orderEntity.DiscountTotal,
                     RedirectUrls = new RedirectUrlsDto
                     {
                         ConfirmUrl = $"{baseUrl}/api/usedbooks/payments/linepay/return?state={state}",
                         CancelUrl = $"{baseUrl}/api/usedbooks/payments/linepay/cancel?state={state}",
                     }
                 };
+
+                if (orderEntity.DeliveryFee > 0)
+                {
+                    paymentReq.Packages.First().Products.Add(new ProductDto
+                    {
+                        Id = "DeliveryFee",
+                        Name = $"運費",
+                        Price = (int)orderEntity.DeliveryFee,
+                        Quantity = 1,
+                    });
+                }
 
                 // 收回付款請求的回應
                 var paymentRes = await _linePayService.RequestLinePayPaymentAsync(paymentReq, ct);
@@ -184,6 +197,11 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
                 {
                     return Result<UrlDto>.Failure("取得 PaymentUrl 失敗", ErrorCodes.General.Unexpected);
                 }
+
+                var subject = "您好，\n您的訂單已建立，我們正在為您處理。\n點擊下方按鈕即可查看詳情。";
+                var orderUrl = $"http://localhost:4200/used-book/checkout-result?status=confirmed&orderNo={orderEntity.OrderNo}";
+                await _emailService.SendOrderCreatedEmailAsync("nick1024working@gmail.com", subject, "", orderUrl, ct);
+
                 return Result<UrlDto>.Success(new UrlDto { Url = result });
             }
             else
@@ -191,7 +209,6 @@ namespace prjSpecialTopicWebAPI.Usedbook.Application.Services
                 // TODO: 其他付款方式
                 return Result<UrlDto>.Failure("無對應的結帳功能", ErrorCodes.General.Unexpected);
             }
-
         }
 
         public async Task<Result<Unit>> UpdateOrderStatusAsync(string orderNo, UpdateOrderStatusRequest req, CancellationToken ct = default)
