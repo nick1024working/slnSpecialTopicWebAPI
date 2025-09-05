@@ -80,6 +80,7 @@ builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IfundImageService, fundImageService>();
 builder.Services.AddScoped<IPlanService, PlanService>();
+builder.Services.AddScoped<IFundOrderService, FundOrderService>();
 
 
 // Usedbook

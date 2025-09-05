@@ -1,29 +1,45 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using prjSpecialTopicWebAPI.Features.Fund.Dtos;
-using prjSpecialTopicWebAPI.Models; // ★ 用現有的 DonateOrder 實體
+using prjSpecialTopicWebAPI.Models;
 
 namespace prjSpecialTopicWebAPI.Features.Fund.Services;
 
 public class FundOrderService : IFundOrderService
 {
     private readonly TeamAProjectContext _db;
-
     public FundOrderService(TeamAProjectContext db) => _db = db;
 
     public async Task<OrderDto> CreateAsync(Guid uid, CreateOrderDto dto)
     {
+        // 由 plan 反推 project（前端抓不到 projectId 也能成立）
+        int? projectId = dto.ProjectId;
+        if (!(projectId.HasValue && projectId.Value > 0))
+        {
+            if (!(dto.DonatePlanId.HasValue && dto.DonatePlanId.Value > 0))
+                throw new ArgumentException("Invalid donatePlanId.");
+            int planId = dto.DonatePlanId.Value;
+
+            projectId = await _db.DonatePlans
+                .Where(p => p.DonatePlanId == planId)
+                .Select(p => (int?)p.DonateProjectId)
+                .FirstOrDefaultAsync();
+
+            if (projectId is null)
+                throw new ArgumentException("Donate plan not found.");
+        }
+
         var entity = new DonateOrder
         {
-            Uid = uid,                                         // ← 注意屬性名稱是 Uid
+            Uid = uid,
             TotalAmount = dto.TotalAmount,
-            PaymentMethod = dto.PaymentMethod ?? string.Empty, // ← 實體是非 nullable，避免 null
+            PaymentMethod = dto.PaymentMethod ?? string.Empty,
             PaymentDate = null,
             OrderCreatedAt = DateTime.UtcNow,
-            DonateProjectId = dto.ProjectId,
+            DonateProjectId = projectId,
             DonatePlanId = dto.DonatePlanId
         };
 
-        _db.DonateOrders.Add(entity); // ← DbSet<DonateOrder>
+        _db.DonateOrders.Add(entity);
         await _db.SaveChangesAsync();
 
         return new OrderDto(
@@ -36,50 +52,77 @@ public class FundOrderService : IFundOrderService
     }
 
     public async Task<OrderDto?> GetByIdAsync(Guid uid, int id) =>
-        await _db.DonateOrders
-            .AsNoTracking()
+        await _db.DonateOrders.AsNoTracking()
             .Where(o => o.DonateOrderId == id && o.Uid == uid)
             .Select(o => new OrderDto(
-                o.DonateOrderId,
-                o.TotalAmount,
-                o.PaymentMethod,
-                o.PaymentDate,
-                o.OrderCreatedAt
-            ))
+                o.DonateOrderId, o.TotalAmount, o.PaymentMethod, o.PaymentDate, o.OrderCreatedAt))
             .FirstOrDefaultAsync();
 
     public async Task<IEnumerable<OrderDto>> GetMineAsync(Guid uid) =>
-        await _db.DonateOrders
-            .AsNoTracking()
+        await _db.DonateOrders.AsNoTracking()
             .Where(o => o.Uid == uid)
             .OrderByDescending(o => o.OrderCreatedAt)
             .Select(o => new OrderDto(
-                o.DonateOrderId,
-                o.TotalAmount,
-                o.PaymentMethod,
-                o.PaymentDate,
-                o.OrderCreatedAt
-            ))
+                o.DonateOrderId, o.TotalAmount, o.PaymentMethod, o.PaymentDate, o.OrderCreatedAt))
             .ToListAsync();
 
     public async Task<bool> MarkPaidAsync(Guid uid, int id, string method)
     {
+        // 交易，避免部份寫入
+        await using var tx = await _db.Database.BeginTransactionAsync();
+
         var order = await _db.DonateOrders
             .FirstOrDefaultAsync(o => o.DonateOrderId == id && o.Uid == uid);
+
         if (order is null) return false;
+
+        // 已經記錄過付款 → 視為成功（避免重複累加金額/人數）
+        if (order.PaymentDate != null)
+        {
+            await tx.CommitAsync();
+            return true;
+        }
 
         order.PaymentMethod = method ?? string.Empty;
         order.PaymentDate = DateTime.UtcNow;
+
+        // 只有在專案存在、且尚未被刪除時才更新統計
+        if (order.DonateProjectId.HasValue)
+        {
+            var projectId = order.DonateProjectId.Value;
+            var project = await _db.DonateProjects
+                .FirstOrDefaultAsync(p => p.DonateProjectId == projectId && !p.IsDeleted);
+
+            if (project != null)
+            {
+                // 1) 金額加總
+                project.CurrentAmount += order.TotalAmount;
+
+                // 2) 人數：同一 UID 贊助同專案僅算 1 人（需為「已付款」的訂單）
+                bool alreadyBacker = await _db.DonateOrders.AsNoTracking().AnyAsync(o =>
+                    o.DonateProjectId == projectId &&
+                    o.Uid == uid &&
+                    o.PaymentDate != null &&         // 只算已付款
+                    o.DonateOrderId != id);          // 排除當前這筆
+
+                if (!alreadyBacker)
+                {
+                    project.BackerCount = (project.BackerCount ?? 0) + 1;
+                }
+
+                project.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
         await _db.SaveChangesAsync();
+        await tx.CommitAsync();
         return true;
     }
 
     public async Task<bool> CancelAsync(Guid uid, int id)
     {
-        var order = await _db.DonateOrders
-            .FirstOrDefaultAsync(o => o.DonateOrderId == id && o.Uid == uid);
+        var order = await _db.DonateOrders.FirstOrDefaultAsync(o => o.DonateOrderId == id && o.Uid == uid);
         if (order is null) return false;
-
         _db.DonateOrders.Remove(order);
         await _db.SaveChangesAsync();
         return true;
