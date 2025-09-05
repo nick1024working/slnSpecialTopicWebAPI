@@ -16,6 +16,7 @@ using prjSpecialTopicWebAPI.Models;
 using prjSpecialTopicWebAPI.Usedbook.Application.Services;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+using System.Linq;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -86,6 +87,7 @@ builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IfundImageService, fundImageService>();
 builder.Services.AddScoped<IPlanService, PlanService>();
+builder.Services.AddScoped<IFundOrderService, FundOrderService>();
 
 
 // Usedbook
@@ -134,9 +136,8 @@ builder.Services.AddScoped<UsedBookOrderService>();
 
 // User
 // ===== JWT 驗證設定（新增） =====
-var jwtKey = builder.Configuration["Jwt:Key"];
-if (string.IsNullOrWhiteSpace(jwtKey))
-    throw new InvalidOperationException("Missing Jwt:Key in configuration.");
+var jwtKey = builder.Configuration["Jwt:Key"]
+             ?? throw new InvalidOperationException("Missing Jwt:Key in configuration.");
 var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
 
 //測試用
@@ -233,6 +234,16 @@ builder.Services.AddSwaggerGen(c =>
             Array.Empty<string>()
         }
     });
+
+    // 讓 Swagger 認得 DateOnly / TimeOnly
+    c.MapType<DateOnly>(() => new OpenApiSchema { Type = "string", Format = "date" });
+    c.MapType<DateOnly?>(() => new OpenApiSchema { Type = "string", Format = "date", Nullable = true });
+    c.MapType<TimeOnly>(() => new OpenApiSchema { Type = "string", Format = "time" });
+    c.MapType<TimeOnly?>(() => new OpenApiSchema { Type = "string", Format = "time", Nullable = true });
+
+    c.CustomSchemaIds(t => t.FullName);
+    c.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
+
 });
 
 // 註冊 CORS 服務與策略

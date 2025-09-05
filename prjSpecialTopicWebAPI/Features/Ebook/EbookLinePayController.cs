@@ -42,12 +42,15 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
 
             if (order == null) return NotFound("找不到您的訂單，或您無權支付此訂單。");
 
+            string uniqueOrderIdForLinePay = $"PBLE{order.OrderId}{DateTime.UtcNow:yyyyMMddHHmmssfff}";
+
             // 建立要傳送給 LINE Pay 的請求物件
             var linePayRequest = new LinePayPaymentRequestDto
             {
                 Amount = (int)order.TotalAmount,
                 Currency = "TWD",
-                OrderId = order.OrderId.ToString(),
+                //OrderId = order.OrderId.ToString(),
+                OrderId = uniqueOrderIdForLinePay, // <-- 修正點：使用新產生的唯一 ID
                 Packages = new List<PackageDto>
                 {
                     new PackageDto

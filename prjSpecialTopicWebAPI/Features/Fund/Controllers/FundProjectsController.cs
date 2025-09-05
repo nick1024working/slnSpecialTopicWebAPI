@@ -6,6 +6,7 @@ using prjSpecialTopicWebAPI.Features.Fund.Services;
 using prjSpecialTopicWebAPI.Models;
 using System.Security.Claims;
 using System.Security.Cryptography;
+using System.IdentityModel.Tokens.Jwt;
 
 
 namespace prjSpecialTopicWebAPI.Features.Fund.Controllers
@@ -19,7 +20,7 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Controllers
         private readonly TeamAProjectContext _db;
         private readonly IWebHostEnvironment _env;
         private readonly IfundImageService _imageSvc;
-        private readonly ILogger<FundProjectsController> _logger;  
+        private readonly ILogger<FundProjectsController> _logger;
 
         public FundProjectsController(
         IProjectService svc,
@@ -37,12 +38,13 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Controllers
         private bool TryGetUid(out Guid uid)
         {
             uid = Guid.Empty;
-            var uidStr = User.FindFirst("uid")?.Value
-                      ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            return !string.IsNullOrEmpty(uidStr) && Guid.TryParse(uidStr, out uid);
+            var uidStr =
+                User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value ??
+                User.FindFirst("uid")?.Value ??
+                User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            return Guid.TryParse(uidStr, out uid);
         }
 
-    
         [HttpGet]
         public async Task<ActionResult<PagedResult<ProjectListDto>>> GetList(
             [FromQuery] string? status,
@@ -52,7 +54,7 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Controllers
             [FromQuery] int pageSize = 12)
             => Ok(await _svc.GetListAsync(status, categoryId, keyword, page, pageSize));
 
-        [Authorize]
+        [AllowAnonymous]
         [HttpGet("{id:int}")]
         public async Task<ActionResult<ProjectDetailDto>> GetById(int id)
         {
@@ -66,10 +68,12 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Controllers
         {
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
-            // 從 JWT Claims 取 uid
-            var uidStr = User.FindFirst("uid")?.Value
-                      ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var uidStr =
+            User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value ??
+            User.FindFirst("uid")?.Value ??
+            User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (!Guid.TryParse(uidStr, out var uid)) return Unauthorized();
+
 
             try
             {
