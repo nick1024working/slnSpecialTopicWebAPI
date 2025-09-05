@@ -29,7 +29,7 @@ public class UsersController : ControllerBase
     [Authorize]
     public async Task<ActionResult<object>> GetList([FromQuery] string? q, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
-        var query = _db.Users.AsQueryable();
+        var query = _db.Users.Where(u => u.Status != 0);
         if (!string.IsNullOrWhiteSpace(q))
         {
             q = q.Trim();
@@ -53,7 +53,7 @@ public class UsersController : ControllerBase
     public async Task<ActionResult<UserDetailDto>> Get(Guid id)
     {
         var u = await _db.Users.FindAsync(id);
-        if (u is null) return NotFound();
+        if (u is null || u.Status == 0) return NotFound();
         return Ok(new UserDetailDto(u.Uid, u.Phone, u.Name, u.Email, u.Gender, u.Birthday, u.Address, u.RegisterDate, u.LastLoginDate, u.AvatarUrl, u.Status, u.Level));
     }
 
@@ -62,26 +62,42 @@ public class UsersController : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<UserDetailDto>> Register([FromBody] RegisterDto dto)
     {
-        if (await _db.Users.AnyAsync(x => x.Phone == dto.Phone || x.Email == dto.Email))
-            return Conflict("Phone 或 Email 已存在");
+        // 基本檢查
+        if (string.IsNullOrWhiteSpace(dto.Password)) return BadRequest("缺少密碼");
+        bool hasLetter = dto.Password.Any(char.IsLetter);
+        bool hasDigit = dto.Password.Any(char.IsDigit);
+        if (dto.Password.Length < 8 || !hasLetter || !hasDigit)
+            return BadRequest("密碼需至少 8 碼，且同時包含英文與數字");
+
+        var phone = dto.Phone.Trim();
+        var email = dto.Email.Trim();
+
+        // Email 不分大小寫檢查；Phone 依原樣
+        var exists = await _db.Users.AnyAsync(x =>
+            x.Phone == phone || x.Email.ToLower() == email.ToLower());
+        if (exists) return Conflict("Phone 或 Email 已存在");
 
         var user = new User
         {
             Uid = Guid.NewGuid(),
-            Phone = dto.Phone.Trim(),
-            Password = BCrypt.Net.BCrypt.HashPassword(dto.Password), // 雜湊存入
+            Phone = phone,
+            Password = BCrypt.Net.BCrypt.HashPassword(dto.Password),
             Name = dto.Name.Trim(),
-            Email = dto.Email.Trim(),
+            Email = email,
             Gender = dto.Gender,
             Birthday = dto.Birthday,
+            Address = dto.Address?.Trim(),
             RegisterDate = DateTime.UtcNow,
             Status = 1,
             Level = 0
         };
+
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
 
-        return Ok(new UserDetailDto(user.Uid, user.Phone, user.Name, user.Email, user.Gender, user.Birthday, user.Address, user.RegisterDate, user.LastLoginDate, user.AvatarUrl, user.Status, user.Level));
+        return Ok(new UserDetailDto(user.Uid, user.Phone, user.Name, user.Email, user.Gender,
+            user.Birthday, user.Address, user.RegisterDate, user.LastLoginDate, user.AvatarUrl,
+            user.Status, user.Level));
     }
 
     // 登入（驗證密碼 + 回 JWT）
@@ -99,7 +115,8 @@ public class UsersController : ControllerBase
         var user = await _db.Users
             .FirstOrDefaultAsync(u => u.Phone == account || u.Email.ToLower() == account.ToLower());
 
-        if (user is null) return Unauthorized("帳號或密碼錯誤");
+        if (user is null || user.Status == 0)
+            return Unauthorized("帳號不存在或已停用");
 
         var hashed = user.Password ?? string.Empty;
         bool isBcrypt = hashed.StartsWith("$2a$") || hashed.StartsWith("$2b$") || hashed.StartsWith("$2y$");
@@ -173,7 +190,88 @@ public class UsersController : ControllerBase
         });
         return Ok();
     }
+    [HttpPut("{id:guid}")]
+    [Authorize]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UserUpdateDto dto)
+    {
+        var user = await _db.Users.FindAsync(id);
+        if (user is null) return NotFound();
 
+        // 確認是不是本人（JWT 內的 Sub 要等於 id）
+        var uidStr = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+        if (uidStr != user.Uid.ToString()) return Forbid();
+
+        if (!string.IsNullOrWhiteSpace(dto.Name))
+            user.Name = dto.Name.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.Address))
+            user.Address = dto.Address.Trim();
+        if (dto.Birthday.HasValue)
+            user.Birthday = dto.Birthday.Value;
+
+        await _db.SaveChangesAsync();
+        return Ok(new UserDetailDto(user.Uid, user.Phone, user.Name, user.Email,
+            user.Gender, user.Birthday, user.Address, user.RegisterDate,
+            user.LastLoginDate, user.AvatarUrl, user.Status, user.Level));
+    }
+
+    //  修改密碼（受 JWT 保護）
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
+    {
+        if (dto.NewPassword != dto.ConfirmPassword)
+            return BadRequest("新密碼與確認密碼不一致");
+
+        bool hasLetter = dto.NewPassword.Any(char.IsLetter);
+        bool hasDigit = dto.NewPassword.Any(char.IsDigit);
+        if (dto.NewPassword.Length < 8 || !hasLetter || !hasDigit)
+            return BadRequest("新密碼需至少 8 碼，且同時包含英文與數字");
+
+        var uidStr = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+        if (!Guid.TryParse(uidStr, out var uid)) return Unauthorized();
+
+        var user = await _db.Users.FindAsync(uid);
+        if (user is null || user.Status == 0) return NotFound();
+
+        var hashed = user.Password ?? "";
+        bool isBcrypt = hashed.StartsWith("$2a$") || hashed.StartsWith("$2b$") || hashed.StartsWith("$2y$");
+        bool okOld = false;
+
+        if (isBcrypt)
+        {
+            try { okOld = BCrypt.Net.BCrypt.Verify(dto.OldPassword, hashed); }
+            catch (BCrypt.Net.SaltParseException) { okOld = false; }
+        }
+        else
+        {
+            // 舊資料（明碼）相容
+            okOld = hashed == dto.OldPassword;
+        }
+
+        if (!okOld) return Unauthorized("舊密碼錯誤");
+
+        user.Password = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+        await _db.SaveChangesAsync();
+        return Ok(new { message = "密碼已更新成功" });
+    }
+
+    //  刪除會員（受 JWT 保護）
+    [HttpDelete("{id:guid}")]
+    [Authorize]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var user = await _db.Users.FindAsync(id);
+        if (user is null) return NotFound();
+
+        var uidStr = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+        if (uidStr != user.Uid.ToString()) return Forbid();
+
+        // 軟刪除 → 改 Status = 0
+        user.Status = 0;
+        await _db.SaveChangesAsync();
+
+        return Ok(new { message = "會員已停用" });
+    }
     // 目前使用者（需授權；JwtBearer 會從 Header or Cookie 取 token）
     [Authorize]
     [HttpGet("me")]
@@ -188,17 +286,20 @@ public class UsersController : ControllerBase
         if (!Guid.TryParse(uidStr, out var uid)) return Unauthorized();
 
         var me = await _db.Users
-            .Where(x => x.Uid == uid)
-            .Select(x => new
-            {
-                x.Uid,
-                x.Name,
-                x.Email,
-                x.Phone,
-                x.Status,
-                x.Level
-            })
-            .FirstOrDefaultAsync();
+       .Where(x => x.Uid == uid && x.Status != 0)
+       .Select(x => new
+       {
+           x.Uid,
+           x.Name,
+           x.Email,
+           x.Phone,
+           x.Address,
+           x.Birthday,
+           x.AvatarUrl,
+           x.Status,
+           x.Level
+       })
+       .FirstOrDefaultAsync();
 
         return Ok(me);
     }
@@ -222,5 +323,49 @@ public class UsersController : ControllerBase
             signingCredentials: creds);
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+    public class UploadAvatarForm
+    {
+        public IFormFile File { get; set; } = default!;
+    }
+
+    [HttpPost("upload-avatar")]
+    [Authorize]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadAvatar([FromForm] UploadAvatarForm form)
+    {
+        var file = form.File;
+        if (file == null || file.Length == 0)
+            return BadRequest("請選擇圖片");
+
+        if (file.Length > 5 * 1024 * 1024)
+            return BadRequest("檔案大小不可超過 5MB");
+
+        var ext = Path.GetExtension(file.FileName).ToLower();
+        var allowedExts = new[] { ".jpg", ".jpeg", ".png" };
+        if (!allowedExts.Contains(ext))
+            return BadRequest("僅支援 jpg / jpeg / png 格式");
+
+        var uidStr = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+        if (!Guid.TryParse(uidStr, out var uid)) return Unauthorized();
+
+        var user = await _db.Users.FindAsync(uid);
+        if (user is null) return NotFound();
+
+        var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "avatars");
+        if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+
+        var fileName = $"{uid}{Path.GetExtension(file.FileName)}";
+        var filePath = Path.Combine(uploadsFolder, fileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        user.AvatarUrl = $"/uploads/avatars/{fileName}";
+        await _db.SaveChangesAsync();
+
+        return Ok(new { avatarUrl = user.AvatarUrl });
     }
 }
