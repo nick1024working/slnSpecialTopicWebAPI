@@ -4,6 +4,9 @@ using prjSpecialTopicWebAPI.Features.Shared.Service;
 
 namespace prjSpecialTopicWebAPI.Features.Shared.Controllers
 {
+    /// <summary>
+    /// 此 controller 僅供 DEMO 用途。
+    /// </summary>
     [ApiController]
     [Route("api/payments/line-pay")]
     public class PaymentController : ControllerBase

@@ -10,6 +10,13 @@ public class MappingProfile : Profile
 {
     public MappingProfile()
     {
+        // Entity(DateTime) -> DTO(DateTimeOffset)
+        CreateMap<DateTime, DateTimeOffset>()
+            .ConvertUsing(src =>
+                new DateTimeOffset(
+                    DateTime.SpecifyKind(src, DateTimeKind.Utc),
+                    TimeSpan.Zero));
+
         // UsedBook 轉換
         CreateMap<CreateBookRequest, UsedBook>();
         CreateMap<UsedBook, UpdateBookPayloadDto>();

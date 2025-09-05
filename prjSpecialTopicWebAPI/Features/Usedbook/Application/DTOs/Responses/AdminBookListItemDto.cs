@@ -18,8 +18,8 @@ namespace prjSpecialTopicWebAPI.Features.Usedbook.Application.DTOs.Responses
 
         public string Slug { get; set; } = string.Empty;
 
-        public DateTime UpdatedAt { get; set; }
-        public DateTime CreatedAt { get; set; }
+        public DateTimeOffset UpdatedAt { get; set; }
+        public DateTimeOffset CreatedAt { get; set; }
 
         public IEnumerable<IdNameDto> SaleTagList { get; set; } = [];
     }
