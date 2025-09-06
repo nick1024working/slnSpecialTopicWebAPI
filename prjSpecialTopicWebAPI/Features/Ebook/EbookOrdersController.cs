@@ -45,6 +45,9 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
             string tradeNo = $"PBC{requestDto.OrderId}{DateTime.Now:mmssfff}";
             string htmlContent = string.Empty; // 用於接收輸出的 HTML
 
+            // vvvv 把您的 ngrok 網址貼在這裡 vvvv
+            var ngrokUrl = "https://f9a885aa584d.ngrok-free.app";
+
             // 建立參數字典
             var parameters = new Dictionary<string, string>
     {
@@ -57,7 +60,8 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
         { "ChoosePayment", "Credit" },
         { "EncryptType", "1" },
         { "ClientBackURL", $"http://localhost:4200/checkout/result?orderId={requestDto.OrderId}" },
-        { "ReturnURL", $"https://{Request.Host}/api/EbookOrders/ecpay-callback" }
+        { "ReturnURL", $"{ngrokUrl}/api/EbookOrders/ecpay-callback" },
+                {"PaymentInfoURL" , $"{ngrokUrl}/api/EbookOrders/ecpay-callback" }
     };
 
             // [最終修正] 將參數字典手動序列化成 URL Query String 格式
@@ -90,6 +94,8 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
             var ecpaySettings = _configuration.GetSection("Payments:Ecpay");
             string tradeNo = $"PBN{requestDto.OrderId}{DateTime.Now:mmssfff}";
             string htmlContent = string.Empty; // 用於接收輸出的 HTML
+            var ngrokUrl = "https://f9a885aa584d.ngrok-free.app";
+
 
             // 建立參數字典
             var parameters = new Dictionary<string, string>
@@ -103,8 +109,10 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
         { "ChoosePayment", "ATM" },
         { "EncryptType", "1" },
         { "ExpireDate", "3" },
-        { "PaymentInfoURL", $"https://{Request.Host}/api/EbookOrders/ecpay-callback" },
-        { "ClientBackURL", $"http://localhost:4200/checkout/result?orderId={requestDto.OrderId}" }
+        { "PaymentInfoURL", $"{ngrokUrl}/api/EbookOrders/ecpay-callback" },
+                {"PaymentInfoURL",$"{ngrokUrl}/api/EbookOrders/ecpay-callback" },
+        { "ClientBackURL", $"http://localhost:4200/checkout/result?orderId={requestDto.OrderId}" },
+
     };
 
             // [最終修正] 將參數字典手動序列化成 URL Query String 格式
