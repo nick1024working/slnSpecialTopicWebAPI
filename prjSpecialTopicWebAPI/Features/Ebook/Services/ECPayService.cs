@@ -8,10 +8,8 @@ namespace prjSpecialTopicWebAPI.Features.Ebook.Services
     {
         public string GenerateCheckMacValue(Dictionary<string, string> parameters, string hashKey, string hashIv)
         {
-            // 步驟 1: 將傳遞參數依照第一個英文字母，由A到Z的順序來排序
             var sortedParams = parameters.OrderBy(p => p.Key, StringComparer.Ordinal);
 
-            // 步驟 2: 參數最前面加上HashKey、最後面加上HashIV
             var sb = new StringBuilder();
             sb.Append($"HashKey={hashKey}");
             foreach (var param in sortedParams)
@@ -22,27 +20,22 @@ namespace prjSpecialTopicWebAPI.Features.Ebook.Services
 
             string rawString = sb.ToString();
 
-            // 步驟 3: 將整串字串進行URL encode
+            // 使用 HttpUtility.UrlEncode 進行標準編碼
             string encodedString = HttpUtility.UrlEncode(rawString);
 
-            // 【關鍵修正】根據文件，對特定編碼後的字元進行還原 (decode)
+            // 根據綠界文件，手動處理特殊字符的轉換，並轉為小寫
             encodedString = encodedString.Replace("%2d", "-")
                                          .Replace("%5f", "_")
                                          .Replace("%2e", ".")
                                          .Replace("%21", "!")
                                          .Replace("%2a", "*")
                                          .Replace("%28", "(")
-                                         .Replace("%29", ")");
+                                         .Replace("%29", ")")
+                                         .ToLower(); // <-- ToLower() 放在最後
 
-            // 步驟 4: 轉為小寫
-            encodedString = encodedString.ToLower();
-
-            // 步驟 5: 以SHA256加密方式來產生雜凑值
             using (var sha256 = SHA256.Create())
             {
                 byte[] hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(encodedString));
-
-                // 步驟 6: 再轉大寫產生CheckMacValue
                 return BitConverter.ToString(hashBytes).Replace("-", "").ToUpper();
             }
         }

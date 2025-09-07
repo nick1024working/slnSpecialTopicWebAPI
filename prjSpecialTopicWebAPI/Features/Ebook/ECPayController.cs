@@ -43,14 +43,16 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
 
             // 【診斷測試】暫時將商品名稱和描述寫死為最簡單的英文字串。
             // 這是為了驗證 ECPay 伺服器是否因為特定書名中的特殊字元而產生 500 錯誤。
-            string itemName = "Test E-Book"; // 原本的寫法: string.Join("#", order.OrderItems.Select(i => i.ItemNameSnapshot));
-            string tradeDesc = "A purchase from ProBookLand."; // 原本的寫法: "ProBookLand 電子書城"
+            // 為了穩定性，我們仍然使用簡化的 ItemName 和 TradeDesc
+            string itemName = "ProBookLand E-Book Purchase";
+            string tradeDesc = $"Order ID: {order.OrderId}";
+            string merchantTradeNo = Guid.NewGuid().ToString("N").Substring(0, 20);
 
             // 【最終修正】根據你的要求，將返回商店的 URL 直接指向「我的書櫃」
             string clientBackUrl = "http://localhost:4200/ebook/library";
 
 
-            string merchantTradeNo = Guid.NewGuid().ToString("N").Substring(0, 20);
+           // string merchantTradeNo = Guid.NewGuid().ToString("N").Substring(0, 20);
             Console.WriteLine($"--- Generated MerchantTradeNo for ECPay: {merchantTradeNo} ---");
 
             var parameters = new Dictionary<string, string>
@@ -68,7 +70,7 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                 { "EncryptType", "1" },
                 { "ClientBackURL", clientBackUrl },
                 // 【關鍵修正 1】將我們的 OrderId 放在自訂欄位1，一起送去綠界
-              //  { "CustomField1", order.OrderId.ToString() }
+                { "CustomField1", order.OrderId.ToString() }
             };
 
             string checkMacValue = _ecpayService.GenerateCheckMacValue(parameters, ecpaySettings["HashKey"], ecpaySettings["HashIV"]);
@@ -102,11 +104,10 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                 return BadRequest("CheckMacValue 驗證失敗");
             }
 
-            // 【關鍵修正 2】從綠界回傳的 CustomField1 中，取回我們當初存進去的 OrderId
+            // 【最終修正】現在我們可以安全地從 CustomField1 取回 OrderId
             string customField1 = receivedParams.ContainsKey("CustomField1") ? receivedParams["CustomField1"] : null;
             if (string.IsNullOrEmpty(customField1) || !long.TryParse(customField1, out long orderId))
             {
-                // 如果沒有 OrderId，記錄錯誤但仍然回傳 1|OK，避免綠界重試
                 Console.WriteLine("ECPay Callback 嚴重錯誤: CustomField1 中沒有有效的 OrderId。");
                 return Content("1|OK");
             }
