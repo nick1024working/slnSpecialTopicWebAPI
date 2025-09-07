@@ -36,7 +36,7 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
 
             if (order == null) return NotFound("找不到訂單");
 
-           // string itemName = string.Join("#", order.OrderItems.Select(i => i.ItemNameSnapshot));
+            string itemName = string.Join("#", order.OrderItems.Select(i => i.ItemNameSnapshot));
 
 
             var ecpaySettings = _configuration.GetSection("Payments:Ecpay");
@@ -44,7 +44,7 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
             // 【診斷測試】暫時將商品名稱和描述寫死為最簡單的英文字串。
             // 這是為了驗證 ECPay 伺服器是否因為特定書名中的特殊字元而產生 500 錯誤。
             // 為了穩定性，我們仍然使用簡化的 ItemName 和 TradeDesc
-            string itemName = "ProBookLand E-Book Purchase";
+           // string itemName = "ProBookLand E-Book Purchase";
             string tradeDesc = $"Order ID: {order.OrderId}";
             string merchantTradeNo = Guid.NewGuid().ToString("N").Substring(0, 20);
 
