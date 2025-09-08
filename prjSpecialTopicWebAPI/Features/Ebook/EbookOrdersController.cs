@@ -183,33 +183,33 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
         //        return Content("1|OK");
         //    }
 
-        /// <summary>
-        /// [新增] 將訂單設為完成、書籍加入書櫃的共用方法
-        /// </summary>
-        private async Task CompleteOrder(EBookOrderMain order)
-        {
-            order.OrderStatusId = 2; // 狀態改為「已付款」
-            order.LastModifiedDate = DateTime.UtcNow;
+        ///// <summary>
+        ///// [新增] 將訂單設為完成、書籍加入書櫃的共用方法
+        ///// </summary>
+        //private async Task CompleteOrder(EBookOrderMain order)
+        //{
+        //    order.OrderStatusId = 2; // 狀態改為「已付款」
+        //    order.LastModifiedDate = DateTime.UtcNow;
 
-            foreach (var item in order.OrderItems)
-            {
-                if (item.EBookId.HasValue)
-                {
-                    var exists = await _context.EbookPurchaseds.AnyAsync(p => p.Uid == order.Uid && p.EBookId == item.EBookId.Value);
-                    if (!exists)
-                    {
-                        _context.EbookPurchaseds.Add(new EbookPurchased
-                        {
-                            Uid = order.Uid,
-                            EBookId = item.EBookId.Value,
-                            PurchaseDateTime = DateTime.UtcNow,
-                            LastReadTime = DateTime.UtcNow,
-                        });
-                    }
-                }
-            }
-            await _context.SaveChangesAsync();
-        }
+        //    foreach (var item in order.OrderItems)
+        //    {
+        //        if (item.EBookId.HasValue)
+        //        {
+        //            var exists = await _context.EbookPurchaseds.AnyAsync(p => p.Uid == order.Uid && p.EBookId == item.EBookId.Value);
+        //            if (!exists)
+        //            {
+        //                _context.EbookPurchaseds.Add(new EbookPurchased
+        //                {
+        //                    Uid = order.Uid,
+        //                    EBookId = item.EBookId.Value,
+        //                    PurchaseDateTime = DateTime.UtcNow,
+        //                    LastReadTime = DateTime.UtcNow,
+        //                });
+        //            }
+        //        }
+        //    }
+        //    await _context.SaveChangesAsync();
+        //}
 
         //// [新增] 提供給前端查詢 ATM 轉帳資訊的 API
         //[HttpGet("{orderId}/bank-details")]
