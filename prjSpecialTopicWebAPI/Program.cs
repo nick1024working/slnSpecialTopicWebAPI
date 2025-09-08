@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using OfficeOpenXml;
+using prjSpecialTopicWebAPI.Features.Ebook.Services;
 using prjSpecialTopicWebAPI.Features.Fund.Services;
 using prjSpecialTopicWebAPI.Features.Shared.Options;
 using prjSpecialTopicWebAPI.Features.Shared.Service;
@@ -77,7 +78,8 @@ builder.Services.AddScoped<LinePayService>();
 
 
 // Ebook
-
+// 【關鍵修正】在這裡註冊 ECPayService
+builder.Services.AddScoped<ECPayService>();
 
 // Forum
 
