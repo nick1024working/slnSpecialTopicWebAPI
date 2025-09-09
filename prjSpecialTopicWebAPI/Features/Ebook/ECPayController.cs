@@ -58,7 +58,8 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
             // itemName += $"_{DateTime.Now.Ticks}";
 
             itemName += $"_{uniqueSuffix}";
-            tradeDesc += $"_{uniqueSuffix}";
+            tradeDesc += $"_{DateTime.Now.Ticks}";
+            //tradeDesc += $"_{uniqueSuffix}";
 
             // 【最終修正】根據你的要求，將返回商店的 URL 直接指向「我的書櫃」
 
