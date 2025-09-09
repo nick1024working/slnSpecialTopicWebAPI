@@ -44,14 +44,22 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
             // 【診斷測試】暫時將商品名稱和描述寫死為最簡單的英文字串。
             // 這是為了驗證 ECPay 伺服器是否因為特定書名中的特殊字元而產生 500 錯誤。
             // 為了穩定性，我們仍然使用簡化的 ItemName 和 TradeDesc
-           // string itemName = "ProBookLand E-Book Purchase";
-            //string tradeDesc = $"Order ID: {order.OrderId}";
+            // string itemName = "ProBookLand E-Book Purchase";
+            string tradeDesc = $"Order ID: {order.OrderId}";
 
+
+
+            string uniqueSuffix = Guid.NewGuid().ToString("N").Substring(0, 8);
             // --- 【Demo 用的臨時修改】 ---
             // 在商品描述中加入當前的時間戳記 (Ticks)，確保每次請求的內容都獨一無二
             // Ticks 是一個非常精確的時間值，可以保證每次都不同
-            string tradeDesc = $"Order ID: {order.OrderId} (Demo: {DateTime.Now.Ticks})";
+           // string tradeDesc = $"Order ID: {order.OrderId} : {DateTime.Now.Ticks}";
             string merchantTradeNo = Guid.NewGuid().ToString("N").Substring(0, 20);
+            // itemName += $"_{DateTime.Now.Ticks}";
+
+            itemName += $"_{uniqueSuffix}";
+            tradeDesc += $"_{DateTime.Now.Ticks}";
+            //tradeDesc += $"_{uniqueSuffix}";
 
             // 【最終修正】根據你的要求，將返回商店的 URL 直接指向「我的書櫃」
 
