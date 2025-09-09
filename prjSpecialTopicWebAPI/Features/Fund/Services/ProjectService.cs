@@ -32,7 +32,7 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Services
             ? (_db.DonateOrders
                 .Where(o => o.DonateProjectId == p.DonateProjectId && o.PaymentDate != null)
                 .Sum(o => (decimal?)o.TotalAmount) ?? 0M)
-            :p.CurrentAmount,
+            : p.CurrentAmount,
                     //p.CurrentAmount,
                     //p.BackerCount ?? 0,
                     _db.DonateOrders.Any(o => o.DonateProjectId == p.DonateProjectId && o.PaymentDate != null)
@@ -56,7 +56,8 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Services
                              .FirstOrDefault(),
                     // IsFavorite
                     p.ProjectIsFavorite == true,
-                     p.CreatedAt
+                     new DateTimeOffset(p.CreatedAt, TimeSpan.Zero),
+                     false
                 ))
                 .ToListAsync();
 
@@ -104,7 +105,8 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Services
                              .Select(i => i.DonateImagePath)
                              .FirstOrDefault(),
                     p.ProjectIsFavorite == true,
-                    p.CreatedAt
+                    new DateTimeOffset(p.CreatedAt, TimeSpan.Zero),
+                    false
                 )
                 {
                     LongDescription = p.ProjectLongDescription,
@@ -220,6 +222,59 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Services
 
             await _db.SaveChangesAsync();
             return true;
+        }
+
+        public async Task<bool> RestoreAsync(int id)
+        {
+            var p = await _db.DonateProjects
+                .FirstOrDefaultAsync(x => x.DonateProjectId == id && x.IsDeleted);
+            if (p is null) return false;
+
+            p.IsDeleted = false;
+            p.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<IReadOnlyList<ProjectListDto>> GetMineAsync(Guid uid, bool includeDeleted = true)
+        {
+            var q = _db.DonateProjects
+                .Where(p => p.Uid == uid);
+
+            if (!includeDeleted)
+                q = q.Where(p => !p.IsDeleted);
+
+            return await q
+    .OrderByDescending(p => p.CreatedAt)
+    .Select(p => new ProjectListDto(
+        p.DonateProjectId,
+        p.ProjectTitle,
+        p.ProjectDescription,
+        p.TargetAmount,
+        _db.DonateOrders.Any(o => o.DonateProjectId == p.DonateProjectId && o.PaymentDate != null)
+        ? (_db.DonateOrders
+                .Where(o => o.DonateProjectId == p.DonateProjectId && o.PaymentDate != null)
+                .Sum(o => (decimal?)o.TotalAmount) ?? 0M)
+            : p.CurrentAmount,
+                    _db.DonateOrders.Any(o => o.DonateProjectId == p.DonateProjectId && o.PaymentDate != null)
+            ? _db.DonateOrders
+                .Where(o => o.DonateProjectId == p.DonateProjectId && o.PaymentDate != null)
+                .Select(o => o.Uid)
+                .Distinct()
+                .Count()
+            : (p.BackerCount ?? 0),
+        new DateTime(p.StartDate.Year, p.StartDate.Month, p.StartDate.Day),
+        new DateTime(p.EndDate.Year, p.EndDate.Month, p.EndDate.Day),
+        p.Status,
+        p.DonateImages
+            .OrderByDescending(i => i.IsMain).ThenBy(i => i.DonateImageId)
+            .Select(i => i.DonateImagePath).FirstOrDefault(),
+        p.ProjectIsFavorite == true,
+        new DateTimeOffset(p.CreatedAt, TimeSpan.Zero),
+        p.IsDeleted
+    ))
+    .AsNoTracking()
+    .ToListAsync();
         }
     }
 }

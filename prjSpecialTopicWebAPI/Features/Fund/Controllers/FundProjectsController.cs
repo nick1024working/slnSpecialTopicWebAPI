@@ -129,6 +129,23 @@ namespace prjSpecialTopicWebAPI.Features.Fund.Controllers
             return ok ? NoContent() : NotFound();
         }
 
+        [Authorize]
+        [HttpPatch("{id:int}/restore")]
+        public async Task<IActionResult> Restore(int id)
+        {
+            var ok = await _svc.RestoreAsync(id);
+            return ok ? NoContent() : NotFound();
+        }
+
+        [Authorize]
+        [HttpGet("mine")]
+        public async Task<ActionResult<IEnumerable<ProjectListDto>>> GetMine([FromQuery] bool includeDeleted = true)
+        {
+            if (!TryGetUid(out var uid)) return Unauthorized();
+            var list = await _svc.GetMineAsync(uid, includeDeleted);
+            return Ok(list);
+        }
+
         // 提供另一條上傳路徑（與 FundImagesController 同邏輯、同儲存路徑）
         [Authorize]
         [HttpPost("{projectId:int}/images")]
