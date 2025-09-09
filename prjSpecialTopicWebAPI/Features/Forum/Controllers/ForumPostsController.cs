@@ -400,6 +400,8 @@ namespace prjSpecialTopicWebAPI.Features.Forum.Controllers
                 var catExists = await _db.PostCategories.AsNoTracking()
                     .AnyAsync(c => c.PostCategoryId == form.PostCategoryID.Value);
                 if (!catExists) return BadRequest($"找不到 PostCategoryId={form.PostCategoryID}。");
+                if (string.IsNullOrWhiteSpace(form.ContentHtml) || form.ContentHtml.Trim().Length < 10)
+                    return BadRequest("文章內容至少要 10 個字。");
 
                 // 取 UID（略同你原本）
                 Guid uid;

@@ -64,5 +64,18 @@ namespace prjSpecialTopicWebAPI.Features.Shared.Service
             }
 
         }
+        public async Task SendHtmlAsync(string to,string subject,string html,string?textFallback = null,CancellationToken ct = default)
+        {
+            var builder = new BodyBuilder
+            {
+                HtmlBody = html,
+              
+                TextBody = string.IsNullOrWhiteSpace(textFallback)
+                    ? "請在支援 HTML 的郵件客戶端開啟此信，或將內文中的重設連結複製到瀏覽器。"
+                    : textFallback
+            };
+
+            await SendAsync(to, subject, builder.ToMessageBody(), ct);
+        }
     }
 }

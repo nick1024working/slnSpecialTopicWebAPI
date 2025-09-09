@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using OfficeOpenXml;
+using prjSpecialTopicWebAPI.Features.Ebook.Services;
 using prjSpecialTopicWebAPI.Features.Fund.Services;
 using prjSpecialTopicWebAPI.Features.Shared.Options;
 using prjSpecialTopicWebAPI.Features.Shared.Service;
@@ -16,7 +17,7 @@ using prjSpecialTopicWebAPI.Models;
 using prjSpecialTopicWebAPI.Usedbook.Application.Services;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
-using System.Linq;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -77,7 +78,8 @@ builder.Services.AddScoped<LinePayService>();
 
 
 // Ebook
-
+// 【關鍵修正】在這裡註冊 ECPayService
+builder.Services.AddScoped<ECPayService>();
 
 // Forum
 
@@ -137,9 +139,13 @@ builder.Services.AddScoped<UsedBookOrderService>();
 // User
 // ===== JWT 驗證設定（新增） =====
 var jwtKey = builder.Configuration["Jwt:Key"]
-             ?? throw new InvalidOperationException("Missing Jwt:Key in configuration.");
+?? throw new InvalidOperationException("Missing Jwt:Key in configuration.");
 var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
 
+//忘記密碼用
+
+builder.Services.Configure<PasswordResetOptions>(builder.Configuration.GetSection("PasswordReset"));
+builder.Services.AddScoped<EmailService>();
 //測試用
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
