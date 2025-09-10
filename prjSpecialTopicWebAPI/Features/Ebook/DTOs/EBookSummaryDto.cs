@@ -14,6 +14,8 @@
         public decimal? ActualPrice { get; set; }
 
         // --- [新增] 在這裡補上缺少的屬性 ---
+        // --- [新增] 在這裡補上缺少的屬性 ---
+        public int CategoryId { get; set; } // <-- [修改] 新增這一行
         public string? CategoryName { get; set; }
         public List<string> Labels { get; set; } = new();
     }
