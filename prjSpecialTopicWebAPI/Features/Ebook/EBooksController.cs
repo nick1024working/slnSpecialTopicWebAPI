@@ -131,11 +131,39 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
 
             // --- [新增] 在這裡插入新的 if 區塊 ---
             // 如果 categoryId 參數有值 (且不為0)，就加入分類的過濾條件
+            //if (categoryId.HasValue && categoryId > 0)
+            //{
+            //    query = query.Where(b => b.CategoryId == categoryId.Value);
+            //}
+            // --- 新增區塊結束 ---
+
+            // --- [重大修改] 分類篩選邏輯 ---
             if (categoryId.HasValue && categoryId > 0)
             {
-                query = query.Where(b => b.CategoryId == categoryId.Value);
+                // 檢查傳入的 categoryId 是否為一個父分類 (也就是它底下有子分類)
+                var isParentCategory = await _db.EBookCategories.AnyAsync(c => c.ParentCategoryId == categoryId.Value);
+
+                if (isParentCategory)
+                {
+                    // 如果是父分類，找出它所有子分類的 ID
+                    var childCategoryIds = await _db.EBookCategories
+                        .Where(c => c.ParentCategoryId == categoryId.Value)
+                        .Select(c => c.CategoryId)
+                        .ToListAsync();
+
+                    // 把父分類自己的 ID 也加進去 (以防有些書是直接掛在父分類下)
+                    childCategoryIds.Add(categoryId.Value);
+
+                    // 篩選條件：書的 CategoryId 必須是這個父分類或其任何一個子分類
+                    query = query.Where(b => childCategoryIds.Contains(b.CategoryId));
+                }
+                else
+                {
+                    // 如果不是父分類 (即它是一個子分類或沒有子分類的分類)，則直接比對
+                    query = query.Where(b => b.CategoryId == categoryId.Value);
+                }
             }
-            // --- 新增區塊結束 ---
+            // --- 修改結束 ---
 
             // 3. 取得符合條件的「總筆數」，這個計算必須在分頁(Skip/Take)之前
             var totalCount = await query.CountAsync();
@@ -156,7 +184,7 @@ namespace prjSpecialTopicWebAPI.Features.Ebook
                     IsReadable = !string.IsNullOrEmpty(b.EBookPosition),
                     // [新增] 在此處也加入 ActualPrice
                     ActualPrice = b.ActualPrice,
-
+                    CategoryId = b.CategoryId, // <-- [修改] 新增這一行
                     // --- [新增] 將 CategoryName 和 Labels 加入到 DTO 中 ---
                     CategoryName = b.Category.CategoryName, // 從關聯的 Category 物件取得名稱
                     Labels = b.Labels.Select(l => l.LabelName).ToList() // 將關聯的 Labels 集合轉為字串列表
